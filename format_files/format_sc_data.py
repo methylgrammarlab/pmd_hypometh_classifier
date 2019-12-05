@@ -10,8 +10,13 @@ import numpy as np
 
 import format_files.tools as tools
 
+OUTPUT_FILE_FORMAT = "%s_%s_%s_%s.pickle.zlib"
+
+# The format of the input files and the way to extract data from them
 FILE_SUFFIX = "*.singleC.cpg.txt"
 FILE_DETAILS_RE = re.compile(".+(CRC\d+)_(\w+)_(\d+).singleC.cpg")
+
+# Indexes match the single cell columns in the file
 CHR_INDEX = 0
 POS_INDEX = 1
 STRAND_INDEX = 3
@@ -19,22 +24,45 @@ TOTAL_INDEX = 4
 MET_INDEX = 5
 
 
-def input_parser():
+def format_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--raw', help='Path to raw files of scWGBS', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     parser.add_argument('--patient', help='Name of the patient, all if not provided', required=False)
     args = parser.parse_args()
-    return args
+
+    output = args.output_folder
+    if not output:
+        output = os.path.dirname(sys.argv[0])
+
+    files_path = os.path.join(args.raw, FILE_SUFFIX)
+    if args.patient:
+        files_path = os.path.join(args.raw, "*%s" % args.patient + FILE_SUFFIX)
+
+    return output, files_path
 
 
-def format_file(file_path):
+def format_scwgbs_file(file_path):
+    """
+    Format a scwgbs file to a more usable manner
+    :param file_path: The path of the file to format
+    :type file_path: str
+    :return: A dict where each key is a chr and the value is an array with all the scwgbs reads
+    :rtype: dict
+    """
     chr_dict = extract_cols(file_path)
     chr_dict = combine_strands(chr_dict)
     return chr_dict
 
 
 def extract_cols(file_path):
+    """
+    Extract the relevant columns from the file and save them by chromosome
+    :param file_path: The path of the file to read
+    :type file_path: str
+    :return: A dict where each key is chr and the value is a list where each value is a line in the file
+    :rtype: dict[str:list]
+    """
     chr_dict = {}
     with open(file_path) as f:
         csv_file = csv.DictReader(f, delimiter="\t")
@@ -57,14 +85,24 @@ def extract_cols(file_path):
 
 
 def combine_strands(chr_dict):
-    # Combine same pos to one
-    chr_dict_new = {}
+    """
+    Combine the information from the + strand with the information from the - strand
+    :param chr_dict: A dict where each key is chr and the value is a list where each value is a line in the
+    file
+    :type chr_dict: dict
+    :return: A dict where each key is chr and the value is a np array where each value is a line in the file
+    """
+    chr_dict_new = {}  # Can't change dict while running on it
+
+    # Go over the chr, create new array with the size of the unique position and sum the positions we saw
+    # twice
     for chr in chr_dict:
         temp_array = np.array(chr_dict[chr], dtype=np.uint32)
         positions, positions_count = np.unique(temp_array[:, 0], return_counts=True)
         only_once = positions[np.where(positions_count == 1)]
         twice = positions[np.where(positions_count != 1)]
         chr_array = np.empty((positions.size, temp_array.shape[1]), dtype=np.uint32)
+
         i = 0
         for position in twice:
             arr = np.sum(temp_array[np.where(temp_array[:, 0] == position)], 0)
@@ -79,16 +117,14 @@ def combine_strands(chr_dict):
     return chr_dict_new
 
 
-def main():
-    args = input_parser()
-    output = args.output_folder
-    if not output:
-        output = os.path.dirname(sys.argv[0])
-
-    files_path = os.path.join(args.raw, FILE_SUFFIX)
-    if args.patient:
-        files_path = os.path.join(args.raw, "*%s" % args.patient + FILE_SUFFIX)
-
+def get_patients_files_dict(files_path):
+    """
+    Get all the files and save them by the patient
+    :param files_path: The path of the files to read
+    :type files_path: str
+    :return: A dict where each key is a patient and the values is a list of pathes
+    :rtype: dict{str:list[str]}
+    """
     all_file_paths = glob.glob(files_path)
     patient_dict = {}
     for file_path in all_file_paths:
@@ -98,13 +134,20 @@ def main():
 
         patient_dict[name].append(file_path)
 
+    return patient_dict
+
+
+def main():
+    output, files_path = format_args()
+    patient_dict = get_patients_files_dict(files_path)
+
     for patient in patient_dict:
         for file_path in patient_dict[patient]:
-            chr_dict = format_file(file_path)
+            patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
+            chr_dict = format_scwgbs_file(file_path)
 
             for chr in chr_dict:
-                patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
-                file_name = "%s_%s_%s_%s.pickle.zlib" % (patient, cell, num, chr)
+                file_name = OUTPUT_FILE_FORMAT % (patient, cell, num, chr)
                 output_path = os.path.join(output, file_name)
                 tools.save_as_compressed_pickle(output_path, chr_dict[chr])
 
