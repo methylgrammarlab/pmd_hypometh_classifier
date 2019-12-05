@@ -3,12 +3,12 @@ import csv
 import gc
 import glob
 import os
-import pickle
 import re
 import sys
-import zlib
 
 import numpy as np
+
+import format_files.tools as tools
 
 FILE_SUFFIX = "*.singleC.cpg.txt"
 FILE_DETAILS_RE = re.compile(".+(CRC\d+)_(\w+)_(\d+).singleC.cpg")
@@ -79,13 +79,6 @@ def combine_strands(chr_dict):
     return chr_dict_new
 
 
-def save_data(file_path, chr, chr_data, output_dir):
-    patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
-    file_name = "%s_%s_%s_%s.pickle.zlib" % (patient, cell, num, chr)
-    with open(os.path.join(output_dir, file_name), "wb") as patient_file:
-        patient_file.write(zlib.compress(pickle.dumps(chr_data, pickle.HIGHEST_PROTOCOL), 9))
-
-
 def main():
     args = input_parser()
     output = args.output_folder
@@ -110,7 +103,10 @@ def main():
             chr_dict = format_file(file_path)
 
             for chr in chr_dict:
-                save_data(file_path, chr, chr_dict[chr], output)
+                patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
+                file_name = "%s_%s_%s_%s.pickle.zlib" % (patient, cell, num, chr)
+                file_path = os.path.join(file_path, file_name)
+                tools.save_as_compressed_pickle(file_path, chr_dict[chr])
 
         gc.collect()
 
