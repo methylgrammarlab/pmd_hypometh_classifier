@@ -105,8 +105,8 @@ def main():
             for chr in chr_dict:
                 patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
                 file_name = "%s_%s_%s_%s.pickle.zlib" % (patient, cell, num, chr)
-                file_path = os.path.join(file_path, file_name)
-                tools.save_as_compressed_pickle(file_path, chr_dict[chr])
+                output_path = os.path.join(output, file_name)
+                tools.save_as_compressed_pickle(output_path, chr_dict[chr])
 
         gc.collect()
 
