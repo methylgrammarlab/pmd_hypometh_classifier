@@ -28,11 +28,11 @@ NUMBER_OF_ORPH_PER_INDEX = [1, 2, 3, 4, 5, 10, 20, 35, 50, 75, 100, 150, 200]
 
 
 def is_weak(context):
-    return True if WEAK_FORMAT_RE.match(context) != None else False
+    return False if WEAK_FORMAT_RE.match(context) is None else True
 
 
 def is_strong(context):
-    return True if STRONG_FORMAT_RE.match(context) != None else False
+    return False if STRONG_FORMAT_RE.match(context) is None else True
 
 
 def input_parser():
