@@ -22,7 +22,8 @@ STRONG_FORMAT_RE = re.compile("\w\w[CG]CG[CG]\w\w")
 NUCLEOTIDE_TO_NUMBER = {"A": "1",
                         "C": "2",
                         "G": "3",
-                        "T": "4"}
+                        "T": "4",
+                        "N": "5"}
 
 # Indexes match the seq context columns in the file
 POS_INDEX = 2
