@@ -23,7 +23,7 @@ NUCLEOTIDE_TO_NUMBER = {"A": "1",
                         "C": "2",
                         "G": "3",
                         "T": "4",
-                        "N": "5"}
+                        "N": "5"}  # N means that this is unknown
 
 # Indexes match the seq context columns in the file
 POS_INDEX = 2
