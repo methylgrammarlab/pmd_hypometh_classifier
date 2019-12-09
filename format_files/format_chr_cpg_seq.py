@@ -4,7 +4,6 @@ import glob
 import os
 import re
 import sys
-
 import numpy as np
 
 import format_files.tools as tools

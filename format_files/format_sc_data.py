@@ -5,6 +5,7 @@ import glob
 import os
 import re
 import sys
+import pandas
 
 import numpy as np
 
@@ -65,23 +66,16 @@ def extract_cols(file_path):
     """
     chr_dict = {}
     with open(file_path) as f:
-        csv_file = csv.DictReader(f, delimiter="\t")
-        for _ in csv_file.reader:
-            break
+        pandas_file = pandas.read_csv(f, sep="\t")
+        data = pandas_file._values
+        minus_index = np.where(data[:, 3] == "-")
+        data[minus_index, 1] = data[minus_index, 1] - 1
+        chrs = np.unique(data[:, 0])
+        for chr in chrs:
+            data_to_dict = data[np.where(data[:, 0] == chr), :][0][:, [1, 4, 5]]
+            chr_dict[chr] = data_to_dict.astype(dtype=np.uint32)
 
-        for line in csv_file.reader:
-            chr, pos, strand, total, met = line[CHR_INDEX], int(line[POS_INDEX]), line[STRAND_INDEX], \
-                                           int(line[TOTAL_INDEX]), int(line[MET_INDEX])
-
-            if strand == "-":
-                pos -= 1
-
-            if chr not in chr_dict:
-                chr_dict[chr] = []
-
-            chr_dict[chr].append([pos, total, met])
-
-    return chr_dict
+        return chr_dict
 
 
 def combine_strands(chr_dict):
@@ -97,7 +91,7 @@ def combine_strands(chr_dict):
     # Go over the chr, create new array with the size of the unique position and sum the positions we saw
     # twice
     for chr in chr_dict:
-        temp_array = np.array(chr_dict[chr], dtype=np.uint32)
+        temp_array = chr_dict[chr]
         positions, positions_count = np.unique(temp_array[:, 0], return_counts=True)
         only_once = positions[np.where(positions_count == 1)]
         twice = positions[np.where(positions_count != 1)]
