@@ -29,6 +29,8 @@ def format_args():
     parser.add_argument('--raw', help='Path to raw files of scWGBS', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     parser.add_argument('--patient', help='Name of the patient, all if not provided', required=False)
+    parser.add_argument('--validate', help='Just validate the information', required=False,
+                        action='store_true', default=False)
     args = parser.parse_args()
 
     output = args.output_folder
@@ -39,7 +41,7 @@ def format_args():
     if args.patient:
         files_path = os.path.join(args.raw, "*%s" % args.patient + FILE_SUFFIX)
 
-    return output, files_path
+    return output, files_path, args.validate
 
 
 def format_scwgbs_file(file_path):
@@ -130,9 +132,29 @@ def get_patients_files_dict(files_path):
     return patient_dict
 
 
+def validate_only(output, patient_dict):
+    log_file = open("log_file.txt", "w")
+    for patient in patient_dict:
+        for file_path in patient_dict[patient]:
+            patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
+            chr_dict = extract_cols(file_path)
+
+            for chr in chr_dict:
+                file_name = OUTPUT_FILE_FORMAT % (patient, cell, num, chr)
+                output_path = os.path.join(output, patient, file_name)
+                if not os.path.exists(output_path):
+                    log_file.write("%s,%s\n" %(patient, file_path))
+
+    log_file.close()
+
+
 def main():
-    output, files_path = format_args()
+    output, files_path, validate = format_args()
     patient_dict = get_patients_files_dict(files_path)
+
+    if validate:
+        validate_only(output, patient_dict)
+
 
     for patient in patient_dict:
         for file_path in patient_dict[patient]:
@@ -140,6 +162,7 @@ def main():
             expected_file = OUTPUT_FILE_FORMAT % (patient, cell, num, "chr16")
             if os.path.exists(expected_file):
                 continue
+
             chr_dict = format_scwgbs_file(file_path)
 
             for chr in chr_dict:
