@@ -155,14 +155,14 @@ def main():
     if validate:
         validate_only(output, patient_dict)
 
-
     for patient in patient_dict:
         for file_path in patient_dict[patient]:
             patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
             expected_file = OUTPUT_FILE_FORMAT % (patient, cell, num, "chr16")
-            if os.path.exists(expected_file):
+            if os.path.exists(os.path.join(output, expected_file)):
                 continue
 
+            print("here")
             chr_dict = format_scwgbs_file(file_path)
 
             for chr in chr_dict:
