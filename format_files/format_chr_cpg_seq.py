@@ -6,7 +6,7 @@ import re
 import sys
 import numpy as np
 
-import format_files.tools as tools
+import commons.tools as tools
 
 OUTPUT_FILE_FORMAT = "full_cpg_seq_chr%s.pickle.zlib"
 

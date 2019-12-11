@@ -5,7 +5,7 @@ import glob
 import re
 import numpy as np
 
-import format_files.tools as tools
+import commons.tools as tools
 
 PATIENT_FILE_FORMAT = "CRC*.pickle.zlib"
 FULL_CPG_FILE_FORMAT = "full_cpg_seq_chr*.pickle.zlib"
