@@ -1,12 +1,11 @@
 import argparse
-import gc
 import glob
 import os
 import re
 import sys
-import pandas
 
 import numpy as np
+import pandas
 
 import format_files.tools as tools
 
@@ -31,6 +30,7 @@ def format_args():
     parser.add_argument('--patient', help='Name of the patient, all if not provided', required=False)
     parser.add_argument('--validate', help='Just validate the information', required=False,
                         action='store_true', default=False)
+    parser.add_argument('--sort', action='store_true', default=False)
     args = parser.parse_args()
 
     output = args.output_folder
@@ -41,7 +41,7 @@ def format_args():
     if args.patient:
         files_path = os.path.join(args.raw, "*%s" % args.patient + FILE_SUFFIX)
 
-    return output, files_path, args.validate
+    return output, files_path, args.validate, args.sort
 
 
 def format_scwgbs_file(file_path):
@@ -105,9 +105,9 @@ def combine_strands(chr_dict):
             chr_array[i] = arr
             i += 1
 
-        once_pos = np.in1d(temp_array[:, 0], only_once)
+        once_pos = np.isin(temp_array[:, 0], only_once)
         chr_array[i:] = temp_array[once_pos]
-        chr_dict_new[chr] = chr_array
+        chr_dict_new[chr] = chr_array[chr_array[:, 0].argsort()]
 
     return chr_dict_new
 
@@ -143,34 +143,50 @@ def validate_only(output, patient_dict):
                 file_name = OUTPUT_FILE_FORMAT % (patient, cell, num, chr)
                 output_path = os.path.join(output, patient, file_name)
                 if not os.path.exists(output_path):
-                    log_file.write("%s,%s\n" %(patient, file_path))
+                    log_file.write("%s,%s\n" % (patient, file_path))
 
     log_file.close()
 
 
+def re_sort_files(output):
+    """
+    Needed this to resort the data, first version wasn't sort
+    :param output: The folder of all the files - expected to have the following tree; output\patient\all_files
+    """
+    all_files_path = os.path.join(output, "*", "*.pickle.zlib")
+    all_files = glob.glob(all_files_path)
+    for file_path in all_files:
+        data = tools.load_compressed_pickle(file_path)
+        data = data[data[:, 0].argsort()]
+        tools.save_as_compressed_pickle(file_path, data)
+
+
 def main():
-    output, files_path, validate = format_args()
+    output, files_path, validate, sort = format_args()
     patient_dict = get_patients_files_dict(files_path)
 
     if validate:
         validate_only(output, patient_dict)
 
-    for patient in patient_dict:
-        for file_path in patient_dict[patient]:
-            patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
-            expected_file = OUTPUT_FILE_FORMAT % (patient, cell, num, "chr16")
-            if os.path.exists(os.path.join(output, expected_file)):
-                continue
+    elif sort:
+        re_sort_files(output)
 
-            print("here")
-            chr_dict = format_scwgbs_file(file_path)
 
-            for chr in chr_dict:
-                file_name = OUTPUT_FILE_FORMAT % (patient, cell, num, chr)
-                output_path = os.path.join(output, file_name)
-                tools.save_as_compressed_pickle(output_path, chr_dict[chr])
+    else:
+        for patient in patient_dict:
+            for file_path in patient_dict[patient]:
+                patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
 
-        gc.collect()
+                # Check if one of the files exists, if yes more to parse other files
+                if os.path.exists(os.path.join(output, OUTPUT_FILE_FORMAT % (patient, cell, num, "chr16"))):
+                    continue
+
+                chr_dict = format_scwgbs_file(file_path)
+
+                for chr in chr_dict:
+                    file_name = OUTPUT_FILE_FORMAT % (patient, cell, num, chr)
+                    output_path = os.path.join(output, file_name)
+                    tools.save_as_compressed_pickle(output_path, chr_dict[chr])
 
 
 if __name__ == '__main__':
