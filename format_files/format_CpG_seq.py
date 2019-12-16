@@ -3,8 +3,10 @@ import glob
 import os
 import re
 import sys
+from tqdm import tqdm
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+sys.path.append(os.path.dirname(os.getcwd()))
 
 import numpy as np
 import pandas as pd
@@ -14,17 +16,18 @@ import commons.tools as tools
 PATIENT_FILE_FORMAT = "CRC*.pickle.zlib"
 FULL_CPG_FILE_FORMAT = "full_cpg_seq_chr*.pickle.zlib"
 OUTPUT_FILE_FORMAT = "all_cpg_ratios_%s_%s.dummy.pkl.zip"
-PATIENT_FILE_DETAILS_RE = re.compile(".+(CRC\d+)_.+_(chr\d+).pickle.zlib")
-PATIENT_CELL_NAME_RE = re.compile(".+CRC\d+_(\w+_\d+)_chr\d+.pickle.zlib")
-FULL_CPG_FILE_DETAILS_RE = re.compile(".+full_cpg_seq_(chr\d+).pickle.zlib")
+PATIENT_FILE_DETAILS_RE = re.compile(".+(CRC\d+)_.+_(chr\d+|chrX|chrY).pickle.zlib")
+PATIENT_CELL_NAME_RE = re.compile(".+(CRC\d+)_(\w+_\d+)_(chr\d+)|chrX|chrY.pickle.zlib")
+FULL_CPG_FILE_DETAILS_RE = re.compile(".+full_cpg_seq_(chr\d+|chrX|chrY).pickle.zlib")
 
 
 def parse_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--folder', help='Path to folder of parsed scWGBS', required=True)
+    parser.add_argument('--sc_folder', help='Path to folder of parsed scWGBS', required=True)
+    parser.add_argument('--genomic_folder', help='Path to folder of genomic data', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     parser.add_argument('--patient', help='Name of the patient, all if not provided', required=False)
-    parser.add_argument('--chr', help='Chromosome, all if not provided', required=False)
+    parser.add_argument('--chr', help='Chromosome, all if not provided. e.g. chr16', required=False)
     args = parser.parse_args()
     return args
 
@@ -38,12 +41,17 @@ def create_chr_df(chr_file_list, chr_cpg_pos):
 
     i = 1
     for cell_path in chr_file_list:
-        cell_names.append(PATIENT_CELL_NAME_RE.findall(cell_path)[0])
+        cell_names.append(PATIENT_CELL_NAME_RE.findall(cell_path)[0][1])
         cell = tools.load_compressed_pickle(cell_path)
-        cell = cell[cell[:, 0].argsort()]
+        # cell = cell[cell[:, 0].argsort()]
         match = np.isin(chr_full_cpg, cell[:, 0])
         ratio = cell[:, 2] / cell[:, 1]
-        chr_all_cells[i, match] = ratio
+        try :
+            chr_all_cells[i, match] = ratio
+        except Exception:
+            cell_names[-1] = "missing_data"
+            with open("missing_data_%s.txt" % PATIENT_CELL_NAME_RE.findall(cell_path)[0][0], "a") as missing:
+                missing.write("Patient: %s, Cell: %s, Chromosome: %s\n" % PATIENT_CELL_NAME_RE.findall(cell_path)[0])
         i += 1
 
     df = pd.DataFrame(data=chr_all_cells[1:, :], columns=chr_all_cells[0, :].astype(np.int), index=cell_names,
@@ -59,7 +67,7 @@ def main():
         output = os.path.dirname(sys.argv[0])
 
     # get dict chr#: array[cpg]
-    full_cpg_files_path = os.path.join(args.folder, FULL_CPG_FILE_FORMAT)
+    full_cpg_files_path = os.path.join(args.genomic_folder, FULL_CPG_FILE_FORMAT)
     all_full_cpg_file_paths = glob.glob(full_cpg_files_path)
     chr_pos_dict = {}
     for file_path in all_full_cpg_file_paths:
@@ -71,22 +79,26 @@ def main():
         chr_pos_dict[chr].append(full_cpg_seq)
 
     # patient files path
-    patient_files_path = os.path.join(args.folder, PATIENT_FILE_FORMAT)
+    patient_files_path = os.path.join(args.sc_folder, PATIENT_FILE_FORMAT)
     if args.patient:
-        patient_files_path = os.path.join(args.folder, "%s" % args.patient + PATIENT_FILE_FORMAT)
+        patient_files_path = os.path.join(args.sc_folder, "%s" % args.patient + PATIENT_FILE_FORMAT)
     all_patient_file_paths = glob.glob(patient_files_path)
     patient_chr_dict = {}
 
     # get dict patient#chr#: array[path]
     for file_path in all_patient_file_paths:
         name = PATIENT_FILE_DETAILS_RE.findall(file_path)[0]
+        if name[1].endswith('X') or name[1].endswith('Y'):
+            continue
         if name not in patient_chr_dict:
             patient_chr_dict[name] = []
 
         patient_chr_dict[name].append(file_path)
 
     # get pandas df
-    for patient_and_chr in patient_chr_dict:
+    for patient_and_chr in tqdm(patient_chr_dict, desc="chr"):
+        if args.chr and args.chr != patient_and_chr[1]:
+            continue
         chr_all_cells = create_chr_df(patient_chr_dict[patient_and_chr], chr_pos_dict[patient_and_chr[1]][0])
         output_path = os.path.join(output, OUTPUT_FILE_FORMAT % (patient_and_chr[0], patient_and_chr[1]))
         chr_all_cells.to_pickle(output_path, compression='zip')
