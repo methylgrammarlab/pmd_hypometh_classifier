@@ -3,6 +3,7 @@ import csv
 import glob
 import os
 import re
+from tqdm import tqdm
 
 import sys
 
@@ -104,7 +105,7 @@ def main():
     output_folder, files_path = format_args()
     all_file_paths = glob.glob(files_path)
 
-    for cpg_file in all_file_paths:
+    for cpg_file in tqdm(all_file_paths):
         cpg_matrix = format_cpg_seq_file(cpg_file)
         context_col_int = convert_context_to_int_vc(cpg_matrix[:, -1])
         is_weak_col = is_weak_vc(cpg_matrix[:, -1]).reshape(cpg_matrix.shape[0], 1)

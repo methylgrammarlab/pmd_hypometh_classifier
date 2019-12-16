@@ -3,6 +3,8 @@ import glob
 import os
 import re
 import sys
+from tqdm import tqdm
+
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -93,7 +95,7 @@ def combine_strands(chr_dict):
 
     # Go over the chr, create new array with the size of the unique position and sum the positions we saw
     # twice
-    for chr in chr_dict:
+    for chr in tqdm(chr_dict.keys(), desc="chr"):
         temp_array = chr_dict[chr]
         positions, positions_count = np.unique(temp_array[:, 0], return_counts=True)
         only_once = positions[np.where(positions_count == 1)]
@@ -175,9 +177,13 @@ def main():
         re_sort_files(output)
 
     else:
+        pbar = tqdm(patient_dict.keys())
         for patient in patient_dict:
+            pbar.set_description("Patients")
+            fbar = tqdm(patient_dict[patient])
             for file_path in patient_dict[patient]:
                 patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
+                fbar.set_description("Files")
 
                 # Check if one of the files exists, if yes more to parse other files
                 if os.path.exists(os.path.join(output, OUTPUT_FILE_FORMAT % (patient, cell, num, "chr16"))):

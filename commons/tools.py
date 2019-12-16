@@ -1,3 +1,4 @@
+import datetime
 import pickle
 import sys
 import zlib
@@ -31,5 +32,15 @@ def load_compressed_pickle(file_path):
 
 
 def init_slurm(func):
-    print(" ".join(sys.argv))
-    func()
+    print("Run the script: %s" % " ".join(sys.argv))
+    start_time = datetime.datetime.now()
+    print("Start time: %s" % start_time)
+    try:
+        func()
+    except Exception as ex:
+        print("Run ended due to exception: %s" % ex)
+    else:
+        print("Run ended with no exceptions")
+    end_time = datetime.datetime.now()
+    delta = end_time - start_time
+    print("End time:%s\nTotal time is:%s seconds" % (end_time, delta.total_seconds()))
