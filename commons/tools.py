@@ -1,4 +1,5 @@
 import pickle
+import sys
 import zlib
 
 
@@ -27,3 +28,8 @@ def load_compressed_pickle(file_path):
         formatted_data = pickle.loads(decompressed_data)
 
         return formatted_data
+
+
+def init_slurm(func):
+    print(" ".join(sys.argv))
+    func()
