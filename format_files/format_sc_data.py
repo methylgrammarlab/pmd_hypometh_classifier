@@ -144,6 +144,7 @@ def validate_only(output, patient_dict):
                 output_path = os.path.join(output, patient, file_name)
                 if not os.path.exists(output_path):
                     log_file.write("%s,%s\n" % (patient, file_path))
+                    break
 
     log_file.close()
 
@@ -170,7 +171,6 @@ def main():
 
     elif sort:
         re_sort_files(output)
-
 
     else:
         for patient in patient_dict:
