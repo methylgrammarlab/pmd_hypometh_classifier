@@ -2,6 +2,9 @@ import argparse
 import collections
 import glob
 import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import numpy as np
 import pandas as pd
@@ -17,7 +20,7 @@ def get_files_format(folder):
     :return: The formatted files locations ready to glob
     :rtype: str
     """
-    return os.path.join(folder, "CRC09", "*.pickle.zlib")
+    return os.path.join(folder, "*", "*.pickle.zlib")
 
 
 def format_args():

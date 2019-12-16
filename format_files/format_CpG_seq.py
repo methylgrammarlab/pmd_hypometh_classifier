@@ -1,11 +1,13 @@
 import argparse
-import sys
-import os
 import glob
+import os
 import re
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 import numpy as np
 import pandas as pd
-import time
 
 import commons.tools as tools
 
@@ -38,13 +40,14 @@ def create_chr_df(chr_file_list, chr_cpg_pos):
     for cell_path in chr_file_list:
         cell_names.append(PATIENT_CELL_NAME_RE.findall(cell_path)[0])
         cell = tools.load_compressed_pickle(cell_path)
-        cell = cell[cell[:,0].argsort()]
+        cell = cell[cell[:, 0].argsort()]
         match = np.isin(chr_full_cpg, cell[:, 0])
         ratio = cell[:, 2] / cell[:, 1]
         chr_all_cells[i, match] = ratio
         i += 1
 
-    df = pd.DataFrame(data=chr_all_cells[1:, :], columns=chr_all_cells[0, :].astype(np.int), index=cell_names, dtype=np.float16)
+    df = pd.DataFrame(data=chr_all_cells[1:, :], columns=chr_all_cells[0, :].astype(np.int), index=cell_names,
+                      dtype=np.float16)
     return df
 
 
@@ -87,6 +90,7 @@ def main():
         chr_all_cells = create_chr_df(patient_chr_dict[patient_and_chr], chr_pos_dict[patient_and_chr[1]][0])
         output_path = os.path.join(output, OUTPUT_FILE_FORMAT % (patient_and_chr[0], patient_and_chr[1]))
         chr_all_cells.to_pickle(output_path, compression='zip')
+
 
 if __name__ == '__main__':
     main()
