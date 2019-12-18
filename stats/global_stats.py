@@ -73,17 +73,15 @@ def reads_stats(all_files, output_folder):
         total_ratio_counter = update_ratio_count(data, total_ratio_counter)
         total_ratio_for_limit_counter = update_ratio_count(data, total_ratio_for_limit_counter, 10)
 
-    read_counter_df = pd.DataFrame.from_dict(total_read_counter, orient='index').reset_index()
-    read_counter_df.columns = COLUMNS
-    read_counter_df.to_csv(os.path.join(output_folder, "read_counter.csv "))
+    counter_to_csv(total_read_counter, os.path.join(output_folder, "read_counter.csv "))
+    counter_to_csv(total_ratio_counter, os.path.join(output_folder, "ratio_counter.csv "))
+    counter_to_csv(total_ratio_for_limit_counter, os.path.join(output_folder, "ratio_counter_limit.csv "))
 
-    ratio_counter_df = pd.DataFrame.from_dict(total_ratio_counter, orient='index').reset_index()
-    ratio_counter_df.columns = COLUMNS
-    ratio_counter_df.to_csv(os.path.join(output_folder, "ratio_counter.csv "))
 
-    ratio_counter_with_limit_df = pd.DataFrame.from_dict(total_ratio_for_limit_counter, orient='index').reset_index()
-    ratio_counter_with_limit_df.columns = COLUMNS
-    ratio_counter_with_limit_df.to_csv(os.path.join(output_folder, "ratio_counter_limit.csv "))
+def counter_to_csv(counter, output_path):
+    counter_df = pd.DataFrame.from_dict(counter, orient='index').reset_index()
+    counter_df.columns = COLUMNS
+    counter_df.to_csv(output_path)
 
 
 def percentage_of_positions(all_files, output_folder):
@@ -91,6 +89,8 @@ def percentage_of_positions(all_files, output_folder):
     seq_files = glob.glob(os.path.join(ALL_SEQ_PATH, "*"))
     positions_in_chr = {}
     files_dict = {}
+    all_file = open(os.path.join(output_folder, "chr_all_stats.csv"), "a")
+    all_file.write("file name, chr cpg, read cpg, ratio\n")
     for seq_file in tqdm(seq_files, desc="full seq files"):
         chr_number = re.findall("\d+", seq_file)[0]
         seq_data = tools.load_compressed_pickle(seq_file)
@@ -111,6 +111,8 @@ def percentage_of_positions(all_files, output_folder):
         ratio = num_of_read_positions / num_of_expected_positions
         files_dict[chr_number].write(
             "%s,%s,%s,%s\n" % (os.path.basename(read_file), num_of_expected_positions, num_of_read_positions, ratio))
+        all_file.write(
+            "%s,%s,%s,%s\n" % (os.path.basename(read_file), num_of_expected_positions, num_of_read_positions, ratio))
 
     for file_obj in files_dict.values():
         file_obj.close()
@@ -120,10 +122,10 @@ def main():
     files_folder, output_folder = format_args()
     all_files_path = get_files_format(files_folder)
     all_files = glob.glob(all_files_path)
-    # reads_stats(all_files, output_folder)
+    reads_stats(all_files, output_folder)
     percentage_of_positions(all_files, output_folder)
 
 
 if __name__ == '__main__':
-    #tools.init_slurm(main)
+    # tools.init_slurm(main)
     main()
