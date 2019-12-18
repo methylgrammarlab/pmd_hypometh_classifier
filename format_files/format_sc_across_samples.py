@@ -26,7 +26,7 @@ def parse_input():
     parser.add_argument('--genomic_folder', help='Path to folder of genomic data', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     parser.add_argument('--blacklisted_files', help='Path of file with list of files to filter out', required=False)
-    parser.add_argument('--coverage_threshold', help='Number of reads to include (inclusive)', required=False)
+    parser.add_argument('--coverage_threshold', help='Number of reads to include (inclusive)', type=int, required=False)
     parser.add_argument('--chr', help='Chromosome, all if not provided. e.g. chr16', required=False)
     args = parser.parse_args()
     return args
@@ -44,7 +44,8 @@ def create_chr_df(chr_file_list, chr_cpg_pos, threshold):
         cell_names.append(PATIENT_CELL_NAME_RE.findall(cell_path)[0][1])
         cell = tools.load_compressed_pickle(cell_path)
         if threshold:
-            cell[:, 1] = [val if val <=- threshold else None for val in cell[:, 1]]
+            indices = np.where(cell[:,1] <= threshold)
+            cell = cell[indices]
         match = np.isin(chr_full_cpg, cell[:, 0])
         ratio = cell[:, 2] / cell[:, 1]
         try:
@@ -85,10 +86,11 @@ def main():
     patient_chr_dict = {}
 
     # files to filter
-    with open(args.blacklisted_files) as f:
-        blacklisted_files = set(f.read().split())
+    if args.blacklisted_files:
+        with open(args.blacklisted_files) as f:
+            blacklisted_files = set(os.path.join(args.sc_folder, line.rstrip()) for line in f)
+        all_patient_file_paths = set(all_patient_file_paths) - blacklisted_files
 
-    all_patient_file_paths = set(all_patient_file_paths) - blacklisted_files
 
     # get dict patient#chr#: array[path]
     for file_path in all_patient_file_paths:
