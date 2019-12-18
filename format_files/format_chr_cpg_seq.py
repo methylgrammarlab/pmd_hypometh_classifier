@@ -3,11 +3,11 @@ import csv
 import glob
 import os
 import re
-from tqdm import tqdm
-
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from tqdm import tqdm
+
+sys.path.append(os.path.dirname(os.getcwd()))
 
 import numpy as np
 

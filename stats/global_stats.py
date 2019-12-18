@@ -7,7 +7,7 @@ import sys
 
 from tqdm import tqdm
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.dirname(os.getcwd()))
 
 import numpy as np
 import pandas as pd
