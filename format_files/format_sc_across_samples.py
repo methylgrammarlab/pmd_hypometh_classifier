@@ -5,7 +5,6 @@ import re
 import sys
 from tqdm import tqdm
 
-
 sys.path.append(os.path.dirname(os.getcwd()))
 
 import numpy as np
@@ -26,13 +25,14 @@ def parse_input():
     parser.add_argument('--sc_folder', help='Path to folder of parsed scWGBS', required=True)
     parser.add_argument('--genomic_folder', help='Path to folder of genomic data', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
-    parser.add_argument('--patient', help='Name of the patient, all if not provided', required=False)
+    parser.add_argument('--blacklisted_files', help='Path of file with list of files to filter out', required=False)
+    parser.add_argument('--coverage_threshold', help='Number of reads to include (inclusive)', required=False)
     parser.add_argument('--chr', help='Chromosome, all if not provided. e.g. chr16', required=False)
     args = parser.parse_args()
     return args
 
 
-def create_chr_df(chr_file_list, chr_cpg_pos):
+def create_chr_df(chr_file_list, chr_cpg_pos, threshold):
     chr_full_cpg = chr_cpg_pos[:, 0]
 
     chr_all_cells = np.full((len(chr_file_list) + 1, chr_full_cpg.size), None, dtype=np.float)
@@ -43,10 +43,11 @@ def create_chr_df(chr_file_list, chr_cpg_pos):
     for cell_path in chr_file_list:
         cell_names.append(PATIENT_CELL_NAME_RE.findall(cell_path)[0][1])
         cell = tools.load_compressed_pickle(cell_path)
-        # cell = cell[cell[:, 0].argsort()]
+        if threshold:
+            cell[:, 1] = [val if val <=- threshold else None for val in cell[:, 1]]
         match = np.isin(chr_full_cpg, cell[:, 0])
         ratio = cell[:, 2] / cell[:, 1]
-        try :
+        try:
             chr_all_cells[i, match] = ratio
         except Exception:
             cell_names[-1] = "missing_data"
@@ -80,10 +81,14 @@ def main():
 
     # patient files path
     patient_files_path = os.path.join(args.sc_folder, PATIENT_FILE_FORMAT)
-    if args.patient:
-        patient_files_path = os.path.join(args.sc_folder, "%s" % args.patient + PATIENT_FILE_FORMAT)
     all_patient_file_paths = glob.glob(patient_files_path)
     patient_chr_dict = {}
+
+    # files to filter
+    with open(args.blacklisted_files) as f:
+        blacklisted_files = set(f.read().split())
+
+    all_patient_file_paths = set(all_patient_file_paths) - blacklisted_files
 
     # get dict patient#chr#: array[path]
     for file_path in all_patient_file_paths:
@@ -99,7 +104,8 @@ def main():
     for patient_and_chr in tqdm(patient_chr_dict, desc="chr"):
         if args.chr and args.chr != patient_and_chr[1]:
             continue
-        chr_all_cells = create_chr_df(patient_chr_dict[patient_and_chr], chr_pos_dict[patient_and_chr[1]][0])
+        chr_all_cells = create_chr_df(patient_chr_dict[patient_and_chr], chr_pos_dict[patient_and_chr[1]][0],
+                                      args.coverage_threshold)
         output_path = os.path.join(output, OUTPUT_FILE_FORMAT % (patient_and_chr[0], patient_and_chr[1]))
         chr_all_cells.to_pickle(output_path, compression='zip')
 
