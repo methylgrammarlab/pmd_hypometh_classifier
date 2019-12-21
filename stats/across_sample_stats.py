@@ -18,6 +18,31 @@ CHR_RE = re.compile(".*chr(\d+).*")
 PATIENT_RE = re.compile("CRC\d\d")
 COLUMNS = ["read_number", "counter"]
 
+CENETROMERE_DICT = {
+    "01": [121311574, 129523877],
+    "02": [91278726, 97911435],
+    "03": [88724336, 93610603],
+    "04": [48396285, 52374061],
+    "05": [45111338, 50515299],
+    "06": [57556887, 63334797],
+    "07": [57041911, 63035444],
+    "08": [43719124, 48091035],
+    "09": [47315670, 51717126],
+    "10": [38196156, 42596634],
+    "11": [52073942, 56281937],
+    "12": [33028390, 38938733],
+    "13": [16004126, 20341692],
+    "14": [16172139, 19796928],
+    "15": [15579446, 20905751],
+    "16": [34499088, 39310184],
+    "17": [22776839, 25729391],
+    "18": [15615450, 19164415],
+    "19": [24342712, 28719791],
+    "20": [25701316, 29630179],
+    "21": [10688588, 14563981],
+    "22": [12326422, 17790024],
+}
+
 
 def format_args():
     parser = argparse.ArgumentParser()
@@ -57,7 +82,8 @@ def create_stats():
     # Combine all the chr to one
     for chr_name in chr_cpg_dict:
         table = np.array(not_nans_dict[chr_name])
-        create_chromosome_img(positions=chr_cpg_dict[chr_name], reads=table, chr_number=chr_name)
+        create_chromosome_img(positions=chr_cpg_dict[chr_name], reads=table, chr_number=chr_name,
+                              output_folder=output_folder)
 
         df = pd.DataFrame(data=table.astype(np.int), columns=chr_cpg_dict[chr_name].astype(np.int))
         df.to_csv(os.path.join(output_folder, "chr%s_full_mapping.csv" % chr_name))
@@ -72,11 +98,12 @@ def create_stats():
     counter_df.to_csv(os.path.join(output_folder, "covered_samples_counter.csv"), "w")
 
 
-def create_chromosome_img(positions, reads, chr_number):
+def create_chromosome_img(positions, reads, chr_number, output_folder):
     reads_avg = np.average(reads, 0) * 100
 
-    splitted_reads = np.array_split(reads_avg, 50000)
-    splitted_location = np.array_split(positions, 50000)
+    number_of_points_per_bin = np.round(len(reads_avg) / 50)
+    splitted_reads = np.array_split(reads_avg, number_of_points_per_bin)
+    splitted_location = np.array_split(positions, number_of_points_per_bin)
 
     med_reads = [np.median(i) for i in splitted_reads]
     med_pos = [np.median(i) for i in splitted_location]
@@ -88,18 +115,16 @@ def create_chromosome_img(positions, reads, chr_number):
     ax_scatter.scatter(med_pos, med_reads, c=med_reads)
     ax_scatter.set_ylim(top=max(med_reads))
 
-    all_pos = med_pos[::2000]
-    all_pos.append(10766630)
-    all_pos.append(14633713)
+    all_pos = med_pos[::400]
+    all_pos += CENETROMERE_DICT[chr_number]
 
     ax_scatter.set_xticks(all_pos)
-    all_labels = [str(i) for i in all_pos]
-    all_labels[-2] = "Sgap"
-    all_labels[-1] = "Egap"
+    all_labels = [str(int(i)) for i in all_pos]
+    all_labels[-2] = "Centromere"
+    all_labels[-1] = "Centromere"
     ax_scatter.set_xticklabels(all_labels)
 
-    plt.savefig("coverage_along_chr_%s.png" % chr_number)
-    plt.show()
+    plt.savefig(os.path.join(output_folder, "coverage_along_chr_%s.png" % chr_number))
 
 
 def main():
