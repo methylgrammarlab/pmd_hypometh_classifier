@@ -5,17 +5,13 @@ import os
 import re
 import sys
 
+import numpy as np
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 
-import numpy as np
-import pandas as pd
-
+from commons.consts import ALL_SEQ_PATH
 import commons.tools as tools
-
-COLUMNS = ["read_number", "counter"]
-ALL_SEQ_PATH = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data"
 
 
 def get_files_format(folder):
@@ -73,15 +69,10 @@ def reads_stats(all_files, output_folder):
         total_ratio_counter = update_ratio_count(data, total_ratio_counter)
         total_ratio_for_limit_counter = update_ratio_count(data, total_ratio_for_limit_counter, 10)
 
-    counter_to_csv(total_read_counter, os.path.join(output_folder, "read_counter.csv "))
-    counter_to_csv(total_ratio_counter, os.path.join(output_folder, "ratio_counter.csv "))
-    counter_to_csv(total_ratio_for_limit_counter, os.path.join(output_folder, "ratio_counter_limit.csv "))
-
-
-def counter_to_csv(counter, output_path):
-    counter_df = pd.DataFrame.from_dict(counter, orient='index').reset_index()
-    counter_df.columns = COLUMNS
-    counter_df.to_csv(output_path)
+    tools.counter_to_csv(total_read_counter, os.path.join(output_folder, "read_counter.csv "))
+    tools.counter_to_csv(total_ratio_counter, os.path.join(output_folder, "ratio_counter.csv "))
+    tools.counter_to_csv(total_ratio_for_limit_counter, os.path.join(output_folder,
+                                                                     "ratio_counter_limit.csv "))
 
 
 def percentage_of_positions(all_files, output_folder):
@@ -110,9 +101,11 @@ def percentage_of_positions(all_files, output_folder):
         num_of_read_positions = len(data[:, 0])
         ratio = num_of_read_positions / num_of_expected_positions
         files_dict[chr_number].write(
-            "%s,%s,%s,%s\n" % (os.path.basename(read_file), num_of_expected_positions, num_of_read_positions, ratio))
+            "%s,%s,%s,%s\n" % (
+                os.path.basename(read_file), num_of_expected_positions, num_of_read_positions, ratio))
         all_file.write(
-            "%s,%s,%s,%s\n" % (os.path.basename(read_file), num_of_expected_positions, num_of_read_positions, ratio))
+            "%s,%s,%s,%s\n" % (
+                os.path.basename(read_file), num_of_expected_positions, num_of_read_positions, ratio))
 
     for file_obj in files_dict.values():
         file_obj.close()
@@ -127,5 +120,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # tools.init_slurm(main)
-    main()
+    tools.init_slurm(main)

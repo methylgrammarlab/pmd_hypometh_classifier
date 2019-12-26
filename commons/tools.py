@@ -1,7 +1,17 @@
 import datetime
+import glob
+import os
 import pickle
+import re
 import sys
 import zlib
+
+import pandas as pd
+
+sys.path.append(os.path.dirname(os.getcwd()))
+import commons.consts as consts
+
+COLUMNS = ["read_number", "counter"]
 
 
 def save_as_compressed_pickle(output_file, data):
@@ -32,6 +42,11 @@ def load_compressed_pickle(file_path):
 
 
 def init_slurm(func):
+    """
+    Some simple prints when running code in slurm
+    :param func:
+    :return:
+    """
     print("Run the script: %s" % " ".join(sys.argv))
     start_time = datetime.datetime.now()
     print("Start time: %s" % start_time)
@@ -44,3 +59,28 @@ def init_slurm(func):
     end_time = datetime.datetime.now()
     delta = end_time - start_time
     print("End time:%s\nTotal time is:%s seconds" % (end_time, delta.total_seconds()))
+
+
+def counter_to_csv(counter, output_path):
+    """
+    Save a counter obj to csv
+    :param counter:
+    :param output_path:
+    :return:
+    """
+    counter_df = pd.DataFrame.from_dict(counter, orient='index').reset_index()
+    counter_df.columns = COLUMNS
+    counter_df.to_csv(output_path)
+
+
+def get_all_cpg_locations_across_chr():
+    """
+    Get a dictionary of chr name (number) and a list of all the locations of CpG
+    """
+    all_files = glob.glob(consts.ALL_SEQ_PATH)
+    chr_dict = {}
+    for f in all_files:
+        chr_name = re.findall("\d+", os.path.basename(f))[0]
+        data = load_compressed_pickle(f)
+        chr_dict[chr_name] = data[:, 0]
+    return chr_dict
