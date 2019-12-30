@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"  # TODO remove the mini
+CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s_mini.dummy.pkl.zip"  # TODO remove the mini
 
 
 def parse_input():
@@ -57,6 +57,7 @@ def main():
         pairwise_coverage.loc[:, 0].plot.hist(bins=27)
         plt.xlabel('number of cells covering both location pairs')
         plt.savefig('histogram.png')
+        plt.show()
         pass
 
 
