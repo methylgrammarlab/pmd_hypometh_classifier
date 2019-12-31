@@ -5,9 +5,12 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 
-
-CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s_mini.dummy.pkl.zip"  # TODO remove the mini
+CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s_30mini.dummy.pkl.zip"  # TODO remove the mini
+CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+)_30mini.dummy.pkl.zip")
+HISTOGRAM_FORMAT = "histogram_%s_%s_part_%s"  # TODO remove the mini
+SPLIT = 10
 
 
 def parse_input():
@@ -25,7 +28,16 @@ def count_similar(loc_1, loc_2):
     return np.intersect1d(loc_1_val, loc_2_val).size
 
 
-def create_pairwise_coverage(cpg_format_file):
+def create_histogram(series, patient, chromosome, num_of_bins, part, output):
+    series.plot.hist(bins=num_of_bins)
+    plt.xlabel('number of cells covering both location pairs')
+    plt.xticks(range(num_of_bins))
+    plt.title(HISTOGRAM_FORMAT % (patient, chromosome, part))
+    plt.savefig(os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome, part)))
+    plt.show()
+
+
+def create_pairwise_coverage(cpg_format_file, output):
     """
     Creates a matrix where each cell holds the number of cells both locations covered
     note: The correlation function used for the calculations returns 1 on th diagonal, but the diagonal isn't used so can be ignored.
@@ -33,7 +45,15 @@ def create_pairwise_coverage(cpg_format_file):
     :return:
     """
     df = pd.read_pickle(cpg_format_file)
-    return df.corr(method=count_similar)
+    total_hist = pd.Series()
+    patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
+    for i in range(0, df.shape[1], SPLIT):
+        coverage_matrix = df.iloc[:, i:i + SPLIT].corr(method=count_similar)
+        pairwise_coverage = coverage_matrix.where(
+            np.triu(np.ones(coverage_matrix.shape), k=1).astype(bool)).stack().reset_index()
+        total_hist = pd.concat([total_hist, pairwise_coverage.loc[:, 0]], ignore_index=True)
+        create_histogram(pairwise_coverage.loc[:, 0], patient, chromosome, df.shape[0], str(int(i / SPLIT)), output)
+    create_histogram(total_hist, patient, chromosome, df.shape[0], 'all', output)
 
 
 def main():
@@ -51,15 +71,11 @@ def main():
 
     all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
     for file in all_cpg_format_file_paths:
-        coverage_matrix = create_pairwise_coverage(file)
-        pairwise_coverage = coverage_matrix.where(
-            np.triu(np.ones(coverage_matrix.shape), k=1).astype(bool)).stack().reset_index()
-        pairwise_coverage.loc[:, 0].plot.hist(bins=27)
-        plt.xlabel('number of cells covering both location pairs')
-        plt.savefig('histogram.png')
-        plt.show()
-        pass
+        create_pairwise_coverage(file, output)
 
 
 if __name__ == '__main__':
     main()
+
+
+"""venv/bin/python format_files/coverage_between_pairs.py --cpg_format_folder format_files/example_files/ --output_folder format_files/example_files/"""
