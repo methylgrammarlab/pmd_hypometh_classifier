@@ -9,6 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 from tqdm import tqdm
+import swifter
+import datetime
 
 sys.path.append(os.path.dirname(os.getcwd()))
 
@@ -51,8 +53,12 @@ def count_similar(loc_1, loc_2):
 
 
 def compare_matrix(series, matrix):
-    return matrix.apply(lambda col: count_similar(col, series), axis=0)
-    pass
+    series_val_ind = np.where(~np.isnan(series))
+    masked_matrix = matrix.iloc[series_val_ind[0], :]
+    converted_matrix = np.where(~np.isnan(masked_matrix), 1, 0)
+    return np.count_nonzero(converted_matrix, axis=0)
+    # return matrix.swifter.apply(lambda col: count_similar(col, series), axis=1)
+    # pass
     # loc_1_val = np.where(~np.isnan(series))
     # loc_2_val = np.where(~np.isnan(matrix))
 
@@ -67,9 +73,9 @@ def create_pairwise_coverage(cpg_format_file, output):
     tqdm.pandas()
     df = pd.read_pickle(cpg_format_file)
     patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
-    coverage_matrix = df.progress_apply(lambda col: compare_matrix(col, df), axis=0)
+    coverage_matrix = df.apply(lambda col: compare_matrix(col, df), axis=0)
     pairwise_coverage = coverage_matrix.where(
-        np.triu(np.ones(coverage_matrix.shape), k=1).astype(bool)).stack().reset_index()
+        np.triu(np.ones(coverage_matrix.shape), k=0).astype(bool)).stack().reset_index()
     create_histogram(pairwise_coverage.loc[:, 0], patient, chromosome, df.shape[0], 'all', output)
 
     # total_hist = pd.Series()
@@ -99,7 +105,10 @@ def main():
 
     all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
     for file in tqdm(all_cpg_format_file_paths, desc='files'):
+        t1 = datetime.datetime.now()
         create_pairwise_coverage(file, output)
+        t2 = datetime.datetime.now()
+        print('time: ', t2 - t1)
 
 
 if __name__ == '__main__':
