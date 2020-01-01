@@ -8,15 +8,18 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import re
-from tqdm import tqdm
-import swifter
+from tqdm import tqdm, trange
 import datetime
+import collections
+import numba
+
 
 sys.path.append(os.path.dirname(os.getcwd()))
+from commons import tools
 
-CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s_mini.dummy.pkl.zip"  # TODO remove the mini
-CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+)_mini.dummy.pkl.zip")
-HISTOGRAM_FORMAT = "histogram_%s_%s_part_%s"
+CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"  # TODO remove the mini
+CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
+HISTOGRAM_FORMAT = "histogram_%s_%s"
 SPLIT = 10000
 
 
@@ -29,12 +32,12 @@ def parse_input():
     return args
 
 
-def create_histogram(series, patient, chromosome, num_of_bins, part, output):
+def create_histogram(series, patient, chromosome, num_of_bins, output):
     series.plot.hist(bins=num_of_bins)
     plt.xlabel('number of cells covering both location pairs')
     plt.xticks(range(num_of_bins))
-    plt.title(HISTOGRAM_FORMAT % (patient, chromosome, part))
-    plt.savefig(os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome, part)))
+    plt.title(HISTOGRAM_FORMAT % (patient, chromosome))
+    plt.savefig(os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome)))
     # plt.show()
     plt.close()
 
@@ -53,14 +56,15 @@ def count_similar(loc_1, loc_2):
 
 
 def compare_matrix(series, matrix):
-    series_val_ind = np.where(~np.isnan(series))
-    masked_matrix = matrix.iloc[series_val_ind[0], :]
-    converted_matrix = np.where(~np.isnan(masked_matrix), 1, 0)
-    return np.count_nonzero(converted_matrix, axis=0)
-    # return matrix.swifter.apply(lambda col: count_similar(col, series), axis=1)
-    # pass
-    # loc_1_val = np.where(~np.isnan(series))
-    # loc_2_val = np.where(~np.isnan(matrix))
+    series_val_ind = np.where(series == 1)
+    masked_matrix = matrix[series_val_ind[0], :]
+    return np.sum(masked_matrix, axis=0)
+
+
+def work_counter(col_coverage, counter, amount_of_samples):
+    for i in range(amount_of_samples + 1):
+        counter[i] += np.where(col_coverage == i)[0].size
+    return counter
 
 
 def create_pairwise_coverage(cpg_format_file, output):
@@ -72,22 +76,22 @@ def create_pairwise_coverage(cpg_format_file, output):
     """
     tqdm.pandas()
     df = pd.read_pickle(cpg_format_file)
+    converted_matrix = np.where(~np.isnan(df), 1, 0)
     patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
-    coverage_matrix = df.apply(lambda col: compare_matrix(col, df), axis=0)
-    pairwise_coverage = coverage_matrix.where(
-        np.triu(np.ones(coverage_matrix.shape), k=0).astype(bool)).stack().reset_index()
-    create_histogram(pairwise_coverage.loc[:, 0], patient, chromosome, df.shape[0], 'all', output)
+    counter = {}
+    amount_of_samples = converted_matrix.shape[0]
+    for i in range(amount_of_samples + 1):
+        counter[i] = 0
 
-    # total_hist = pd.Series()
-    # patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
-    # count_similar(df.iloc[:, 0], df.iloc[:, 1])
-    # for i in tqdm(range(0, df.shape[1], SPLIT), desc='section of file'):
-    #     coverage_matrix = df.iloc[:, i:i + SPLIT].corr(method=count_similar)
-    #     pairwise_coverage = coverage_matrix.where(
-    #         np.triu(np.ones(coverage_matrix.shape), k=1).astype(bool)).stack().reset_index()
-    #     total_hist = pd.concat([total_hist, pairwise_coverage.loc[:, 0]], ignore_index=True)
-    #     create_histogram(pairwise_coverage.loc[:, 0], patient, chromosome, df.shape[0], str(int(i / SPLIT)), output)
-    # create_histogram(total_hist, patient, chromosome, df.shape[0], 'all', output)
+    for col in trange(converted_matrix.shape[1], desc='location progress'):
+        col_coverage = compare_matrix(converted_matrix[:, col], converted_matrix)
+        counter = work_counter(col_coverage, counter, amount_of_samples)
+    tools.counter_to_csv(counter, os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome)))
+
+    # coverage_matrix = df.progress_apply(lambda col: compare_matrix(col, df), axis=0)
+    # pairwise_coverage = coverage_matrix.where(
+    #     np.triu(np.ones(coverage_matrix.shape), k=0).astype(bool)).stack().reset_index()
+    # create_histogram(pairwise_coverage.loc[:, 0], patient, chromosome, df.shape[0], output)
 
 
 def main():
@@ -112,7 +116,6 @@ def main():
 
 
 if __name__ == '__main__':
-    print("hey")
     main()
 
 """/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin/python /cs/usr/liorf/PycharmProjects/proj_scwgbs/format_files/coverage_between_pairs.py --cpg_format_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/cpg_format/threshold/CRC09/ --output_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/stats/coverage_histograms/CRC09/"""
