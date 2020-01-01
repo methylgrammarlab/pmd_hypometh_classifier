@@ -1,3 +1,11 @@
+connect to the cluster
+Go to the folder you want the venv to be at
+Run: virtualenv --python=/usr/bin/python3.6 env
+Run: source env/bin/activate.csh
+Run: pip3.6 install matplotlib tqdm pandas
+Run: whatever batch you want to run. example below
+
+####
 #!/bin/bash
 #SBATCH --job-name=coverage_between_pairs
 #SBATCH --output=/cs/usr/drordod/Desktop/project/proj_scwgbs/output/coverage_between_pairs-%j.out
@@ -9,3 +17,7 @@ RUNPATH=~/Desktop/project/proj_scwgbs
 cd $RUNPATH/format_files
 csh "$RUNPATH/env/bin/activate.csh"
 $RUNPATH/env/bin/python3.6 coverage_between_pairs.py --cpg_format_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/cpg_format/threshold/CRC09/ --output_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/stats/coverage_histograms/CRC09/
+
+
+
+####
