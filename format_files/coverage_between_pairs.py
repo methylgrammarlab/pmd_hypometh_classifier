@@ -1,5 +1,3 @@
-#!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
-
 import argparse
 import glob
 import pandas as pd
@@ -9,6 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 from tqdm import tqdm
+
+sys.path.append(os.path.dirname(os.getcwd()))
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"  # TODO remove the mini
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
@@ -79,6 +79,7 @@ def main():
 
 
 if __name__ == '__main__':
+    print("hey")
     main()
 
 

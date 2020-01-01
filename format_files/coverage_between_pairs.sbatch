@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --job-name=coverage_between_pairs
+#SBATCH --output=/cs/usr/drordod/Desktop/project/proj_scwgbs/output/coverage_between_pairs-%j.out
+#SBATCH --error=/cs/usr/drordod/Desktop/project/proj_scwgbs/output/coverage_between_pairs-%j.err
+#SBATCH --time=0:02:00
+#SBATCH --mem=1G
+
+RUNPATH=~/Desktop/project/proj_scwgbs
+cd $RUNPATH/format_files
+csh "$RUNPATH/venv/bin/activate.csh"
+$RUNPATH/venv/bin/python3 coverage_between_pairs.py --cpg_format_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/cpg_format/threshold/CRC09/ --output_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/stats/coverage_histograms/CRC09/
+
+
+
+
+virtualenv --python=/usr/bin/python3.7 venv
