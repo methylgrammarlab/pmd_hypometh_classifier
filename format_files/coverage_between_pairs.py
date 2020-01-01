@@ -1,3 +1,5 @@
+#!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
+
 import argparse
 import glob
 import pandas as pd
@@ -6,11 +8,12 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import re
+from tqdm import tqdm
 
-CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s_30mini.dummy.pkl.zip"  # TODO remove the mini
-CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+)_30mini.dummy.pkl.zip")
-HISTOGRAM_FORMAT = "histogram_%s_%s_part_%s"  # TODO remove the mini
-SPLIT = 10
+CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"  # TODO remove the mini
+CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
+HISTOGRAM_FORMAT = "histogram_%s_%s_part_%s" 
+SPLIT = 10000
 
 
 def parse_input():
@@ -34,7 +37,8 @@ def create_histogram(series, patient, chromosome, num_of_bins, part, output):
     plt.xticks(range(num_of_bins))
     plt.title(HISTOGRAM_FORMAT % (patient, chromosome, part))
     plt.savefig(os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome, part)))
-    plt.show()
+    # plt.show()
+    plt.close()
 
 
 def create_pairwise_coverage(cpg_format_file, output):
@@ -47,7 +51,7 @@ def create_pairwise_coverage(cpg_format_file, output):
     df = pd.read_pickle(cpg_format_file)
     total_hist = pd.Series()
     patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
-    for i in range(0, df.shape[1], SPLIT):
+    for i in tqdm(range(0, df.shape[1], SPLIT), desc='section of file'):
         coverage_matrix = df.iloc[:, i:i + SPLIT].corr(method=count_similar)
         pairwise_coverage = coverage_matrix.where(
             np.triu(np.ones(coverage_matrix.shape), k=1).astype(bool)).stack().reset_index()
@@ -70,7 +74,7 @@ def main():
         cpg_format_file_path = os.path.join(args.cpg_format_folder, CPG_FORMAT_FILE_FORMAT % chr)
 
     all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
-    for file in all_cpg_format_file_paths:
+    for file in tqdm(all_cpg_format_file_paths, desc='files'):
         create_pairwise_coverage(file, output)
 
 
@@ -78,4 +82,4 @@ if __name__ == '__main__':
     main()
 
 
-"""venv/bin/python format_files/coverage_between_pairs.py --cpg_format_folder format_files/example_files/ --output_folder format_files/example_files/"""
+"""/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin/python /cs/usr/liorf/PycharmProjects/proj_scwgbs/format_files/coverage_between_pairs.py --cpg_format_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/cpg_format/threshold/CRC09/ --output_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/stats/coverage_histograms/CRC09/"""
