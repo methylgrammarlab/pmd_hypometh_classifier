@@ -1,3 +1,5 @@
+#!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
+
 import argparse
 import glob
 import pandas as pd
@@ -30,6 +32,10 @@ def count_similar(loc_1, loc_2):
     loc_2_val = np.where(~np.isnan(loc_2))
     return np.intersect1d(loc_1_val, loc_2_val).size
 
+def compare_matrix(series, matrix):
+    loc_1_val = np.where(~np.isnan(series))
+    loc_2_val = np.where(~np.isnan(matrix))
+
 
 def create_histogram(series, patient, chromosome, num_of_bins, part, output):
     series.plot.hist(bins=num_of_bins)
@@ -49,6 +55,7 @@ def create_pairwise_coverage(cpg_format_file, output):
     :return:
     """
     df = pd.read_pickle(cpg_format_file)
+    # df.apply(lambda col: compare_matrix(col, df), axis=0)
     total_hist = pd.Series()
     patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
     for i in tqdm(range(0, df.shape[1], SPLIT), desc='section of file'):
