@@ -1,37 +1,34 @@
 #!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
-
 import argparse
 import glob
-import pandas as pd
 import os
-import sys
-import numpy as np
-import matplotlib.pyplot as plt
+import pickle
 import re
-from tqdm import tqdm, trange
-import datetime
-import collections
-import numba
+import sys
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 sys.path.append(os.path.dirname(os.getcwd()))
 from commons import tools
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"  # TODO remove the mini
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
-HISTOGRAM_FORMAT = "histogram_%s_%s"
-SPLIT = 10000
+HISTOGRAM_FORMAT = "histogram_%s_%s.csv"
+PICKLE_FORMAT = "dict_%s_%s.pickle"
 
 
 def parse_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cpg_format_folder', help='Path to folder of parsed scWGBS', required=True)
+    parser.add_argument('--cpg_format_files', help='Path to folder or file of parsed scWGBS', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     parser.add_argument('--chr', help='Chromosome, all if not provided. e.g. chr16', required=False)
     args = parser.parse_args()
     return args
 
 
+# should move to commons
 def create_histogram(series, patient, chromosome, num_of_bins, output):
     series.plot.hist(bins=num_of_bins)
     plt.xlabel('number of cells covering both location pairs')
@@ -42,29 +39,15 @@ def create_histogram(series, patient, chromosome, num_of_bins, output):
     plt.close()
 
 
-def count_similar(loc_1, loc_2):
-    """
-    Using np.where, for each series, returns the indexes of locations that aren't nan. Next, using np.intersect1d counts
-    how many indices appeared in both series (because indices are unique counts how many times both indices had a value.
-    :param loc_1: first series
-    :param loc_2: second series
-    :return: number of locations both series had a value(not nan).
-    """
-    loc_1_value_inds = np.where(~np.isnan(loc_1))
-    loc_2_value_inds = np.where(~np.isnan(loc_2))
-    return np.intersect1d(loc_1_value_inds, loc_2_value_inds).size
-
-
-def compare_matrix(series, matrix):
-    series_val_ind = np.where(series == 1)
-    masked_matrix = matrix[series_val_ind[0], :]
+def compare_matrix(matrix, index):
+    series = matrix[:, index]
+    series_val_ind = np.where(series == 1)[0]
+    masked_matrix = matrix[series_val_ind, :]
     return np.sum(masked_matrix, axis=0)
 
 
-def work_counter(col_coverage, counter, amount_of_samples):
-    for i in range(amount_of_samples + 1):
-        counter[i] += np.where(col_coverage == i)[0].size
-    return counter
+def work_counter(col_coverage, i):
+    return np.where(col_coverage == i)[0].size
 
 
 def create_pairwise_coverage(cpg_format_file, output):
@@ -74,7 +57,7 @@ def create_pairwise_coverage(cpg_format_file, output):
     :param cpg_format_file:
     :return:
     """
-    tqdm.pandas()
+    # tqdm.pandas()
     df = pd.read_pickle(cpg_format_file)
     converted_matrix = np.where(~np.isnan(df), 1, 0)
     patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
@@ -83,15 +66,19 @@ def create_pairwise_coverage(cpg_format_file, output):
     for i in range(amount_of_samples + 1):
         counter[i] = 0
 
-    for col in trange(converted_matrix.shape[1], desc='location progress'):
-        col_coverage = compare_matrix(converted_matrix[:, col], converted_matrix)
-        counter = work_counter(col_coverage, counter, amount_of_samples)
-    tools.counter_to_csv(counter, os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome)))
+    # for col in trange(converted_matrix.shape[1], desc='location progress'):
+    for col in range(converted_matrix.shape[1]):
+        col_coverage = compare_matrix(converted_matrix, col)
+        for i in range(amount_of_samples + 1):
+            c = work_counter(col_coverage, i)
+            counter[i] += c
 
-    # coverage_matrix = df.progress_apply(lambda col: compare_matrix(col, df), axis=0)
-    # pairwise_coverage = coverage_matrix.where(
-    #     np.triu(np.ones(coverage_matrix.shape), k=0).astype(bool)).stack().reset_index()
-    # create_histogram(pairwise_coverage.loc[:, 0], patient, chromosome, df.shape[0], output)
+    output_path = os.path.join(output, patient, PICKLE_FORMAT % (patient, chromosome))
+    if not os.path.exists(os.path.dirname(output_path)):
+        os.mkdir(os.path.dirname(output_path))
+
+    with open(output_path, "wb") as of:
+        pickle.dump(counter, of)
 
 
 def main():
@@ -103,19 +90,19 @@ def main():
 
     chr = args.chr
 
-    cpg_format_file_path = os.path.join(args.cpg_format_folder, CPG_FORMAT_FILE_FORMAT % '*')
-    if chr:
-        cpg_format_file_path = os.path.join(args.cpg_format_folder, CPG_FORMAT_FILE_FORMAT % chr)
+    if os.path.isdir(args.cpg_format_files):
+        cpg_format_file_path = os.path.join(args.cpg_format_files, CPG_FORMAT_FILE_FORMAT % '*')
+        if chr:
+            cpg_format_file_path = os.path.join(args.cpg_format_files, CPG_FORMAT_FILE_FORMAT % chr)
 
-    all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
-    for file in tqdm(all_cpg_format_file_paths, desc='files'):
-        t1 = datetime.datetime.now()
+        all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
+    else:
+        all_cpg_format_file_paths = [args.cpg_format_files]
+
+    # for file in tqdm(all_cpg_format_file_paths, desc='files'):
+    for file in all_cpg_format_file_paths:
         create_pairwise_coverage(file, output)
-        t2 = datetime.datetime.now()
-        print('time: ', t2 - t1)
 
 
 if __name__ == '__main__':
-    main()
-
-"""/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin/python /cs/usr/liorf/PycharmProjects/proj_scwgbs/format_files/coverage_between_pairs.py --cpg_format_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/cpg_format/threshold/CRC09/ --output_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/stats/coverage_histograms/CRC09/"""
+    tools.init_slurm(main)
