@@ -31,7 +31,6 @@ def create_histogram(file, output):
     plt.xlabel('number of cells covering both location pairs')
     plt.title(TITLE_FORMAT % (patient, chromosome))
     plt.savefig(os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome)))
-    plt.show()
     plt.close()
 
 
