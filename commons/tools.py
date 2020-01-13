@@ -73,7 +73,7 @@ def counter_to_csv(counter, output_path):
     counter_df.to_csv(output_path)
 
 
-def get_all_cpg_locations_across_chr(full_name=False):
+def get_all_cpg_locations_across_chr(full_name=False, full_data=False):
     """
     Get a dictionary of chr name (number) and a list of all the locations of CpG
     """
@@ -82,8 +82,13 @@ def get_all_cpg_locations_across_chr(full_name=False):
     for f in all_files:
         chr_name = re.findall("\d+", os.path.basename(f))[0]
         data = load_compressed_pickle(f)
-        if full_name:
+        if full_name and not full_data:
             chr_dict["chr%s" % chr_name] = data[:, 0]
-        else:
+        elif not full_data and not full_data:
             chr_dict[chr_name] = data[:, 0]
+        elif full_data and full_data:
+            chr_dict["chr%s" % chr_name] = data
+        else:
+            chr_dict[chr_name] = data
+
     return chr_dict

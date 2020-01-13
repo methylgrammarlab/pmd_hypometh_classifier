@@ -1,6 +1,7 @@
 import argparse
 import csv
 import glob
+import itertools
 import os
 import re
 import sys
@@ -37,6 +38,9 @@ CONTEXT_INDEX = -1
 
 NUMBER_OF_ORPH_PER_INDEX = [1, 2, 3, 4, 5, 10, 20, 35, 50, 75, 100, 150, 200]
 
+CONTEXT_INT_TO_CHR_DICT = {}
+all_possibilities = itertools.product(NUCLEOTIDE_TO_NUMBER.keys(), repeat=8)
+
 
 def is_weak(context):
     return False if WEAK_FORMAT_RE.match(context) is None else True
@@ -62,6 +66,10 @@ def format_args():
 
 def convert_context_to_int(context):
     return "".join(NUCLEOTIDE_TO_NUMBER[letter] for letter in context)
+
+
+def convert_context_int_to_chr(i):
+    return CONTEXT_INT_TO_CHR_DICT[str(i)]
 
 
 def format_cpg_seq_file(cpg_seq_path):
@@ -124,3 +132,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+for combination in all_possibilities:
+    value = "".join(combination)
+    CONTEXT_INT_TO_CHR_DICT[convert_context_to_int(value)] = value

@@ -1,15 +1,14 @@
 #!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
-
 import argparse
 import glob
-import pandas as pd
 import os
-import sys
-import numpy as np
-import matplotlib.pyplot as plt
+import pickle
 import re
-import datetime
-from tqdm import tqdm
+import sys
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 sys.path.append(os.path.dirname(os.getcwd()))
 from commons import tools
@@ -17,6 +16,7 @@ from commons import tools
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"  # TODO remove the mini
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 HISTOGRAM_FORMAT = "histogram_%s_%s.csv"
+PICKLE_FORMAT = "dict_%s_%s.pickle"
 
 
 def parse_input():
@@ -39,19 +39,18 @@ def create_histogram(series, patient, chromosome, num_of_bins, output):
     plt.close()
 
 
-def compare_matrix(series, matrix):
-    series_val_ind = np.where(series == 1)
-    masked_matrix = matrix[series_val_ind[0], :]
+def compare_matrix(matrix, index):
+    series = matrix[:, index]
+    series_val_ind = np.where(series == 1)[0]
+    masked_matrix = matrix[series_val_ind, :]
     return np.sum(masked_matrix, axis=0)
 
 
-def work_counter(col_coverage, counter, amount_of_samples):
-    for i in range(amount_of_samples + 1):
-        counter[i] += np.where(col_coverage == i)[0].size
-    return counter
+def work_counter(col_coverage, i):
+    return np.where(col_coverage == i)[0].size
 
 
-def create_pairwise_coverage(cpg_format_file, output):
+def create_pairwise_coverage(cpg_format_file):
     """
     Creates a matrix where each cell holds the number of cells both locations covered
     note: The correlation function used for the calculations returns 1 on th diagonal, but the diagonal isn't used so can be ignored.
@@ -61,7 +60,7 @@ def create_pairwise_coverage(cpg_format_file, output):
     # tqdm.pandas()
     df = pd.read_pickle(cpg_format_file)
     converted_matrix = np.where(~np.isnan(df), 1, 0)
-    patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
+
     counter = {}
     amount_of_samples = converted_matrix.shape[0]
     for i in range(amount_of_samples + 1):
@@ -69,9 +68,20 @@ def create_pairwise_coverage(cpg_format_file, output):
 
     # for col in trange(converted_matrix.shape[1], desc='location progress'):
     for col in range(converted_matrix.shape[1]):
-        col_coverage = compare_matrix(converted_matrix[:, col], converted_matrix)
-        counter = work_counter(col_coverage, counter, amount_of_samples)
-    tools.counter_to_csv(counter, os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome)))
+        col_coverage = compare_matrix(converted_matrix, col)
+        for i in range(amount_of_samples + 1):
+            c = work_counter(col_coverage, i)
+            counter[i] += c
+
+    return counter
+
+
+def write_output(chromosome, counter, output, patient):
+    output_path = os.path.join(output, patient, PICKLE_FORMAT % (patient, chromosome))
+    if not os.path.exists(os.path.dirname(output_path)):
+        os.mkdir(os.path.dirname(output_path))
+    with open(output_path, "wb") as of:
+        pickle.dump(counter, of)
 
 
 def main():
@@ -94,11 +104,10 @@ def main():
 
     # for file in tqdm(all_cpg_format_file_paths, desc='files'):
     for file in all_cpg_format_file_paths:
-        create_pairwise_coverage(file, output)
+        patient, chromosome = CPG_FORMAT_FILE_RE.findall(file)[0]
+        counter = create_pairwise_coverage(file)
+        write_output(chromosome, counter, output, patient)
 
 
 if __name__ == '__main__':
-    t1 = datetime.datetime.now()
-    main()
-    t2 = datetime.datetime.now()
-    print('start time: ', t1, ' end time: ', t2)
+    tools.init_slurm(main)
