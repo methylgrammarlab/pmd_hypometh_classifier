@@ -41,6 +41,20 @@ def load_compressed_pickle(file_path):
         return formatted_data
 
 
+def load_compressed_pickle_not_zlib(file_path):
+    """
+    Load a file, decompress it and load the data as if it was pickled
+    The way to read data which was saved with the `save_as_compressed_pickle` function
+    :param file_path: The path of the file to upload
+    :type file_path: str
+    :return: The data
+    """
+    with open(file_path, "rb") as data_file:
+        data = data_file.read()
+        formatted_data = pickle.loads(data)
+
+        return formatted_data
+
 def init_slurm(func):
     """
     Some simple prints when running code in slurm

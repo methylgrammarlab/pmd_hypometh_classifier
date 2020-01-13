@@ -227,9 +227,9 @@ def main():
     input_folder, output_folder = args.files_folder, args.output_folder
 
     extract_bedgraph_information(input_folder, output_folder)
-    extract_coverage_per_patient(input_folder, output_folder)
-    extract_coverage_per_chr(input_folder, output_folder)
-    extract_coverage_global(input_folder, output_folder)
+    #extract_coverage_per_patient(input_folder, output_folder)
+    #extract_coverage_per_chr(input_folder, output_folder)
+    #extract_coverage_global(input_folder, output_folder)
 
 
 if __name__ == '__main__':
