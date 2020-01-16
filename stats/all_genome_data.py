@@ -1,3 +1,4 @@
+import datetime
 import argparse
 import glob
 import json
@@ -6,6 +7,7 @@ import re
 import statistics
 import sys
 from collections import Counter
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -59,26 +61,34 @@ def counter_to_dict(counter):
     return {str(item[0]): item[1] for item in counter.items()}
 
 
-def collect_data(file_path, chromosome, output):
+def collect_data(file_path, chromosome):
     window_start_list, window_end_list, window_size = [], [], []
     number_of_samples_list, col_coverage_avg_list, col_coverage_median_list, col_coverage_json_list \
         = [], [], [], []
     window_coverage_avg_list, window_coverage_median_list, window_coverage_json_list = [], [], []
     df = pd.read_pickle(file_path)
+    # df = df.iloc[:, :12000]
 
     locations = df.columns._values
     avg_rate = df.mean(axis=0, skipna=True)
-    median_rate = np.nanmedian(df._values, axis=0)
+    # median_rate = np.nanmedian(df._values, axis=0)
 
     converted_matrix = np.where(~np.isnan(df), 1, 0)
     max_size = converted_matrix.shape[1]
-
+    # start_time = datetime.datetime.now()
+    # current_index = 0
     for i in range(0, converted_matrix.shape[1], WINDOWS_SIZE):
+        # if current_index % 5 == 0:
+        #     print("%s / %s, previous took %s" % (
+        #         current_index, converted_matrix.shape[1] / WINDOWS_SIZE, datetime.datetime.now() - start_time))
+        #     start_time = datetime.datetime.now()
+        # current_index += 1
+
         window = converted_matrix[:, i:i + min(WINDOWS_SIZE, max_size)]
         window_counter = Counter()
 
         window_start_list.append(locations[i])
-        window_end_list.append(locations[i + min(WINDOWS_SIZE, max_size) - 1])
+        window_end_list.append(locations[i + window.shape[1] - 1])
         window_size.append(window.shape[1])
 
         for index in range(window.shape[1]):
@@ -101,7 +111,7 @@ def collect_data(file_path, chromosome, output):
 
     window_start_list = extend_lists(window_start_list, window_size)
     window_end_list = extend_lists(window_end_list, window_size)
-    window_size = extend_lists(window_size, window_size)
+    window_size_list = extend_lists(window_size, window_size)
     window_coverage_avg_list = extend_lists(window_coverage_avg_list, window_size)
     window_coverage_median_list = extend_lists(window_coverage_median_list, window_size)
     window_coverage_json_list = extend_lists(window_coverage_json_list, window_size)
@@ -119,19 +129,24 @@ def collect_data(file_path, chromosome, output):
     final_table = np.vstack((locations, avg_rate, is_weak, is_strong, context_as_chr, orph_35,
                              col_coverage_avg_list, window_coverage_avg_list,
                              col_coverage_median_list, window_coverage_median_list,
-                             window_start_list, window_end_list, window_size,
-                             col_coverage_json_list, window_coverage_json_list))
+                             window_start_list, window_end_list, window_size_list))
 
     end_df = pd.DataFrame(final_table.T, index=locations,
-                          columns=["locations", "avg_rate", "is_weak", "is_strong",
-                                   "context", "is_solo(35)", "cpg_avg_coverage", "window_avg_coverage",
+                          columns=["locations", "avg_rate", "is_weak", "is_strong", "context", "is_solo(35)",
+                                   "cpg_avg_coverage", "window_avg_coverage",
                                    "cpg_median_coverage", "window_median_coverage",
-                                   "window_start", "window_end", "window_size",
-                                   "cpg_coverage_json", "window_coverage_json"]
+                                   "window_start", "window_end", "window_size"
+                                   ]
                           )
 
-    return end_df
+    json_table = np.vstack((locations, col_coverage_json_list, window_coverage_json_list,
+                            window_start_list, window_end_list, window_size_list))
+    json_df = pd.DataFrame(json_table.T, index=locations,
+                           columns=["locations", "col_coverage_json_list", "window_coverage_json_list",
+                                    "window_start", "window_end", "window_size"]
+                           )
 
+    return end_df, json_df
 
 
 def main():
@@ -142,23 +157,27 @@ def main():
         output = os.path.dirname(sys.argv[0])
 
     if os.path.isdir(args.cpg_format_files):
-        cpg_format_file_path = os.path.join(args.cpg_format_files, "*", CPG_FORMAT_FILE_FORMAT % '*')
+        cpg_format_file_path = os.path.join(args.cpg_format_files, CPG_FORMAT_FILE_FORMAT % '*')
         all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
 
     else:
         all_cpg_format_file_paths = [args.cpg_format_files]
 
-    # for file in tqdm(all_cpg_format_file_paths, desc='files'):
-    for file_path in all_cpg_format_file_paths:
+    for file_path in tqdm(all_cpg_format_file_paths):
         patient, chromosome = coverage_between_pairs.CPG_FORMAT_FILE_RE.findall(file_path)[0]
-        data = collect_data(file_path, chromosome, output)
+        output_csv = os.path.join(output, patient, "%s_all_data.csv" % chromosome)
+        output_json = os.path.join(output, patient, "%s_json_coverage.pickle.zip" % chromosome)
+
+
+        data, json_data = collect_data(file_path, chromosome)
 
         if not os.path.exists(os.path.join(output, patient)):
             os.mkdir(os.path.join(output, patient))
 
-        data.to_excel(os.path.join(output, patient, "%s_all_data.xlsx" % chromosome))
+        data.to_csv(output_csv)
+        json_data.to_pickle(output_json)
 
 
 if __name__ == '__main__':
-    # tools.init_slurm(main)
-    main()
+    tools.init_slurm(main)
+    # main()

@@ -82,11 +82,17 @@ def skim_cpg(files, boundaries_paths, output_folder):
         df = pd.read_pickle(cpg_format_file)
         patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
         mask = cpg_locations_mask[chromosome]
-        output_path = os.path.join(output_folder, os.path.basename(os.path.dirname(cpg_format_file)),
-                                   os.path.basename(cpg_format_file))
-        if not os.path.exists(os.path.dirname(output_path)):
-            os.mkdir(os.path.dirname(output_path))
+
+        output_path = get_output_path_for_crc(cpg_format_file, output_folder)
         pd.to_pickle(df[mask], output_path)
+
+
+def get_output_path_for_crc(cpg_format_file, output_folder):
+    output_path = os.path.join(output_folder, os.path.basename(os.path.dirname(cpg_format_file)),
+                               os.path.basename(cpg_format_file))
+    if not os.path.exists(os.path.dirname(output_path)):
+        os.mkdir(os.path.dirname(output_path))
+    return output_path
 
 
 def main():

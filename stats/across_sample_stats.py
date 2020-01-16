@@ -184,7 +184,7 @@ def create_bedgraph_file(chr_cpg_dict, coverage_per_patient_dict, output_folder)
     """
     for patient in coverage_per_patient_dict:
         output_path = os.path.join(output_folder, BEDGRPH_OUTPUT_FILE % patient)
-        with open(output_path, "a") as output_file:
+        with open(output_path, "w") as output_file:
             for chromosome in coverage_per_patient_dict[patient]:
                 for i in range(len(coverage_per_patient_dict[patient][chromosome])):
                     start = chr_cpg_dict[chromosome][i]

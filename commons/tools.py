@@ -55,6 +55,7 @@ def load_compressed_pickle_not_zlib(file_path):
 
         return formatted_data
 
+
 def init_slurm(func):
     """
     Some simple prints when running code in slurm
