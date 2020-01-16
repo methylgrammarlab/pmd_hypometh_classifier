@@ -10,9 +10,9 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-import commons.slurm_tools
 
 sys.path.append(os.path.dirname(os.getcwd()))
+import commons.slurm_tools
 from commons.data_tools import mean_of_counter_obj, median_of_counter_obj, extend_lists, numpy_counter_to_dict
 from stats import coverage_between_pairs
 from format_files import format_chr_cpg_seq
