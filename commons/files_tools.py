@@ -1,12 +1,9 @@
-import datetime
 import glob
 import os
 import pickle
 import re
 import sys
 import zlib
-
-import pandas as pd
 
 sys.path.append(os.path.dirname(os.getcwd()))
 import commons.consts as consts
@@ -54,38 +51,6 @@ def load_compressed_pickle_not_zlib(file_path):
         formatted_data = pickle.loads(data)
 
         return formatted_data
-
-
-def init_slurm(func):
-    """
-    Some simple prints when running code in slurm
-    :param func:
-    :return:
-    """
-    print("Run the script: %s" % " ".join(sys.argv))
-    start_time = datetime.datetime.now()
-    print("Start time: %s" % start_time)
-    try:
-        func()
-    except Exception as ex:
-        print("Run ended due to exception: %s" % ex)
-    else:
-        print("Run ended with no exceptions")
-    end_time = datetime.datetime.now()
-    delta = end_time - start_time
-    print("End time:%s\nTotal time is:%s seconds" % (end_time, delta.total_seconds()))
-
-
-def counter_to_csv(counter, output_path):
-    """
-    Save a counter obj to csv
-    :param counter:
-    :param output_path:
-    :return:
-    """
-    counter_df = pd.DataFrame.from_dict(counter, orient='index').reset_index()
-    counter_df.columns = COLUMNS
-    counter_df.to_csv(output_path)
 
 
 def get_all_cpg_locations_across_chr(full_name=False, full_data=False):

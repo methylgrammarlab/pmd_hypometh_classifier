@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
-import commons.tools as tools
+import commons.files_tools as tools
 
 CPGI_CHR_INDEX = 0
 CPGI_START_INDEX = 1

@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.getcwd()))
 
 import numpy as np
 
-import commons.tools as tools
+import commons.files_tools as tools
 
 OUTPUT_FILE_FORMAT = "full_cpg_seq_chr%s.pickle.zlib"
 
@@ -70,6 +70,26 @@ def convert_context_to_int(context):
 
 def convert_context_int_to_chr(i):
     return CONTEXT_INT_TO_CHR_DICT[str(i)]
+
+
+def get_context_as_int_for_chr(chr_info):
+    return chr_info[:, -3]
+
+
+def get_context_as_str_for_chr(chr_info):
+    return [convert_context_int_to_chr(i) for i in chr_info[:, -3]]
+
+
+def get_weak_column(chr_info):
+    return chr_info[:, -2]
+
+
+def get_strong_column(chr_info):
+    return chr_info[:, -1]
+
+
+def get_orph_35_column(chr_info):
+    return chr_info[:, -9]
 
 
 def format_cpg_seq_file(cpg_seq_path):

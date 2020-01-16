@@ -1,21 +1,22 @@
-import datetime
 import argparse
 import glob
 import json
 import os
 import re
-import statistics
 import sys
 from collections import Counter
-from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+
+import commons.slurm_tools
 
 sys.path.append(os.path.dirname(os.getcwd()))
-from format_files import coverage_between_pairs
+from commons.data_tools import mean_of_counter_obj, median_of_counter_obj, extend_lists, counter_to_dict
+from stats import coverage_between_pairs
 from format_files import format_chr_cpg_seq
-from commons import tools
+from commons import files_tools
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
@@ -31,43 +32,10 @@ def parse_input():
     return args
 
 
-def mean_of_counter(counter):
-    sum_of_numbers = 0
-    for i in counter.items():
-        sum_of_numbers += i[0] * i[1]
-
-    count = sum(counter.values())
-    mean = sum_of_numbers / count
-    return mean
-
-
-def median_of_counter(counter):
-    l = []
-    for item in counter.items():
-        l += [item[1]] * int(item[0])
-
-    return statistics.median(l)
-
-
-def extend_lists(value_list, each_value_size):
-    l = []
-    for i in range(len(value_list)):
-        l += [value_list[i]] * each_value_size[i]
-
-    return l
-
-
-def counter_to_dict(counter):
-    return {str(item[0]): item[1] for item in counter.items()}
-
-
-def collect_data(file_path, chromosome):
-    window_start_list, window_end_list, window_size = [], [], []
-    number_of_samples_list, col_coverage_avg_list, col_coverage_median_list, col_coverage_json_list \
-        = [], [], [], []
-    window_coverage_avg_list, window_coverage_median_list, window_coverage_json_list = [], [], []
-    df = pd.read_pickle(file_path)
-    # df = df.iloc[:, :12000]
+def collect_data(df, chromosome):
+    number_of_samples_list, col_coverage_avg_list, col_coverage_median_list, col_coverage_json_list, \
+    window_start_list, window_end_list, window_size, window_coverage_avg_list, window_coverage_median_list, \
+    window_coverage_json_list = [], [], [], [], [], [], [], [], [], []
 
     locations = df.columns._values
     avg_rate = df.mean(axis=0, skipna=True)
@@ -84,8 +52,8 @@ def collect_data(file_path, chromosome):
         #     start_time = datetime.datetime.now()
         # current_index += 1
 
-        window = converted_matrix[:, i:i + min(WINDOWS_SIZE, max_size)]
         window_counter = Counter()
+        window = converted_matrix[:, i:i + min(WINDOWS_SIZE, max_size)]
 
         window_start_list.append(locations[i])
         window_end_list.append(locations[i + window.shape[1] - 1])
@@ -105,8 +73,8 @@ def collect_data(file_path, chromosome):
             col_coverage_median_list.append(np.median(col_coverage))
             col_coverage_json_list.append(json.dumps(counter_to_dict(cpg_counter)))
 
-        window_coverage_avg_list.append(mean_of_counter(window_counter))
-        window_coverage_median_list.append(median_of_counter(window_counter))
+        window_coverage_avg_list.append(mean_of_counter_obj(window_counter))
+        window_coverage_median_list.append(median_of_counter_obj(window_counter))
         window_coverage_json_list.append(json.dumps(counter_to_dict(window_counter)))
 
     window_start_list = extend_lists(window_start_list, window_size)
@@ -117,23 +85,22 @@ def collect_data(file_path, chromosome):
     window_coverage_json_list = extend_lists(window_coverage_json_list, window_size)
 
     # Info from dict
-    cpg_dict = tools.get_all_cpg_locations_across_chr(full_name=True, full_data=True)
+    cpg_dict = files_tools.get_all_cpg_locations_across_chr(full_name=True, full_data=True)
     chr_info = cpg_dict[chromosome]
 
-    context_as_int = chr_info[:, -3]
-    context_as_chr = [format_chr_cpg_seq.convert_context_int_to_chr(i) for i in context_as_int]
-    is_weak = chr_info[:, -2]
-    is_strong = chr_info[:, -1]
-    orph_35 = chr_info[:, -9]
+    context_as_chr = format_chr_cpg_seq.get_context_as_str_for_chr(chr_info)
+    is_weak = format_chr_cpg_seq.get_weak_column(chr_info)
+    is_strong = format_chr_cpg_seq.get_strong_column(chr_info)
+    orph_35 = format_chr_cpg_seq.get_orph_35_column(chr_info)
 
     final_table = np.vstack((locations, avg_rate, is_weak, is_strong, context_as_chr, orph_35,
-                             col_coverage_avg_list, window_coverage_avg_list,
+                             number_of_samples_list, col_coverage_avg_list, window_coverage_avg_list,
                              col_coverage_median_list, window_coverage_median_list,
                              window_start_list, window_end_list, window_size_list))
 
     end_df = pd.DataFrame(final_table.T, index=locations,
                           columns=["locations", "avg_rate", "is_weak", "is_strong", "context", "is_solo(35)",
-                                   "cpg_avg_coverage", "window_avg_coverage",
+                                   "number_of_samples_list", "cpg_avg_coverage", "window_avg_coverage",
                                    "cpg_median_coverage", "window_median_coverage",
                                    "window_start", "window_end", "window_size"
                                    ]
@@ -150,12 +117,31 @@ def collect_data(file_path, chromosome):
 
 
 def main():
-    args = parse_input()
+    all_cpg_format_file_paths, output = format_args()
 
+    for file_path in tqdm(all_cpg_format_file_paths):
+        patient, chromosome = coverage_between_pairs.CPG_FORMAT_FILE_RE.findall(file_path)[0]
+        output_csv = os.path.join(output, patient, "%s_all_data.csv" % chromosome)
+        output_json = os.path.join(output, patient, "%s_json_coverage.pickle.zip" % chromosome)
+
+        df = pd.read_pickle(file_path)
+        data, json_data = collect_data(df, chromosome)
+
+        save_output(data, json_data, output, output_csv, output_json, patient)
+
+
+def save_output(data, json_data, output, output_csv, output_json, patient):
+    if not os.path.exists(os.path.join(output, patient)):
+        os.mkdir(os.path.join(output, patient))
+    data.to_csv(output_csv)
+    json_data.to_pickle(output_json)
+
+
+def format_args():
+    args = parse_input()
     output = args.output_folder
     if not output:
         output = os.path.dirname(sys.argv[0])
-
     if os.path.isdir(args.cpg_format_files):
         cpg_format_file_path = os.path.join(args.cpg_format_files, CPG_FORMAT_FILE_FORMAT % '*')
         all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
@@ -163,21 +149,9 @@ def main():
     else:
         all_cpg_format_file_paths = [args.cpg_format_files]
 
-    for file_path in tqdm(all_cpg_format_file_paths):
-        patient, chromosome = coverage_between_pairs.CPG_FORMAT_FILE_RE.findall(file_path)[0]
-        output_csv = os.path.join(output, patient, "%s_all_data.csv" % chromosome)
-        output_json = os.path.join(output, patient, "%s_json_coverage.pickle.zip" % chromosome)
-
-
-        data, json_data = collect_data(file_path, chromosome)
-
-        if not os.path.exists(os.path.join(output, patient)):
-            os.mkdir(os.path.join(output, patient))
-
-        data.to_csv(output_csv)
-        json_data.to_pickle(output_json)
+    return all_cpg_format_file_paths, output
 
 
 if __name__ == '__main__':
-    tools.init_slurm(main)
+    commons.slurm_tools.init_slurm(main)
     # main()

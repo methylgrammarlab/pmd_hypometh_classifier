@@ -11,13 +11,16 @@ import pandas as pd
 from tqdm import tqdm
 
 # Needed to run from shall
+import commons.data_tools
+import commons.slurm_tools
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 # Needed for imports
 sys.path.append(os.path.dirname(os.getcwd()))
 from commons.consts import CENETROMERE_DICT
-from commons import tools
+from commons import files_tools
 
 FOLDER_SUFFIX = os.path.join("*", "all_cpg_ratios_CRC*_chr*.dummy.pkl.zip")
 
@@ -43,7 +46,7 @@ def fix_counter(file_name):
         _, number, counter = line.strip().split("w")
         c.update({round(float(number) * 100): int(counter)})
 
-    tools.counter_to_csv(c, new_file)
+    commons.data_tools.counter_to_csv(c, new_file)
 
 
 def format_args():
@@ -73,7 +76,7 @@ def extract_coverage_global(input_folder, output_folder):
     """
     Coverage of location across chromosome for all patient and all chr
     """
-    chr_cpg_dict = tools.get_all_cpg_locations_across_chr()
+    chr_cpg_dict = files_tools.get_all_cpg_locations_across_chr()
     global_counter = collections.Counter()
 
     all_files = glob.glob(os.path.join(input_folder, FOLDER_SUFFIX))
@@ -83,7 +86,7 @@ def extract_coverage_global(input_folder, output_folder):
         coverage_across_samples = data.count()
         global_counter.update(coverage_across_samples.values / data.shape[0])
 
-    tools.counter_to_csv(global_counter, os.path.join(output_folder, "covered_samples_counter.csv"))
+    commons.data_tools.counter_to_csv(global_counter, os.path.join(output_folder, "covered_samples_counter.csv"))
 
 
 def extract_coverage_per_chr(input_folder, output_folder):
@@ -95,7 +98,7 @@ def extract_coverage_per_chr(input_folder, output_folder):
     args = parser.parse_args()
     create_chromosome_img = args.create_chromosome_img
 
-    chr_cpg_dict = tools.get_all_cpg_locations_across_chr()
+    chr_cpg_dict = files_tools.get_all_cpg_locations_across_chr()
     coverage_across_chr_dict = {}
 
     all_files = glob.glob(os.path.join(input_folder, FOLDER_SUFFIX))
@@ -162,7 +165,7 @@ def extract_bedgraph_information(input_folder, output_folder):
     """
     Create a bedgraph file for each patient with the coverage across different samples
     """
-    chr_cpg_dict = tools.get_all_cpg_locations_across_chr()
+    chr_cpg_dict = files_tools.get_all_cpg_locations_across_chr()
     all_files = glob.glob(os.path.join(input_folder, FOLDER_SUFFIX))
     coverage_per_patient_dict = {}
 
@@ -200,7 +203,7 @@ def extract_coverage_per_patient(input_folder, output_folder):
     Coverage of locations per patient across all chr: for each location count how many samples contains
     something from this locations. Add this information to counter.
     """
-    chr_cpg_dict = tools.get_all_cpg_locations_across_chr()
+    chr_cpg_dict = files_tools.get_all_cpg_locations_across_chr()
     coverage_across_patient_dict = {}
 
     all_files = glob.glob(os.path.join(input_folder, FOLDER_SUFFIX))
@@ -217,8 +220,8 @@ def extract_coverage_per_patient(input_folder, output_folder):
 
     # Covered of each patient, global on chr
     for patient in coverage_across_patient_dict:
-        tools.counter_to_csv(coverage_across_patient_dict[patient],
-                             os.path.join(output_folder, "%s_covered_samples_counter.csv" % patient))
+        commons.data_tools.counter_to_csv(coverage_across_patient_dict[patient],
+                                          os.path.join(output_folder, "%s_covered_samples_counter.csv" % patient))
 
 
 def main():
@@ -233,4 +236,4 @@ def main():
 
 
 if __name__ == '__main__':
-    tools.init_slurm(main)
+    commons.slurm_tools.init_slurm(main)

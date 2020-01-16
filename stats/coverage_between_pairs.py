@@ -10,8 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import commons.slurm_tools
+
 sys.path.append(os.path.dirname(os.getcwd()))
-from commons import tools
+from commons import files_tools
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"  # TODO remove the mini
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
@@ -110,4 +112,4 @@ def main():
 
 
 if __name__ == '__main__':
-    tools.init_slurm(main)
+    commons.slurm_tools.init_slurm(main)

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/baמישהו הוריד פעם קבצים מהקלאסטר למחשב מחוץ לרשת של cs?sh
 #SBATCH --job-name=coverage_between_pairs
 #SBATCH --output=/cs/usr/drordod/Desktop/project/proj_scwgbs/output/coverage_between_pairs-%j.out
 #SBATCH --error=/cs/usr/drordod/Desktop/project/proj_scwgbs/output/coverage_between_pairs-%j.err

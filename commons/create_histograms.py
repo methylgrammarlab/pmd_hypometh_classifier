@@ -6,7 +6,7 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(os.getcwd()))
-from commons import tools
+from commons import files_tools
 
 DICT_FILE_FORMAT = "dict_*_%s.pickle"  # TODO remove the mini
 DICT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).pickle")
@@ -26,7 +26,7 @@ def parse_input():
 # def create_histogram(series, patient, chromosome, num_of_bins, output):
 def create_histogram(file, output):
     patient, chromosome = DICT_FILE_RE.findall(file)[0]
-    dict = tools.load_compressed_pickle_not_zlib(file)
+    dict = files_tools.load_compressed_pickle_not_zlib(file)
     plt.bar(list(dict.keys()), dict.values(), color='#0E74E3')
     plt.xlabel('number of cells covering both location pairs')
     plt.title(TITLE_FORMAT % (patient, chromosome))

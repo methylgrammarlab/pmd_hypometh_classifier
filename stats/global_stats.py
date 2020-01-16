@@ -8,10 +8,13 @@ import sys
 import numpy as np
 from tqdm import tqdm
 
+import commons.data_tools
+import commons.slurm_tools
+
 sys.path.append(os.path.dirname(os.getcwd()))
 
 from commons.consts import ALL_SEQ_PATH
-import commons.tools as tools
+import commons.files_tools as tools
 
 
 def get_files_format(folder):
@@ -69,9 +72,9 @@ def reads_stats(all_files, output_folder):
         total_ratio_counter = update_ratio_count(data, total_ratio_counter)
         total_ratio_for_limit_counter = update_ratio_count(data, total_ratio_for_limit_counter, 10)
 
-    tools.counter_to_csv(total_read_counter, os.path.join(output_folder, "read_counter.csv "))
-    tools.counter_to_csv(total_ratio_counter, os.path.join(output_folder, "ratio_counter.csv "))
-    tools.counter_to_csv(total_ratio_for_limit_counter, os.path.join(output_folder,
+    commons.data_tools.counter_to_csv(total_read_counter, os.path.join(output_folder, "read_counter.csv "))
+    commons.data_tools.counter_to_csv(total_ratio_counter, os.path.join(output_folder, "ratio_counter.csv "))
+    commons.data_tools.counter_to_csv(total_ratio_for_limit_counter, os.path.join(output_folder,
                                                                      "ratio_counter_limit.csv "))
 
 
@@ -120,4 +123,4 @@ def main():
 
 
 if __name__ == '__main__':
-    tools.init_slurm(main)
+    commons.slurm_tools.init_slurm(main)

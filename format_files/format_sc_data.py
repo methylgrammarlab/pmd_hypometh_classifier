@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.getcwd()))
 import numpy as np
 import pandas
 
-import commons.tools as tools
+import commons.files_tools as tools
 
 OUTPUT_FILE_FORMAT = "%s_%s_%s_%s.pickle.zlib"
 
