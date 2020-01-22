@@ -53,20 +53,21 @@ def load_compressed_pickle_not_zlib(file_path):
         return formatted_data
 
 
-def get_all_cpg_locations_across_chr(full_name=False, full_data=False):
+def get_cpg_context_map(drop_chr_prefix=False, get_full_mapping=False):
     """
     Get a dictionary of chr name (number) and a list of all the locations of CpG
+    @:param get_full_mapping: If true only give the locations
     """
     all_files = glob.glob(os.path.join(consts.ALL_SEQ_PATH, "*.pickle.zlib"))
     chr_dict = {}
     for f in all_files:
         chr_name = re.findall("\d+", os.path.basename(f))[0]
         data = load_compressed_pickle(f)
-        if full_name and not full_data:
+        if drop_chr_prefix and not get_full_mapping:
             chr_dict["chr%s" % chr_name] = data[:, 0]
-        elif not full_data and not full_data:
+        elif not get_full_mapping and not get_full_mapping:
             chr_dict[chr_name] = data[:, 0]
-        elif full_data and full_data:
+        elif get_full_mapping and get_full_mapping:
             chr_dict["chr%s" % chr_name] = data
         else:
             chr_dict[chr_name] = data

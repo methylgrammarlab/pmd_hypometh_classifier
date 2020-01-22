@@ -1,3 +1,10 @@
+"""
+Collect the following data: "locations", "avg_rate", "is_weak", "is_strong", "context", "is_solo(35)",
+                                   "number_of_samples_list", "cpg_avg_coverage", "window_avg_coverage",
+                                   "cpg_median_coverage", "window_median_coverage",
+                                   "window_start", "window_end", "window_size"
+"""
+
 import argparse
 import glob
 import json
@@ -9,7 +16,6 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-
 
 sys.path.append(os.path.dirname(os.getcwd()))
 import commons.slurm_tools
@@ -77,7 +83,7 @@ def collect_data(df, chromosome):
     :return: Two tables with all the data to be saved
     """
     # Collect global sequence information from the cpg dict
-    cpg_dict = files_tools.get_all_cpg_locations_across_chr(full_name=True, full_data=True)
+    cpg_dict = files_tools.get_cpg_context_map(drop_chr_prefix=True, get_full_mapping=True)
     chr_info = cpg_dict[chromosome]
 
     context_as_chr = format_chr_cpg_seq.get_context_as_str_for_chr(chr_info)
