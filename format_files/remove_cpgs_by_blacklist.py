@@ -70,7 +70,7 @@ def skim_cpg(files, boundaries_paths, output_folder):
 
                 cpgi_boundaries_dict[chr].append((start, end))
 
-    all_cpg_locations = tools.get_cpg_context_map(drop_chr_prefix=True)
+    all_cpg_locations = tools.get_cpg_context_map(only_locations=True)
     for chromosome in tqdm(all_cpg_locations, desc="CpGI create chr mask"):
         chr_location = all_cpg_locations[chromosome]
         for boundary in cpgi_boundaries_dict[chromosome]:

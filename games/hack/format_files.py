@@ -102,7 +102,7 @@ def main():
     input_files, output_dir = format_args()
 
     for file_path in tqdm(input_files):
-        cpg_dict = files_tools.get_cpg_context_map(drop_chr_prefix=True, get_full_mapping=True)
+        cpg_dict = files_tools.get_cpg_context_map()
         patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
 
         df = pd.read_pickle(file_path)

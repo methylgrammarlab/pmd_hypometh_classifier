@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(os.getcwd()))
 import commons.slurm_tools
 from commons.data_tools import mean_of_counter_obj, median_of_counter_obj, extend_lists, numpy_counter_to_dict
 from stats import coverage_between_pairs
-from format_files import format_chr_cpg_seq
+from format_files import format_cpg_context_map
 from commons import files_tools
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
@@ -83,13 +83,13 @@ def collect_data(df, chromosome):
     :return: Two tables with all the data to be saved
     """
     # Collect global sequence information from the cpg dict
-    cpg_dict = files_tools.get_cpg_context_map(drop_chr_prefix=True, get_full_mapping=True)
+    cpg_dict = files_tools.get_cpg_context_map()
     chr_info = cpg_dict[chromosome]
 
-    context_as_chr = format_chr_cpg_seq.get_context_as_str_for_chr(chr_info)
-    is_weak = format_chr_cpg_seq.get_weak_column(chr_info)
-    is_strong = format_chr_cpg_seq.get_strong_column(chr_info)
-    orph_35 = format_chr_cpg_seq.get_orph_35_column(chr_info)
+    context_as_chr = format_cpg_context_map.get_context_as_str_for_chr(chr_info)
+    is_weak = format_cpg_context_map.get_weak_column(chr_info)
+    is_strong = format_cpg_context_map.get_strong_column(chr_info)
+    orph_35 = format_cpg_context_map.get_orph_35_column(chr_info)
 
     # Start to work on generating more data per window
 
@@ -178,6 +178,10 @@ def main():
 
     for file_path in tqdm(input_files):
         patient, chromosome = coverage_between_pairs.CPG_FORMAT_FILE_RE.findall(file_path)[0]
+        output_csv = os.path.join(output_dir, patient, "%s_all_data.csv" % chromosome)
+
+        if os.path.exists(output_csv):
+            continue
 
         df = pd.read_pickle(file_path)
         data, json_data = collect_data(df, chromosome)

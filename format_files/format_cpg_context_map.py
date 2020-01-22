@@ -75,7 +75,7 @@ def convert_context_int_to_chr(i):
 def get_context_as_int_for_chr(chr_info):
     return chr_info[:, -3]
 
-
+# TODo: move to const not relative to stop but to start
 def get_context_as_str_for_chr(chr_info):
     return [convert_context_int_to_chr(i) for i in chr_info[:, -3]]
 

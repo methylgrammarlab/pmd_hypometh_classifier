@@ -13,7 +13,7 @@ LOW_T = 0.25
 
 sys.path.append(os.getcwd())
 from commons import files_tools
-from format_files.format_chr_cpg_seq import NUMBER_OF_ORPH_PER_INDEX
+from format_files.format_cpg_context_map import NUMBER_OF_ORPH_PER_INDEX
 
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
@@ -83,7 +83,7 @@ def main():
     input_files, output_dir = format_args()
 
     for file_path in tqdm(input_files):
-        cpg_dict = files_tools.get_cpg_context_map(drop_chr_prefix=True, get_full_mapping=True)
+        cpg_dict = files_tools.get_cpg_context_map()
         patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
 
         df = pd.read_pickle(file_path)
