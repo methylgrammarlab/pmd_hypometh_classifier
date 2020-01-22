@@ -8,14 +8,12 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-NUMBER_OF_ORPH_PER_INDEX = [1, 2, 3, 4, 5, 10, 20, 35, 50, 75, 100, 150, 200]
-
 HIGH_T = 0.75
 LOW_T = 0.25
 
 sys.path.append(os.getcwd())
-sys.path.append("/cs/usr/drordod/Desktop/project/proj_scwgbs")
 from commons import files_tools
+from format_files.format_chr_cpg_seq import NUMBER_OF_ORPH_PER_INDEX
 
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
@@ -29,10 +27,6 @@ def parse_input():
     return args
 
 
-def get_context_as_int_for_chr(chr_info):
-    return chr_info[:, -3]
-
-
 def collect_data(df, chr_info):
     orph_coloms = ["num_cpg_in_%s" % i for i in NUMBER_OF_ORPH_PER_INDEX]
 
@@ -44,18 +38,6 @@ def collect_data(df, chr_info):
     nc_values = df.iloc[nc_index, :].mean(axis=0, skipna=True)
     pt_values = df.iloc[pt_index, :].mean(axis=0, skipna=True)
 
-    # ones_or_zeros_pt = np.where(np.logical_or(pt_values == 1, pt_values == 0))[0]
-    # ones_or_zeros_nc = np.where(np.logical_or(nc_values == 1, nc_values == 0))[0]
-    # together = set(ones_or_zeros_pt) & set(ones_or_zeros_nc)
-    # nc_values = nc_values.iloc[list(together)]
-    # pt_values = pt_values.iloc[list(together)]
-    #
-    # index = pt_values.axes[0]._values
-    # location = chr_info[:, 0]
-    # location = np.in1d(location,index)
-    # context = chr_info[location, -3]
-    # orph = chr_info[location, 1:14]
-
     pt_values[pt_values >= HIGH_T] = 1
     pt_values[pt_values <= LOW_T] = 0
     nc_values[nc_values <= LOW_T] = 0
@@ -63,8 +45,7 @@ def collect_data(df, chr_info):
 
     ones_or_zeros_pt = np.where(np.logical_or(pt_values == 1, pt_values == 0))[0]
     ones_or_zeros_nc = np.where(np.logical_or(nc_values == 1, nc_values == 0))[0]
-    # nc_values = nc_values.iloc[list(together)]
-    # pt_values = pt_values.iloc[list(together)]
+
     pt_values[~np.logical_or(pt_values == 1, pt_values == 0)] = 2
     nc_values[~np.logical_or(nc_values == 1, nc_values == 0)] = 2
     location = chr_info[:, 0]
@@ -123,6 +104,7 @@ def save_output(data, output, data_file_path):
 
     if not os.path.exists(os.path.join(output, patient)):
         os.mkdir(os.path.join(output, patient))
+
     data.to_csv(output_csv, compression='gzip')
 
 

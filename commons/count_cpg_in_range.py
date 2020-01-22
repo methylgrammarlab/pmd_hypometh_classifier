@@ -20,7 +20,7 @@ def format_args():
 
 
 def count_cpg_in_range(chr_name, start, end):
-    chr_locations_dict = tools.get_all_cpg_locations_across_chr()
+    chr_locations_dict = tools.get_cpg_context_map()
     chr_locations = chr_locations_dict[chr_name]
     print(np.where(np.logical_and(chr_locations > start, chr_locations < end))[0].size)
 

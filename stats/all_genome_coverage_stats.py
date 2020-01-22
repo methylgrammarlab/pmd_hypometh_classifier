@@ -76,7 +76,7 @@ def extract_coverage_global(input_folder, output_folder):
     """
     Coverage of location across chromosome for all patient and all chr
     """
-    chr_cpg_dict = files_tools.get_all_cpg_locations_across_chr()
+    chr_cpg_dict = files_tools.get_cpg_context_map()
     global_counter = collections.Counter()
 
     all_files = glob.glob(os.path.join(input_folder, FOLDER_SUFFIX))
@@ -98,7 +98,7 @@ def extract_coverage_per_chr(input_folder, output_folder):
     args = parser.parse_args()
     create_chromosome_img = args.create_chromosome_img
 
-    chr_cpg_dict = files_tools.get_all_cpg_locations_across_chr()
+    chr_cpg_dict = files_tools.get_cpg_context_map()
     coverage_across_chr_dict = {}
 
     all_files = glob.glob(os.path.join(input_folder, FOLDER_SUFFIX))
@@ -165,7 +165,7 @@ def extract_bedgraph_information(input_folder, output_folder):
     """
     Create a bedgraph file for each patient with the coverage across different samples
     """
-    chr_cpg_dict = files_tools.get_all_cpg_locations_across_chr()
+    chr_cpg_dict = files_tools.get_cpg_context_map()
     all_files = glob.glob(os.path.join(input_folder, FOLDER_SUFFIX))
     coverage_per_patient_dict = {}
 
@@ -203,7 +203,7 @@ def extract_coverage_per_patient(input_folder, output_folder):
     Coverage of locations per patient across all chr: for each location count how many samples contains
     something from this locations. Add this information to counter.
     """
-    chr_cpg_dict = files_tools.get_all_cpg_locations_across_chr()
+    chr_cpg_dict = files_tools.get_cpg_context_map()
     coverage_across_patient_dict = {}
 
     all_files = glob.glob(os.path.join(input_folder, FOLDER_SUFFIX))
