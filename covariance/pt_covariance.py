@@ -34,8 +34,8 @@ def create_group_bedgraph(file, patient, chromosome, group, output):
     df = pd.read_pickle(to_read)
     pt_index = [pt for pt in df.index if pt.startswith(group)]
     pt_df = df.loc[pt_index, :]
-    num_of_cpg = 10000
-    # num_of_cpg = pt_df.shape[1]
+    # num_of_cpg = 10000
+    num_of_cpg = pt_df.shape[1]
 
     with open(os.path.join(output, BEDGRAPH_OUTPUT_FILE_FORMAT % (patient, chromosome, group)), "w") as output_file:
         for i in tqdm(range(0, num_of_cpg, WINDOWS_SIZE)):
