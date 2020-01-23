@@ -126,7 +126,7 @@ def collect_data(df, chromosome):
 
             # Extract the number of samples for this CpG, and the coverage with all others CpGs
             # Update the counters for this CpG and this window
-            number_of_samples, col_coverage = col_coverage[index], np.delete(col_coverage, index)
+            number_of_samples, col_coverage = col_coverage[0], col_coverage[1:]
             number_of_samples_list.append(number_of_samples)
             cpg_counter.update(col_coverage)
             window_counter.update(col_coverage)
