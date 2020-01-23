@@ -22,5 +22,5 @@ CENETROMERE_DICT = {
     "21": [10688588, 14563981],
     "22": [12326422, 17790024],
 }
-FULL_ALL_SEQ_PATH = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/full"
-ALL_SEQ_PATH = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/filtered"
+CONTEXT_MAP_FULL = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/full"
+CONTEXT_MAP_FILTERED_NO_BL_CPGI = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/filtered_by_bl_and_cpgi"

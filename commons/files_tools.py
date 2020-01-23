@@ -10,6 +10,8 @@ import commons.consts as consts
 
 COLUMNS = ["read_number", "counter"]
 
+chr_dict = {}
+
 
 def save_as_compressed_pickle(output_file, data):
     """
@@ -53,23 +55,18 @@ def load_compressed_pickle_not_zlib(file_path):
         return formatted_data
 
 
-def get_cpg_context_map(drop_chr_prefix=False, get_full_mapping=False):
+def get_cpg_context_map(only_locations=False, load_with_path=consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI):
     """
     Get a dictionary of chr name (number) and a list of all the locations of CpG
-    @:param get_full_mapping: If true only give the locations
+    @:param only_locations: If true only give the locations of cpg
     """
-    all_files = glob.glob(os.path.join(consts.ALL_SEQ_PATH, "*.pickle.zlib"))
-    chr_dict = {}
+    if chr_dict != {}  and consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI == load_with_path:
+        return chr_dict
+
+    all_files = glob.glob(os.path.join(load_with_path, "*.pickle.zlib"))
     for f in all_files:
-        chr_name = re.findall("\d+", os.path.basename(f))[0]
+        chr_name = re.findall("chr\d+", os.path.basename(f))[0]
         data = load_compressed_pickle(f)
-        if drop_chr_prefix and not get_full_mapping:
-            chr_dict["chr%s" % chr_name] = data[:, 0]
-        elif not get_full_mapping and not get_full_mapping:
-            chr_dict[chr_name] = data[:, 0]
-        elif get_full_mapping and get_full_mapping:
-            chr_dict["chr%s" % chr_name] = data
-        else:
-            chr_dict[chr_name] = data
+        chr_dict["%s" % chr_name] = data[:, 0] if only_locations else data
 
     return chr_dict

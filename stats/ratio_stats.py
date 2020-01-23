@@ -13,7 +13,7 @@ import commons.slurm_tools
 
 sys.path.append(os.path.dirname(os.getcwd()))
 
-from commons.consts import ALL_SEQ_PATH
+from commons.consts import CONTEXT_MAP_FILTERED_NO_BL_CPGI
 import commons.files_tools as tools
 
 
@@ -80,7 +80,7 @@ def reads_stats(all_files, output_folder):
 
 def percentage_of_positions(all_files, output_folder):
     # Get the number of positions per chr
-    seq_files = glob.glob(os.path.join(ALL_SEQ_PATH, "*"))
+    seq_files = glob.glob(os.path.join(CONTEXT_MAP_FILTERED_NO_BL_CPGI, "*"))
     positions_in_chr = {}
     files_dict = {}
     all_file = open(os.path.join(output_folder, "chr_all_stats.csv"), "a")
