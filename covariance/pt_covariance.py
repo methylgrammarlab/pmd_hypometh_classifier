@@ -12,12 +12,13 @@ import sys
 BEDGRAPH_LINE_FORMAT = "{chr_name}\t{start}\t{end}\t{number}\n"
 BEDGRPH_OUTPUT_FILE = "covariance_between_CpG_%s.bedgraph"
 BEDGRAPH_OUTPUT_FILE_FORMAT = "average_covariance_between_cpg_%s_chr_%s_region_%s.bedgraph"
-WINDOWS_SIZE = 5000
+WINDOWS_SIZE = 500
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_chr(\d+).dummy.pkl.zip")
 
-REGIONS = ['PT']
+ALL = 'ALL'
+REGIONS = [ALL, 'PT']
 
 
 def parse_input():
@@ -40,8 +41,11 @@ def create_region_bedgraph(file, patient, chromosome, region, output):
     :param output: The output folder
     """
     df = pd.read_pickle(file)
-    region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith(region)] + [cell_id for cell_id in df.index if cell_id.startswith('NC')]
-    region_df = df.loc[region_cell_ids, :]
+    if region is not ALL:
+        region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith(region)] + [cell_id for cell_id in df.index if cell_id.startswith('NC')]
+        region_df = df.loc[region_cell_ids, :]
+    else:
+        region_df = df
     # num_of_cpg = 100
     num_of_cpg = region_df.shape[1]
     output_filename = os.path.join(output, BEDGRAPH_OUTPUT_FILE_FORMAT % (patient, chromosome, 'PTandNC'))
