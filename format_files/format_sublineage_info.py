@@ -6,28 +6,28 @@ sys.path.append(os.getcwd())
 from commons import consts
 
 
-def get_sublinage_info(file_path=consts.SUBLINAGE_FILE):
+def get_sublineage_info(file_path=consts.SUBLINEAGE_FILE):
     with open(file_path, "rb") as f:
         return pickle.load(f)
 
 
-def format_file(sublinage_file):
-    sublinage_dict = {}
-    with open(sublinage_file, "rb") as sublinage:
-        _ = sublinage.readline()
-        for line in sublinage:
+def format_file(sublineage_file):
+    sublineage_dict = {}
+    with open(sublineage_file, "rb") as sublineage:
+        _ = sublineage.readline()
+        for line in sublineage:
             patient, sample, linage = line.split()
 
-            if patient not in sublinage_dict:
-                sublinage_dict[patient] = {}
+            if patient not in sublineage_dict:
+                sublineage_dict[patient] = {}
 
-            if linage not in sublinage_dict[patient]:
-                sublinage_dict[patient][linage] = []
+            if linage not in sublineage_dict[patient]:
+                sublineage_dict[patient][linage] = []
 
-            sublinage_dict[patient][linage].append(sample)
+            sublineage_dict[patient][linage].append(sample)
 
-    with open("patient_sublinage_dict.pickle", "wb") as f:
-        pickle.dump(sublinage_dict, f)
+    with open("patient_sublineage_dict.pickle", "wb") as f:
+        pickle.dump(sublineage_dict, f)
 
 
 def main():

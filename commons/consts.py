@@ -24,5 +24,5 @@ CENETROMERE_DICT = {
 }
 CONTEXT_MAP_FULL = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/full"
 CONTEXT_MAP_FILTERED_NO_BL_CPGI = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/filtered_by_bl_and_cpgi"
-SUBLINAGE_FILE = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror" \
-                 r"/genomic_data/orig/sublinage/patient_sublinage_dict.pickle"
+SUBLINEAGE_FILE = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror" \
+                  r"/genomic_data/orig/sublineage/patient_sublineage_dict.pickle"
