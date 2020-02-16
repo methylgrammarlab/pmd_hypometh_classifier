@@ -106,7 +106,7 @@ def main():
     input_files, output_dir = format_args()
     pmd_context_map = handle_pmds.get_pmd_context_map()
 
-    for file_path in tqdm(input_files[:1]):
+    for file_path in tqdm(input_files):
         patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
 
         df = pd.read_pickle(file_path)
