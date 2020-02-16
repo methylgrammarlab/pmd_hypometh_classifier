@@ -16,15 +16,20 @@ def format_file(sublineage_file):
     with open(sublineage_file, "rb") as sublineage:
         _ = sublineage.readline()
         for line in sublineage:
-            patient, sample, linage = line.split()
+            patient, sample, lineage = line.split()
+            patient = patient.decode("ascii")
+            sample = sample.decode("ascii")
+            lineage = lineage.decode("ascii")
+
+            sample = "_".join(sample.split("_")[1:])
 
             if patient not in sublineage_dict:
                 sublineage_dict[patient] = {}
 
-            if linage not in sublineage_dict[patient]:
-                sublineage_dict[patient][linage] = []
+            if lineage not in sublineage_dict[patient]:
+                sublineage_dict[patient][lineage] = []
 
-            sublineage_dict[patient][linage].append(sample)
+            sublineage_dict[patient][lineage].append(sample)
 
     with open("patient_sublineage_dict.pickle", "wb") as f:
         pickle.dump(sublineage_dict, f)

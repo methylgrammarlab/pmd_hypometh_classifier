@@ -2,12 +2,18 @@ import glob
 import os
 import pickle
 import re
+import sys
 
 import numpy as np
 import pandas as pd
 
 CHR_NAME = re.compile("(chr\d+)")
 PMD_LABEL = "commonPMD"
+pmd_dict_mu = {}
+
+sys.path.append(os.getcwd())
+from commons import consts
+from commons import files_tools
 
 
 def create_pmd_dict(bed_file, output_path):
@@ -63,3 +69,44 @@ def split_files(input_path, output_path, dict_path, patients):
                     os.mkdir(os.path.dirname(output_data))
 
                 pmd.to_csv(output_data, compression="gzip")
+
+
+def read_pmd_dict(file_path=consts.PMD_FILE):
+    if pmd_dict_mu != {}:
+        return pmd_dict_mu
+
+    with open(file_path, "rb") as pmd_dict_f:
+        pmd_dict = pickle.load(pmd_dict_f)
+
+        return pmd_dict
+
+
+def get_pmd_context_map():
+    pmd_context_map = {}
+    cpg_context_map = files_tools.get_cpg_context_map(load_with_path=consts.CONTEXT_MAP_FILTERED_LOCAL_DROR)
+    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
+
+    for chromosome in cpg_context_map:
+        chr_context_map = cpg_context_map[chromosome]
+        prev_mask = None
+        pmd_list = pmd_dict[chromosome]
+        for pmd_tuple in pmd_list:
+            start, end = pmd_tuple
+            pmd_mask = (chr_context_map[:, 0] >= start) & (chr_context_map[:, 0] <= end)
+            prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+
+        pmd_context_map[chromosome] = chr_context_map[prev_mask]
+
+    return pmd_context_map
+
+
+def get_pmd_df(df, chromosome):
+    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
+    pmd_list = pmd_dict[chromosome]
+    prev_mask = None
+    for pmd_tuple in pmd_list:
+        start, end = pmd_tuple
+        pmd_mask = (df.columns >= start) & (df.columns <= end)
+        prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+
+    return df.loc[:, prev_mask]
