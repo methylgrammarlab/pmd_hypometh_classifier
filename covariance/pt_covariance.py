@@ -1,13 +1,16 @@
-import pandas as pd
-import numpy as np
-from tqdm import tqdm
 import argparse
 import glob
 import os
 import re
 import sys
 
-# sys.path.append(os.path.dirname(os.getcwd()))
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+
+sys.path.append(os.getcwd())
+from format_files import format_sublineage_info
+from commons import consts
 
 BEDGRAPH_LINE_FORMAT = "{chr_name}\t{start}\t{end}\t{number}\n"
 BEDGRPH_OUTPUT_FILE = "covariance_between_CpG_%s.bedgraph"
@@ -30,7 +33,7 @@ def parse_input():
     return args
 
 
-def create_region_bedgraph(file, patient, chromosome, region, output):
+def create_region_bedgraph(file, patient, chromosome, region, region_name, output):
     """
     Creates a bedgraph of the mean covariance of cPg's, using data only from one region at a time, adding the NC. The
     covariance is calculated in windows.
@@ -42,13 +45,18 @@ def create_region_bedgraph(file, patient, chromosome, region, output):
     """
     df = pd.read_pickle(file)
     if region is not ALL:
-        region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith(region)] + [cell_id for cell_id in df.index if cell_id.startswith('NC')]
+        region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
+
+        for sample in region:
+            region_cell_ids.extend(cell_id for cell_id in df.index if cell_id.startswith(sample))
+
         region_df = df.loc[region_cell_ids, :]
     else:
         region_df = df
     # num_of_cpg = 100
     num_of_cpg = region_df.shape[1]
-    output_filename = os.path.join(output, BEDGRAPH_OUTPUT_FILE_FORMAT % (patient, chromosome, 'PTandNC'))
+    output_filename = os.path.join(output, BEDGRAPH_OUTPUT_FILE_FORMAT % (patient, chromosome, 'NCand%s' %
+                                                                          region_name))
 
     # TODO covariance with min_periods=10
     with open(output_filename, "w") as output_file:
@@ -74,8 +82,10 @@ def create_bedgraphs(file, patient, chromosome, output):
     :param chromosome: The current chromosome
     :param output: The output folder
     """
-    for region in REGIONS:
-        create_region_bedgraph(file, patient, chromosome, region, output)
+    sublineage_info = format_sublineage_info.get_sublineage_info(consts.SUBLINEAGE_FILE_LOCAL_DROR)
+    patient_info = sublineage_info[patient]
+    for sublineage in patient_info:
+        create_region_bedgraph(file, patient, chromosome, patient_info[sublineage], sublineage, output)
 
 
 def main():
