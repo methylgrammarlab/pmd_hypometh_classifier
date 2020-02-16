@@ -75,9 +75,18 @@ def convert_context_int_to_chr(i):
 def get_context_as_int_for_chr(chr_info):
     return chr_info[:, -3]
 
+
 # TODo: move to const not relative to stop but to start
 def get_context_as_str_for_chr(chr_info):
     return [convert_context_int_to_chr(i) for i in chr_info[:, -3]]
+
+
+def get_context_as_str_for_chr_2(chr_info):
+    return [convert_context_int_to_chr(i)[1:-1] for i in chr_info[:, -3]]
+
+
+def get_context_as_str_for_chr_1(chr_info):
+    return [convert_context_int_to_chr(i)[2:-2] for i in chr_info[:, -3]]
 
 
 def get_weak_column(chr_info):
