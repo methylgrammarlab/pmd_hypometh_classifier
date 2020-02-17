@@ -62,10 +62,10 @@ def predict_df(df, chr_info, chromosome, is_filtred_to_pmd=True):
     not_strong_or_weak = np.logical_not(weak_or_strong)
 
     # solo\ not solo
-    solo_col = format_cpg_context_map.get_orph_35_column(chr_info)
-    solo_col[solo_col > 0] = 1
-    is_solo = solo_col
-    not_solo = np.logical_not(is_solo)
+    orph35_col = format_cpg_context_map.get_orph_35_column(chr_info)
+    orph35_col[orph35_col > 0] = 1
+    not_solo = orph35_col.astype(np.bool)
+    is_solo = np.logical_not(not_solo)
 
     nc_index = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
     pt_index = [cell_id for cell_id in df.index if cell_id.startswith('PT')]
@@ -85,10 +85,10 @@ def predict_df(df, chr_info, chromosome, is_filtred_to_pmd=True):
         if not valid_indexes.iloc[index]:
             continue
 
-        if is_solo[index]:
+        if not_solo[index]:
             prediction.append(KEPT_METH)
 
-        elif not_solo[index]:
+        elif is_solo[index]:
             if weak[index]:
                 prediction.append(LOST_METH)
 
