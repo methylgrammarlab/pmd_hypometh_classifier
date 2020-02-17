@@ -11,7 +11,6 @@ from tqdm import tqdm
 
 sys.path.append(os.getcwd())
 from format_files import handle_pmds
-from commons import consts
 
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
@@ -59,29 +58,16 @@ def get_covariance_dict(covariance_path):
     return d
 
 
-def get_covariance_pmd_df(bedgraph_path, chromosome):
-    covariance_df = pd.read_csv(bedgraph_path, sep="\t", names=["chr", "start", "end", "coverage"],
-                                usecols=["start", "coverage"], index_col="start")
-
-    pmd_dict = handle_pmds.read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
-    pmd_list = pmd_dict[chromosome]
-    prev_mask = None
-    for pmd_tuple in pmd_list:
-        start, end = pmd_tuple
-        pmd_mask = (covariance_df.index >= start) & (covariance_df.index <= end)
-        prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-    return covariance_df.loc[prev_mask, :]
-
-
-def main():
-    input_files, covariance_dict, output_dir = format_args()
+def plot_methylation_vs_covariance(input_files, covariance_dict, high_threshold=10.0, low_threshold=-10.0):
     mean_list = []
     covariance_list = []
 
     for file_path in tqdm(input_files):
-        patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
-        covariance_pmd_df = get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
+        _, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
+        covariance_pmd_df = handle_pmds.get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
+
+        covariance_pmd_df = covariance_pmd_df[covariance_pmd_df.coverage < high_threshold]
+        covariance_pmd_df = covariance_pmd_df[covariance_pmd_df.coverage > low_threshold]
 
         df = pd.read_pickle(file_path)
         pmd_df = handle_pmds.get_pmd_df(df, chromosome)
@@ -91,19 +77,66 @@ def main():
         mean_list.append(mean_values)
         covariance_list.append(covariance_values)
 
-        plt.scatter(mean_values, covariance_values, alpha=0.2, s=0.8)
-        plt.title("Methylation level vs Covariance in PMD %s" % chromosome)
-        plt.xlabel("Avg methylation level")
-        plt.ylabel("Covariance in window")
-        plt.savefig("methylation_vs_covariance_%s" % chromosome)
-        plt.close()
-
     plt.scatter(np.concatenate(mean_list), np.concatenate(covariance_list), alpha=0.2, s=0.8)
     plt.title("Methylation level vs Covariance in PMD")
     plt.xlabel("Avg methylation level")
     plt.ylabel("Covariance in window")
     plt.savefig("methylation_vs_covariance")
     plt.close()
+
+
+def plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_threshold=10.0,
+                                        low_threshold=-10.0):
+    mean_list = []
+    covariance_list = []
+
+    for file_path in tqdm(input_files):
+        _, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
+        covariance_pmd_df = handle_pmds.get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
+
+        covariance_pmd_df = covariance_pmd_df[covariance_pmd_df.coverage < high_threshold]
+        covariance_pmd_df = covariance_pmd_df[covariance_pmd_df.coverage > low_threshold]
+
+        df = pd.read_pickle(file_path)
+        pmd_df = handle_pmds.get_pmd_df(df, chromosome)
+
+        nc_index = [cell_id for cell_id in pmd_df.index if cell_id.startswith('NC')]
+        pt_index = [cell_id for cell_id in pmd_df.index if cell_id.startswith('PT')]
+
+        nc_values = pmd_df.loc[nc_index, :].mean(axis=0, skipna=True)
+        pt_values = pmd_df.loc[pt_index, :].mean(axis=0, skipna=True)
+        diff = nc_values - pt_values
+
+        mean_values = diff[covariance_pmd_df.index]._values
+        covariance_values = covariance_pmd_df._values
+        mean_list.append(mean_values)
+        covariance_list.append(covariance_values)
+
+    plt.scatter(np.concatenate(mean_list), np.concatenate(covariance_list), alpha=0.2, s=0.8)
+    plt.title("Diff in Methylation level vs Covariance in PMD")
+    plt.xlabel("Avg methylation diff level")
+    plt.ylabel("Covariance in window")
+    plt.savefig("diff_methylation_vs_covariance")
+    plt.close()
+
+
+def plot_covariance_hist(covariance_dict):
+    covariance_list = []
+    for chromosome in covariance_dict:
+        covariance_pmd_df = handle_pmds.get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
+        covariance_list.append(covariance_pmd_df._values)
+
+    data = np.concatenate(covariance_list)
+    plt.hist(data, bins=20)
+    plt.savefig("covariance_hist")
+
+
+def main():
+    input_files, covariance_dict, output_dir = format_args()
+    plot_methylation_vs_covariance(input_files, covariance_dict, high_threshold=0.1, low_threshold=-0.05)
+    plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_threshold=0.1,
+                                        low_threshold=-0.05)
+    # plot_covariance_hist(covariance_dict)
 
 
 if __name__ == '__main__':
