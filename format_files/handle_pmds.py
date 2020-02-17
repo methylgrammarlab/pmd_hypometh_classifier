@@ -110,3 +110,18 @@ def get_pmd_df(df, chromosome):
         prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
 
     return df.loc[:, prev_mask]
+
+
+def get_covariance_pmd_df(bedgraph_path, chromosome):
+    covariance_df = pd.read_csv(bedgraph_path, sep="\t", names=["chr", "start", "end", "coverage"],
+                                usecols=["start", "coverage"], index_col="start")
+
+    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
+    pmd_list = pmd_dict[chromosome]
+    prev_mask = None
+    for pmd_tuple in pmd_list:
+        start, end = pmd_tuple
+        pmd_mask = (covariance_df.index >= start) & (covariance_df.index <= end)
+        prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+
+    return covariance_df.loc[prev_mask, :]
