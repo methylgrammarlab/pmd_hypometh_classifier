@@ -59,7 +59,6 @@ def predict_df(df, chr_info, chromosome, is_filtred_to_pmd=True):
     weak = format_cpg_context_map.get_weak_column(chr_info)
     strong = format_cpg_context_map.get_strong_column(chr_info)
     weak_or_strong = np.logical_or(weak, strong)
-    not_strong_or_weak = np.logical_not(weak_or_strong)
 
     # solo\ not solo
     orph35_col = format_cpg_context_map.get_orph_35_column(chr_info)
