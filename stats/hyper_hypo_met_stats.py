@@ -1,6 +1,5 @@
 import argparse
 import glob
-import itertools
 import os
 import re
 import sys
@@ -16,8 +15,7 @@ MID = 0.5
 
 sys.path.append(os.getcwd())
 from format_files.format_cpg_context_map import NUMBER_OF_ORPH_PER_INDEX
-from format_files import format_cpg_context_map, handle_pmds, format_sublineage_info
-from commons import consts
+from format_files import format_cpg_context_map, handle_pmds
 
 ORPH_COLS = ["num_cpg_in_%s" % i for i in NUMBER_OF_ORPH_PER_INDEX]
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
@@ -391,34 +389,6 @@ def collect_data(df, chr_info, patient, chromosome):
     info_file.close()
 
 
-def minimal_diff_in_sub_lineage(df, chr_info, patient, chromosome):
-    sublineage_info = format_sublineage_info.get_sublineage_info(consts.SUBLINEAGE_FILE_LOCAL_DROR)
-    patient_info = sublineage_info[patient]
-    dfs = []
-    for sublineage in patient_info:
-        if sublineage == "NC":
-            continue
-
-        region_cell_ids = []
-        for sample in patient_info[sublineage]:
-            region_cell_ids.extend([cell_id for cell_id in df.index if cell_id.startswith(sample)])
-
-        region_df = df.loc[region_cell_ids, :].mean(axis=0, skipna=True)
-        region_df[region_df >= HIGH_T] = 1
-        region_df[region_df <= LOW_T] = 0
-        dfs.append(region_df)
-
-    accuracy = 0
-    for couple in list(itertools.combinations(dfs, 2)):
-        df1 = couple[0]
-        df2 = couple[1]
-        index = np.logical_and(np.logical_or(df1 == 0, df1 == 1), np.logical_or(df2 == 0, df2 == 1))
-        diff = np.sum(np.abs(df1[index] - df2[index]) == 0)
-        accuracy = max(diff / np.sum(index == 1), accuracy)
-
-    print(accuracy)
-
-
 def main():
     input_files, output_dir = format_args()
     pmd_context_map = handle_pmds.get_pmd_context_map()
@@ -432,8 +402,6 @@ def main():
         # collect_data_solo(pmd_df, pmd_context_map[chromosome], patient, chromosome)
         # collect_data_not_solo(pmd_df, pmd_context_map[chromosome], patient, chromosome)
         # collect_data(pmd_df, pmd_context_map[chromosome], patient, chromosome)
-
-        minimal_diff_in_sub_lineage(pmd_df, pmd_context_map[chromosome], patient, chromosome)
 
 
 if __name__ == '__main__':
