@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+plt.style.use('seaborn')
+
 sys.path.append(os.getcwd())
 from format_files import handle_pmds
 
@@ -77,7 +79,9 @@ def plot_methylation_vs_covariance(input_files, covariance_dict, high_threshold=
         mean_list.append(mean_values)
         covariance_list.append(covariance_values)
 
-    plt.scatter(np.concatenate(mean_list), np.concatenate(covariance_list), alpha=0.2, s=0.8)
+    mean_c = np.concatenate(mean_list)
+    covariance_c = np.concatenate(covariance_list)
+    plt.plot(mean_c, covariance_c, linestyle='', marker='o', markersize=0.5)
     plt.title("Methylation level vs Covariance in PMD")
     plt.xlabel("Avg methylation level")
     plt.ylabel("Covariance in window")
@@ -112,7 +116,10 @@ def plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_thres
         mean_list.append(mean_values)
         covariance_list.append(covariance_values)
 
-    plt.scatter(np.concatenate(mean_list), np.concatenate(covariance_list), alpha=0.2, s=0.8)
+    mean_c = np.concatenate(mean_list)
+    covariance_c = np.concatenate(covariance_list)
+
+    plt.plot(mean_c, covariance_c, linestyle='', marker='o', markersize=0.5)
     plt.title("Diff in Methylation level vs Covariance in PMD")
     plt.xlabel("Avg methylation diff level")
     plt.ylabel("Covariance in window")
@@ -133,9 +140,9 @@ def plot_covariance_hist(covariance_dict):
 
 def main():
     input_files, covariance_dict, output_dir = format_args()
-    plot_methylation_vs_covariance(input_files, covariance_dict, high_threshold=0.1, low_threshold=-0.05)
-    plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_threshold=0.1,
-                                        low_threshold=-0.05)
+    # plot_methylation_vs_covariance(input_files, covariance_dict, high_threshold=0.08, low_threshold=-0.03)
+    plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_threshold=0.08,
+                                        low_threshold=-0.03)
     # plot_covariance_hist(covariance_dict)
 
 
