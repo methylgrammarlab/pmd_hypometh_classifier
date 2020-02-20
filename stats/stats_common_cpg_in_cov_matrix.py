@@ -1,4 +1,5 @@
 import argparse
+import collections
 import glob
 import os
 import re
@@ -10,10 +11,9 @@ from tqdm import tqdm
 
 sys.path.append(os.getcwd())
 from format_files import format_sublineage_info
-from commons import consts
+from commons import consts, data_tools
 
-BEDGRAPH_LINE_FORMAT = "{chr_name}\t{start}\t{end}\t{number}\n"
-BEDGRAPH_OUTPUT_FILE_FORMAT = "average_covariance_between_cpg_%s_chr_%s_region_%s.bedgraph"
+CSV_FILE = "common_cpg_in_cov_matrix_%s_chr_%s_region_%s.csv"
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_chr(\d+).dummy.pkl.zip")
@@ -42,8 +42,8 @@ def parse_input():
     parser.add_argument('--cpg_format_files', help='Path to folder or file of parsed scWGBS', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False,
                         default=os.path.dirname(sys.argv[0]))
-    parser.add_argument('--run_on_sublineage', help='Should the code create one bedgraph or one per '
-                                                    'sublineage', required=False, default=False, type=bool)
+    parser.add_argument('--run_on_sublineage', required=False, default=False, action='store_true',
+                        help='Should the code create one bedgraph or one per sublineage')
     parser.add_argument('--window_size', help='The window size, default is 500', default=500,
                         required=False, type=int)
 
@@ -51,10 +51,9 @@ def parse_input():
     return args
 
 
-def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_path, window_size, chromosome):
+def create_histogram(df_path, sublineage_cells, sublineage_name, output_path, window_size, chromosome):
     """
-    Creates a bedgraph of the mean covariance of CpG's, using data only from one region at a time,
-    adding the NC. The covariance is calculated in windows.
+    Create histogram for the number of CpG each CpG has enough common things to calculate covariance
     :param df_path: The filename of the file with the parsed scWGBS data
     :param sublineage_cells: The cells in the sublineage
     :param sublineage_name: The name of the sublineage_name
@@ -70,7 +69,7 @@ def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_pa
         region_df = df
 
     # NC + PT
-    elif sublineage_cells == ALL_PT:
+    elif sublineage_name == ALL_PT:
         region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
         region_cell_ids.extend(cell_id for cell_id in df.index if cell_id.startswith("PT"))
         region_df = df.loc[region_cell_ids, :]
@@ -86,20 +85,14 @@ def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_pa
 
     num_of_cpg = region_df.shape[1]
 
-    with open(output_path, "w") as output_file:
-        for i in tqdm(range(0, num_of_cpg, window_size)):
-            window_indexes = region_df.columns[i:min(i + window_size, num_of_cpg)]  # Get the indexes
-            covariance_matrix = region_df.loc[:, window_indexes].cov(min_periods=min_periods)  # Create cov
-            np.fill_diagonal(covariance_matrix.values, np.nan)  # Remove the diagonal
-            average_covariance = covariance_matrix.mean()  # Create the avg
+    counter = collections.Counter()
+    for i in tqdm(range(0, num_of_cpg, window_size)):
+        window_indexes = region_df.columns[i:min(i + window_size, num_of_cpg)]  # Get the indexes
+        covariance_matrix = region_df.loc[:, window_indexes].cov(min_periods=min_periods)  # Create cov
+        np.fill_diagonal(covariance_matrix.values, np.nan)  # Remove the diagonal
+        counter.update(np.sum(~covariance_matrix.isnull()))
 
-            # Write the data
-            for cpg in window_indexes:
-                number = average_covariance[cpg]
-                if not np.isnan(number):
-                    line = BEDGRAPH_LINE_FORMAT.format(chr_name=chromosome, start=cpg, end=cpg + 1,
-                                                       number=number)
-                    output_file.write(line)
+    data_tools.counter_to_csv(counter, output_path)
 
 
 def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=False):
@@ -116,18 +109,16 @@ def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=F
     if run_on_sublineage:
         patient_info = sublineage_info[patient]
         for sublineage_name in patient_info:
-            output_filename = os.path.join(output_path,
-                                           BEDGRAPH_OUTPUT_FILE_FORMAT % (patient, chromosome, 'NCand%s' %
-                                                                          sublineage_name))
-            create_region_bedgraph(df_path=filename, sublineage_cells=patient_info[sublineage_name],
-                                   sublineage_name=sublineage_name, output_path=output_filename,
-                                   window_size=window_size, chromosome=chromosome)
+            output_filename = os.path.join(output_path, CSV_FILE % (patient, chromosome, 'NCand%s' %
+                                                                    sublineage_name))
+            create_histogram(df_path=filename, sublineage_cells=patient_info[sublineage_name],
+                             sublineage_name=sublineage_name, output_path=output_filename,
+                             window_size=window_size, chromosome=chromosome)
     else:
-        output_filename = os.path.join(output_path, BEDGRAPH_OUTPUT_FILE_FORMAT %
-                                       (patient, chromosome, 'NCandPT'))
+        output_filename = os.path.join(output_path, CSV_FILE % (patient, chromosome, 'NCandPT'))
 
-        create_region_bedgraph(df_path=filename, sublineage_cells=[], sublineage_name=ALL_PT,
-                               output_path=output_filename, window_size=window_size, chromosome=chromosome)
+        create_histogram(df_path=filename, sublineage_cells=[], sublineage_name=ALL_PT,
+                         output_path=output_filename, window_size=window_size, chromosome=chromosome)
 
 
 def main():
