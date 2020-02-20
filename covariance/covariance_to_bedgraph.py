@@ -58,11 +58,11 @@ def create_region_bedgraph(file, patient, chromosome, region, region_name, outpu
     output_filename = os.path.join(output, BEDGRAPH_OUTPUT_FILE_FORMAT % (patient, chromosome, 'NCand%s' %
                                                                           region_name))
 
-    # TODO covariance with min_periods=10
     with open(output_filename, "w") as output_file:
         for i in tqdm(range(0, num_of_cpg, WINDOWS_SIZE)):
             cur_columns_inds = region_df.columns[i:min(i + WINDOWS_SIZE, num_of_cpg)]
-            covariance = region_df.loc[:, cur_columns_inds].cov()
+            covariance = region_df.loc[:, cur_columns_inds].cov(min_periods=10)
+            np.fill_diagonal(covariance.values, np.nan)
             average_covariance = covariance.mean()
             for cpg in cur_columns_inds:
                 start = cpg
@@ -84,8 +84,10 @@ def create_bedgraphs(file, patient, chromosome, output):
     """
     sublineage_info = format_sublineage_info.get_sublineage_info(consts.SUBLINEAGE_FILE_LOCAL_DROR)
     patient_info = sublineage_info[patient]
-    for sublineage in patient_info:
-        create_region_bedgraph(file, patient, chromosome, patient_info[sublineage], sublineage, output)
+    create_region_bedgraph(file, patient, chromosome, ALL, "ALL", output)
+
+    # for sublineage in patient_info:
+    #     create_region_bedgraph(file, patient, chromosome, patient_info[sublineage], sublineage, output)
 
 
 def main():
