@@ -44,7 +44,7 @@ def parse_input():
                         default=os.path.dirname(sys.argv[0]))
     parser.add_argument('--run_on_sublineage', required=False, default=False, action='store_true',
                         help='Should the code create one bedgraph or one per sublineage')
-    parser.add_argument('--window_size', help='The window size, default is 500', default=500,
+    parser.add_argument('--window_size', help='The window size, default is 500', default=5000,
                         required=False, type=int)
 
     args = parser.parse_args()
@@ -103,7 +103,7 @@ def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=F
     :param output_path: The output folder
     :param run_on_sublineage: Should we run the information on all the sublinage
     """
-    sublineage_info = format_sublineage_info.get_sublineage_info(consts.SUBLINEAGE_FILE_LOCAL_DROR)
+    sublineage_info = format_sublineage_info.get_sublineage_info()
     patient, chromosome = CPG_FORMAT_FILE_RE.findall(filename)[0]
 
     if run_on_sublineage:

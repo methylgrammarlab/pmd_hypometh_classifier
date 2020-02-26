@@ -53,7 +53,6 @@ def main():
     nc_counter = collections.Counter()
     pt_counter = collections.Counter()
     for file_path in all_cpg_format_file_paths:
-        print(file_path)
         patient, chro = CPG_FORMAT_FILE_RE.findall(file_path)[0]
         df = pd.read_pickle(file_path)
 
