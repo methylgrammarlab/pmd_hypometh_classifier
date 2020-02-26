@@ -24,3 +24,13 @@ CENETROMERE_DICT = {
 }
 CONTEXT_MAP_FULL = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/full"
 CONTEXT_MAP_FILTERED_NO_BL_CPGI = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/filtered_by_bl_and_cpgi"
+SUBLINEAGE_FILE = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror" \
+                  r"/genomic_data/orig/sublineage/patient_sublineage_dict.pickle"
+PMD_FILE = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data" \
+           r"/orig/pmds/pmd_dict.pickle"
+
+# DROR local
+CONTEXT_MAP_FILTERED_LOCAL_DROR = r"H:\Study\university\Computational-Biology\Year 3\Projects\proj_scwgbs\resource\genomic_data\filtered_by_bl_and_cpgi"
+PMD_FILE_LOCAL_DROR = r"H:\Study\university\Computational-Biology\Year 3\Projects\proj_scwgbs\resource\pmd_dict.pickle"
+SUBLINEAGE_FILE_LOCAL_DROR = r"H:\Study\university\Computational-Biology\Year " \
+                             r"3\Projects\proj_scwgbs\resource\sublineage\patient_sublineage_dict.pickle"

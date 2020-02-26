@@ -1,12 +1,9 @@
 import argparse
 import glob
-import json
 import os
 import re
 import sys
-from collections import Counter
 
-import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -24,8 +21,6 @@ def parse_input():
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     args = parser.parse_args()
     return args
-
-def split_data(df, chr_info):
 
 
 

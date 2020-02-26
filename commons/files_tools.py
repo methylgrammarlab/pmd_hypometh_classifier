@@ -60,7 +60,7 @@ def get_cpg_context_map(only_locations=False, load_with_path=consts.CONTEXT_MAP_
     Get a dictionary of chr name (number) and a list of all the locations of CpG
     @:param only_locations: If true only give the locations of cpg
     """
-    if chr_dict != {}  and consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI == load_with_path:
+    if chr_dict != {} and consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI == load_with_path:
         return chr_dict
 
     all_files = glob.glob(os.path.join(load_with_path, "*.pickle.zlib"))
