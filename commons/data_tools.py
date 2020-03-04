@@ -1,6 +1,7 @@
 import statistics
 
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from commons.files_tools import COLUMNS
 
@@ -67,3 +68,9 @@ def numpy_counter_to_dict(counter):
     :return: A dict of string representing the counter
     """
     return {str(item[0]): item[1] for item in counter.items()}
+
+
+def counter_to_histogram(counter, output_path):
+    labels, values = counter.keys(), counter.values()
+    plt.bar(x=labels, height=values, tick_label=labels)
+    plt.show()
