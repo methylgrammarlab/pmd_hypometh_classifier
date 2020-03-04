@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-sys.path.append(os.getcwd())
+sys.path.append(os.path.dirname(os.getcwd()))
 from format_files import format_sublineage_info
 from commons import consts, data_tools
 
@@ -24,6 +24,9 @@ ALL_PT = "PT"
 # The min number of pairs needed in common between cells to count the covariance
 MIN_PERIODS = 10
 SUBLINEAGE_MIN_PERIODS = 5
+
+PERIOD_MIN = 5
+PERIOD_MAX = 15
 
 
 def get_files_to_work(cpg_format_files):
@@ -95,7 +98,34 @@ def create_histogram(df_path, sublineage_cells, sublineage_name, output_path, wi
     data_tools.counter_to_csv(counter, output_path)
 
 
-def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=False):
+def create_cancer_histogram_multiple_min_periods(df_path, output_path, window_size, patient):
+    df = pd.read_pickle(df_path)
+    counters = [collections.Counter() for i in range(PERIOD_MIN, PERIOD_MAX)]
+    col_list = ["min_pairs_of_%s" %i for i in range(PERIOD_MIN, PERIOD_MAX)]
+
+    region_cell_ids = [cell_id for cell_id in df.index if not cell_id.startswith('NC')]
+
+    region_df = df.loc[region_cell_ids, :]
+    num_of_cpg = region_df.shape[1]
+
+    for i in tqdm(range(0, num_of_cpg, window_size)):
+        window_indexes = region_df.columns[i:min(i + window_size, num_of_cpg)]  # Get the indexes
+
+        for min_periods in range(PERIOD_MIN, PERIOD_MAX):
+            covariance_matrix = region_df.loc[:, window_indexes].cov(min_periods=min_periods)  # Create cov
+            np.fill_diagonal(covariance_matrix.values, np.nan)  # Remove the diagonal
+            counters[min_periods - PERIOD_MIN].update(np.sum(~covariance_matrix.isnull()))
+
+    lines = []
+    for i in range(window_size+1):
+        line = [i] + [c.get(i) for c in counters]
+        lines.append(line)
+
+    new_df = pd.DataFrame.from_records(lines, columns=["number_of_pairs"] + col_list)
+    new_df.to_csv(os.path.join(output_path, "%s_compare_min_pairs.csv" %patient))
+
+
+def create_histograms(filename, output_path, window_size=500, run_on_sublineage=False):
     """
     Goes over all the regions and calls the function to create a bedgraph for each one.
     :param filename: The filename of the file with the parsed scWGBS data
@@ -127,8 +157,10 @@ def main():
     all_cpg_format_file_paths = get_files_to_work(args.cpg_format_files)
 
     for file_path in all_cpg_format_file_paths:
-        create_bedgraphs(filename=file_path, output_path=args.output_folder, window_size=args.window_size,
-                         run_on_sublineage=args.run_on_sublineage)
+        # create_histograms(filename=file_path, output_path=args.output_folder, window_size=args.window_size,
+        #                   run_on_sublineage=args.run_on_sublineage)
+        patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
+        create_cancer_histogram_multiple_min_periods(file_path, output_path=args.output_folder, window_size=args.window_size, patient=patient)
 
 
 if __name__ == '__main__':

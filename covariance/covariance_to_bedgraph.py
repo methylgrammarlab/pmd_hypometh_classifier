@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-sys.path.append(os.getcwd())
+sys.path.append(os.path.dirname(os.getcwd()))
 from format_files import format_sublineage_info
 from commons import consts
 
@@ -20,6 +20,7 @@ CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_chr(\d+).dummy.pkl.zip")
 
 ALL = 'ALL'
 ALL_PT = "PT"
+ALL_CANCER = "ALL_CANCER"
 
 # The min number of pairs needed in common between cells to count the covariance
 MIN_PERIODS = 10
@@ -70,6 +71,10 @@ def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_pa
         region_df = df
 
     # NC + PT
+    elif ALL_CANCER:
+        region_cell_ids = [cell_id for cell_id in df.index if not cell_id.startswith('NC')]
+        region_df = df.loc[region_cell_ids, :]
+
     elif sublineage_cells == ALL_PT:
         region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
         region_cell_ids.extend(cell_id for cell_id in df.index if cell_id.startswith("PT"))
@@ -102,7 +107,7 @@ def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_pa
                     output_file.write(line)
 
 
-def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=False):
+def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=False, run_on_cancer=True):
     """
     Goes over all the regions and calls the function to create a bedgraph for each one.
     :param filename: The filename of the file with the parsed scWGBS data
@@ -110,7 +115,9 @@ def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=F
     :param output_path: The output folder
     :param run_on_sublineage: Should we run the information on all the sublinage
     """
-    sublineage_info = format_sublineage_info.get_sublineage_info(consts.SUBLINEAGE_FILE_LOCAL_DROR)
+    sublineage_info = {}
+    if run_on_sublineage:
+        sublineage_info = format_sublineage_info.get_sublineage_info(consts.SUBLINEAGE_FILE_LOCAL_DROR)
     patient, chromosome = CPG_FORMAT_FILE_RE.findall(filename)[0]
 
     if run_on_sublineage:
@@ -122,6 +129,13 @@ def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=F
             create_region_bedgraph(df_path=filename, sublineage_cells=patient_info[sublineage_name],
                                    sublineage_name=sublineage_name, output_path=output_filename,
                                    window_size=window_size, chromosome=chromosome)
+    elif run_on_cancer:
+        output_filename = os.path.join(output_path, BEDGRAPH_OUTPUT_FILE_FORMAT %
+                                       (patient, chromosome, 'cancer'))
+
+        create_region_bedgraph(df_path=filename, sublineage_cells=[], sublineage_name=ALL_CANCER,
+                               output_path=output_filename, window_size=window_size, chromosome=chromosome)
+
     else:
         output_filename = os.path.join(output_path, BEDGRAPH_OUTPUT_FILE_FORMAT %
                                        (patient, chromosome, 'NCandPT'))

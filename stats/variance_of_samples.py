@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
-from pandas_profiling import ProfileReport
+# from pandas_profiling import ProfileReport
 from tqdm import tqdm
 
 sys.path.append(os.getcwd())
@@ -47,22 +47,25 @@ def format_args():
     return all_cpg_format_file_paths, output
 
 
-def plot_variance_histogram(df, patient, chromosome, group_name, group_samples):
+def plot_variance_histogram(df, patient, chromosome, group_name, group_samples, include_nc = False):
     df.reset_index(drop=True)
     samples = df.axes[0]
     pt_index = []
+    nc_avg = None
+
     for sample in group_samples:
         pt_index.extend([i for i in range(len(samples)) if samples[i].startswith(sample)])
 
-    nc_index = [i for i in range(len(samples)) if samples[i].startswith("NC")]
+    if include_nc:
+        nc_index = [i for i in range(len(samples)) if samples[i].startswith("NC")]
+        nc_variance = df.iloc[nc_index, :].var(axis=0, skipna=True)
+        nc_avg = nc_variance[~nc_variance.isnull()]._values.mean()
+        plt.hist(nc_variance, 30, facecolor='b', label="nc", log=True)
 
-    nc_variance = df.iloc[nc_index, :].var(axis=0, skipna=True)
     pt_variance = df.iloc[pt_index, :].var(axis=0, skipna=True)
 
-    nc_avg = nc_variance[~nc_variance.isnull()]._values.mean()
     pt_avg = pt_variance[~pt_variance.isnull()]._values.mean()
 
-    plt.hist(nc_variance, 30, facecolor='b', label="nc", log=True)
     plt.hist(pt_variance, 30, facecolor='r', alpha=0.5, label="pt", log=True)
 
     plt.title("Histogram of variance nc(%s) vs %s(%s)" % (nc_avg, group_name, pt_avg))
@@ -73,6 +76,23 @@ def plot_variance_histogram(df, patient, chromosome, group_name, group_samples):
     plt.close()
 
     return nc_avg, pt_avg
+
+
+def plot_cancer_hist(df, patient, chromosome):
+    df.reset_index(drop=True)
+    samples = df.axes[0]
+    pt_index = []
+
+    pt_index.extend([i for i in range(len(samples)) if samples[i].startswith("LN") or samples[i].startswith("PT")])
+    pt_variance = df.iloc[pt_index, :].var(axis=0, skipna=True)
+    pt_avg = pt_variance[~pt_variance.isnull()]._values.mean()
+    plt.hist(pt_variance, bins=30, facecolor='r', alpha=0.5, log=True)
+
+    plt.title("Histogram of variance of cancer %s" %pt_avg)
+    plt.xlabel("Variance value")
+    plt.ylabel("Freq logged")
+    plt.savefig("variance_of_%s_%s_cancer.png" % (patient, chromosome))
+    plt.close()
 
 
 def profile_large_variance(chromosome, cpg_dict, nc_variance, patient):
@@ -112,8 +132,7 @@ def main():
         patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
 
         df = pd.read_pickle(file_path)
-        plot_variance_histogram_groups(df, patient, chromosome)
-
+        plot_cancer_hist(df, patient, chromosome)
 
 if __name__ == '__main__':
     main()
