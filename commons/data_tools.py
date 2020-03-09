@@ -1,7 +1,7 @@
 import statistics
 
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from commons.files_tools import COLUMNS
 
@@ -14,7 +14,7 @@ def counter_to_csv(counter, output_path):
     """
     counter_df = pd.DataFrame.from_dict(counter, orient='index').reset_index()
     counter_df.columns = COLUMNS
-    counter_df.to_csv(output_path)
+    counter_df.to_csv(output_path, index=False)
 
 
 def mean_of_counter_obj(counter):

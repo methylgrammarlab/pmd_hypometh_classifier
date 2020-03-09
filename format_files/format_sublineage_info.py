@@ -6,7 +6,7 @@ sys.path.append(os.getcwd())
 from commons import consts
 
 
-def get_sublineage_info(file_path=consts.SUBLINEAGE_FILE):
+def get_sublineage_info(file_path=consts.SUBLINEAGE_FILE_LOCAL_DROR):
     with open(file_path, "rb") as f:
         return pickle.load(f)
 

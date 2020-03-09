@@ -1,25 +1,24 @@
 #!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
 import argparse
+import collections
+import copy
 import glob
 import os
-import pickle
 import re
 import sys
-import collections
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-import commons.slurm_tools
-
 sys.path.append(os.path.dirname(os.getcwd()))
-from commons import files_tools, data_tools
+sys.path.append(os.getcwd())
+# from commons import data_tools
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_chr%d.dummy.pkl.zip"
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 CSV_FILE = "average_methylation_of_nc_%s.csv"
-PATIENTS = ['CRC01', 'CRC04', 'CRC10', 'CRC11', 'CRC13']
+PATIENTS = ['CRC01', 'CRC11']  # 'CRC04']#, 'CRC10', 'CRC13' ]
 
 
 def parse_input():
@@ -59,23 +58,33 @@ def avg_main():
     data_tools.counter_to_csv(counter, os.path.join(output, CSV_FILE % patient))
 
 
-def methylation_diff(patients_list):
-    all_met_ind =  []
+def methylation_diff(patients_list, f):
+    all_met_ind = []
 
+    not_nan = None
     for patient in patients_list:
         df = pd.read_pickle(patient)
         normal_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
         normal_df = df.loc[normal_cell_ids, :]
         average = np.mean(normal_df, axis=0)
-        met_ind = set(average.index[np.where(average >= 0.75)[0]])
+        met_ind = average.index[np.where(average >= 0.6)[0]]
+        if not_nan is None:
+            not_nan = average.index[np.where(average.notnull())[0]]
+        else:
+            not_nan &= average.index[np.where(average.notnull())[0]]
         all_met_ind.append(met_ind)
 
-    met_and = all_met_ind[0]
-    met_or = all_met_ind[0]
+    if len(all_met_ind) == 0:
+        return None
+
+    met_and = copy.deepcopy(all_met_ind[0])
+    met_or = copy.deepcopy(all_met_ind[0])
     for i in range(1, len(all_met_ind)):
-        met_and &= all_met_ind[i]
-        met_or |= all_met_ind[i]
-    pass
+        met_ind = copy.deepcopy(all_met_ind[i])
+        met_and &= met_ind
+        met_or |= met_ind
+
+    return len(met_and & not_nan) / len(met_or & not_nan) * 100
 
 
 def diff_main():
@@ -84,6 +93,8 @@ def diff_main():
     output = args.output_folder
     if not output:
         output = os.path.dirname(sys.argv[0])
+
+    f = open(os.path.join(output, "avg_methylation_60.out"), "w")
 
     all_cpg_format_file_paths = dict()
     for chr in range(1, 23):
@@ -95,7 +106,11 @@ def diff_main():
             all_cpg_format_file_paths[chr] += glob.glob(cpg_format_file_path)
 
     for chr in all_cpg_format_file_paths:
-        methylation_diff(all_cpg_format_file_paths[chr])
+        v = methylation_diff(all_cpg_format_file_paths[chr], f)
+        # f.write("chr%s:%s\n" % (chr, v))
+        print(v)
+
+    f.close()
 
 
 if __name__ == '__main__':
