@@ -45,7 +45,7 @@ def parse_input():
                         default=os.path.dirname(sys.argv[0]))
     parser.add_argument('--run_on_sublineage', help='Should the code create one bedgraph or one per '
                                                     'sublineage', required=False, default=False, type=bool)
-    parser.add_argument('--window_size', help='The window size, default is 500', default=500,
+    parser.add_argument('--window_size', help='The window size, default is 5000', default=5000,
                         required=False, type=int)
 
     args = parser.parse_args()

@@ -14,8 +14,6 @@ COVARIANCE_CHR_FORMAT_RE = re.compile("covariance_info_chr_(\d{1,2}).pkl")
 OUTPUT_FILE = "classifier_data_chr%s.pkl"
 
 
-# TODO: validate that the file matches our data
-
 def parse_input():
     parser = argparse.ArgumentParser()
     parser.add_argument('--genome', help='Path to full genome file', required=True)
@@ -39,7 +37,7 @@ def update_file(cov_file, genome, output_folder, seq_size):
 
     for i in cov_data["cpg_index"]:
         assert chr_info[i] == "G"
-        seq.append(chr_info[i - seq_size:i + seq_size + 1])
+        seq.appenfired(chr_info[i - seq_size - 1:i + seq_size + 1])
 
     cov_data["seq"] = seq
     cov_data.to_pickle(output_path)

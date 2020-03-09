@@ -17,8 +17,8 @@ CSV_FILE = "common_cpg_in_cov_matrix_%s_chr_%s_region_%s.csv"
 
 BEDGRPH_FILE_FORMAT = "*.bedgraph"
 BEDGRPAH_FORMAT_FILE_RE = re.compile(".*(CRC\d+)_chr_(\d+).*")
-OUTPUT_FILE_FORMAT = "smooth_%s_%s_window_%s.bedgraph"
-OUTPUT_FILE_FORMAT_NORM = "norm_smooth_%s_%s_window_%s.bedgraph"
+OUTPUT_FILE_FORMAT = "smooth_%s_chr%s_window_%s.bedgraph"
+OUTPUT_FILE_FORMAT_NORM = "norm_smooth_%s_chr%s_window_%s.bedgraph"
 
 
 def get_files_to_work(files):
