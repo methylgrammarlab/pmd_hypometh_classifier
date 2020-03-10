@@ -9,7 +9,9 @@ import os
 import re
 import sys
 
+import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 
@@ -46,9 +48,17 @@ def parse_input():
 
 def create_window_bedgraph(file_path, output_folder, window_size):
     patient, chromosome = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
-    output_path = os.path.join(output_folder, OUTPUT_FILE_FORMAT % (patient, chromosome, window_size))
-    output_path_norm = os.path.join(output_folder, OUTPUT_FILE_FORMAT_NORM % (patient, chromosome,
+    output_path = os.path.join(output_folder, "smooth", OUTPUT_FILE_FORMAT % (patient, chromosome,
                                                                               window_size))
+    output_path_norm = os.path.join(output_folder, "norm", OUTPUT_FILE_FORMAT_NORM % (patient, chromosome,
+                                                                                      window_size))
+
+    if not os.path.exists(os.path.dirname(output_path)):
+        os.mkdir(os.path.dirname(output_path))
+
+    if not os.path.exists(os.path.dirname(output_path_norm)):
+        os.mkdir(os.path.dirname(output_path_norm))
+
     input_file = pd.read_csv(file_path, sep="\t", header=None, names=["chr", "start", "end", "cov"])
     number_of_lines = input_file.shape[0]
     for i in range(0, number_of_lines, window_size):
@@ -58,9 +68,8 @@ def create_window_bedgraph(file_path, output_folder, window_size):
 
     input_file.to_csv(output_path, sep="\t", header=None, index=False)
 
-    norm_cov = input_file["cov"] - input_file["cov"].min()
-    norm_cov /= norm_cov.max()
-    input_file["cov"] = norm_cov
+    input_file["cov"] = np.interp(input_file["cov"], (input_file["cov"].min(), input_file["cov"].max()),
+                                  (0, 1))
     input_file.to_csv(output_path_norm, sep="\t", header=None, index=False)
 
 
@@ -69,7 +78,7 @@ def main():
 
     all_file_paths = get_files_to_work(args.input)
 
-    for file_path in all_file_paths:
+    for file_path in tqdm(all_file_paths):
         create_window_bedgraph(file_path, args.output_folder, args.window_size)
 
 

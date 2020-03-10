@@ -8,18 +8,17 @@ import keras.backend as K
 import numpy as np
 from keras.models import Model, Sequential
 
-'''
-Integrated gradients approximates Shapley values by integrating partial
-gradients with respect to input features from reference input to the
-actual input. The following class implements this concept.
-'''
-
 
 class integrated_gradients:
-    # model: Keras model that you wish to explain.
-    # outchannels: In case the model are multi tasking, you can specify which channels you want.
     def __init__(self, model, outchannels=[], verbose=1):
-
+        """
+        Integrated gradients approximates Shapley values by integrating partial
+        gradients with respect to input features from reference input to the
+        actual input. The following class implements this concept.
+        :param model: Keras model that you wish to explain.
+        :param outchannels: In case the model are multi tasking, you can specify which channels you want.
+        :param verbose:
+        """
         # Bacnend: either tensorflow or theano)
         self.backend = K.backend()
 
@@ -36,6 +35,7 @@ class integrated_gradients:
         self.input_tensors = []
         for i in self.model.inputs:
             self.input_tensors.append(i)
+
         # The learning phase flag is a bool tensor (0 = test, 1 = train)
         # to be passed as input to any Keras function that uses
         # a different behavior at train time and test time.
@@ -46,15 +46,14 @@ class integrated_gradients:
         self.outchannels = outchannels
         if len(self.outchannels) == 0:
             if verbose: print("Evaluated output channel (0-based index): All")
+
             if K.backend() == "tensorflow":
                 self.outchannels = range(self.model.output.shape[1]._value)
-            elif K.backend() == "theano":
-                self.outchannels = range(model1.output._keras_shape[1])
+
         else:
             if verbose:
                 print("Evaluated output channels (0-based index):"),
                 for i in self.outchannels: print('i')
-                print
 
         # Build gradient functions for desired output channels.
         self.get_gradients = {}
@@ -82,16 +81,15 @@ class integrated_gradients:
         # Done
         if verbose: print("\nDone.")
 
-    '''
-    Input: sample to explain, channel to explain
-    Optional inputs:
-        - reference: reference values (defaulted to 0s).
-        - steps: # steps from reference values to the actual sample.
-    Output: list of numpy arrays to integrated over.
-    '''
-
     def explain(self, sample, outc=0, reference=False, num_steps=50, verbose=0):
-
+        """
+        :param sample: sample to explain
+        :param outc: channel to explain
+        :param reference: reference values (defaulted to 0s).
+        :param num_steps: steps from reference values to the actual sample.
+        :param verbose:
+        :return: list of numpy arrays to integrated over.
+        """
         # Each element for each input stream.
         samples = []
         numsteps = []
@@ -100,14 +98,16 @@ class integrated_gradients:
         # If multiple inputs are present, feed them as list of np arrays.
         if isinstance(sample, list):
             # If reference is present, reference and sample size need to be equal.
-            if reference != False:
+            if reference:
                 assert len(sample) == len(reference)
+
             for i in range(len(sample)):
-                if reference == False:
+                if not reference:
                     _output = integrated_gradients.linearly_interpolate(sample[i], False, num_steps)
                 else:
                     # _output = integrated_gradients.linearly_interpolate(sample[i], False, num_steps)
                     _output = integrated_gradients.linearly_interpolate(sample[i], reference[i], num_steps)
+
                 samples.append(_output[0])
                 numsteps.append(_output[1])
                 step_sizes.append(_output[2])
@@ -147,16 +147,15 @@ class integrated_gradients:
             return explanation[0]
         return -1
 
-    '''
-    Input: numpy array of a sample
-    Optional inputs:
-        - reference: reference values (defaulted to 0s).
-        - steps: # steps from reference values to the actual sample.
-    Output: list of numpy arrays to integrated over.
-    '''
-
     @staticmethod
     def linearly_interpolate(sample, reference=False, num_steps=50):
+        """
+
+        :param sample: numpy array of a sample
+        :param reference: reference values (defaulted to 0s).
+        :param num_steps: # steps from reference values to the actual sample.
+        :return: list of numpy arrays to integrated over.
+        """
         # Use default reference values if reference is not specified
         if reference is False: reference = np.zeros(sample.shape);
 

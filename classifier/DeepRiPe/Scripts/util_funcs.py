@@ -1,4 +1,5 @@
-import numpy as np
+import sys
+
 import keras.backend as K
 import numpy as np
 
@@ -8,6 +9,7 @@ import numpy as np
 ############################################
 
 def load_data(path_to_data):
+    # TODO: need to rewrite this
     data = h5py.File(path_to_data, 'r')
     X_test_seq = np.transpose(np.array(data['test_in_seq']), axes=(0, 2, 1))
     X_test_region = np.transpose(np.array(data['test_in_region']), axes=(0, 2, 1))
@@ -58,32 +60,15 @@ def seq_to_mat(seq):
     seq = seq.replace('N', '4')  # some cases have N in sequence
     seq = seq.replace('n', '4')
     seq_code = np.zeros((4, seq_len), dtype='float16')
+
     for i in range(seq_len):
         if int(seq[i]) != 4:
             seq_code[int(seq[i]), i] = 1
+
         else:
             seq_code[0:4, i] = np.tile(0.25, 4)
+
     return np.transpose(seq_code)
-
-
-##########################################################
-### Function to convert the region to one-hot encode ###
-##########################################################
-
-def region_to_mat(region):
-    region_len = len(region)
-    region = region.replace('i', '0')
-    region = region.replace('c', '1')
-    region = region.replace('3', '2')
-    region = region.replace('5', '3')
-    region = region.replace('N', '4')
-    region_code = np.zeros((4, region_len), dtype='float16')
-    for i in range(region_len):
-        if int(region[i]) != 4:
-            region_code[int(region[i]), i] = 1
-        else:
-            region_code[0:4, i] = np.tile(0.25, 4)
-    return np.transpose(region_code)
 
 
 ######################################################################################
@@ -106,11 +91,11 @@ def getkmer(X, y, pred, RBP_index, k):
     multi_fastaseq_high = base.unlist(multi_fastaseq_high)
     multi_fastaseq_low = base.unlist(multi_fastaseq_low)
     kmer_freqs_low = base.rowSums(
-        base.sapply(Biostrings.DNAStringSet(multi_fastaseq_low), Biostrings.oligonucleotideFrequency, width=6,
-                    step=1))
+        base.sapply(Biostrings.DNAStringSet(multi_fastaseq_low),
+                    Biostrings.oligonucleotideFrequency, width=6, step=1))
     kmer_freqs_high = base.rowSums(
-        base.sapply(Biostrings.DNAStringSet(multi_fastaseq_high), Biostrings.oligonucleotideFrequency,
-                    width=6, step=1))
+        base.sapply(Biostrings.DNAStringSet(multi_fastaseq_high),
+                    Biostrings.oligonucleotideFrequency, width=6, step=1))
 
     return kmer_freqs_low, kmer_freqs_high
 
@@ -120,11 +105,13 @@ def getkmer(X, y, pred, RBP_index, k):
 ###############################################################################
 
 def vecs2dna(seq_vecs):
+    seqs = []
+
     if len(seq_vecs.shape) == 2:
         seq_vecs = np.reshape(seq_vecs, (seq_vecs.shape[0], 4, -1))
     elif len(seq_vecs.shape) == 4:
         seq_vecs = np.reshape(seq_vecs, (seq_vecs.shape[0], 4, -1))
-    seqs = []
+
     for i in range(seq_vecs.shape[0]):
         seq_list = [''] * seq_vecs.shape[2]
         for j in range(seq_vecs.shape[2]):
@@ -142,4 +129,5 @@ def vecs2dna(seq_vecs):
                 print('Malformed position vector: ', seq_vecs[i, :, j],
                       'for sequence %d position %d' % (i, j), file=sys.stderr)
         seqs.append(''.join(seq_list))
+
     return seqs

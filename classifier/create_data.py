@@ -5,9 +5,9 @@ import re
 import sys
 
 import pandas as pd
+import pyfaidx
 
 sys.path.append(os.path.dirname(os.getcwd()))
-import pyfaidx
 
 COVARIANCE_INFO_FILE_FORMAT = "covariance_info_chr_*.pkl"
 COVARIANCE_CHR_FORMAT_RE = re.compile("covariance_info_chr_(\d{1,2}).pkl")
@@ -37,7 +37,7 @@ def update_file(cov_file, genome, output_folder, seq_size):
 
     for i in cov_data["cpg_index"]:
         assert chr_info[i] == "G"
-        seq.appenfired(chr_info[i - seq_size - 1:i + seq_size + 1])
+        seq.append(chr_info[i - seq_size - 1:i + seq_size + 1])
 
     cov_data["seq"] = seq
     cov_data.to_pickle(output_path)
