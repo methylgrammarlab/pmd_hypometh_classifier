@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 from format_files import format_sublineage_info
-from commons import consts
+from commons import consts, slurm_tools
 
 BEDGRAPH_LINE_FORMAT = "{chr_name}\t{start}\t{end}\t{number}\n"
 BEDGRAPH_OUTPUT_FILE_FORMAT = "average_covariance_between_cpg_%s_chr_%s_region_%s.bedgraph"
@@ -25,6 +25,9 @@ ALL_CANCER = "ALL_CANCER"
 # The min number of pairs needed in common between cells to count the covariance
 MIN_PERIODS = 10
 SUBLINEAGE_MIN_PERIODS = 5
+
+# The min number of CpG pairs we want to calculate the average
+MIN_NUMBERS_OF_PAIRS = 1000
 
 
 def get_files_to_work(cpg_format_files):
@@ -64,8 +67,41 @@ def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_pa
     :param chromosome: The name of the chromosome we are working on
     """
     df = pd.read_pickle(df_path)
-    min_periods = MIN_PERIODS
+    min_periods, region_df = get_region_df(df, sublineage_cells, sublineage_name)
+    num_of_cpg = region_df.shape[1]
 
+    cpg_wrote = 0
+    nans_removed = 0
+    not_enough_pairs_removed = 0
+
+    with open(output_path, "w") as output_file:
+        for i in tqdm(range(0, num_of_cpg, window_size)):
+            window_indexes = region_df.columns[i:min(i + window_size, num_of_cpg)]  # Get the indexes
+            covariance_matrix = region_df.loc[:, window_indexes].cov(min_periods=min_periods)  # Create cov
+            np.fill_diagonal(covariance_matrix.values, np.nan)  # Remove the diagonal
+            average_covariance = covariance_matrix.mean()  # Create the avg
+            pairs_matrix = covariance_matrix.notnull().sum()
+
+            # Write the data
+            for cpg in window_indexes:
+                number = average_covariance[cpg]
+                if not np.isnan(number) and pairs_matrix[cpg] > MIN_NUMBERS_OF_PAIRS:
+                    line = BEDGRAPH_LINE_FORMAT.format(chr_name=chromosome, start=cpg, end=cpg + 1,
+                                                       number=number)
+                    output_file.write(line)
+                    cpg_wrote += 1
+
+                else:
+                    nans_removed += 1
+                    not_enough_pairs_removed += 1
+
+    total = cpg_wrote + nans_removed + not_enough_pairs_removed
+    print("total cpg: %s, written: %s (%s), removed because of nan: %s (%s), removed because of little "
+          "pairs: %s (%s)" % (total, cpg_wrote, cpg_wrote / total * 100, nans_removed, nans_removed / total *
+                              100, not_enough_pairs_removed, not_enough_pairs_removed / total * 100))
+
+
+def get_region_df(df, sublineage_cells, sublineage_name, min_periods=MIN_PERIODS):
     # All cells
     if sublineage_name == ALL:
         region_df = df
@@ -89,22 +125,7 @@ def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_pa
         region_df = df.loc[region_cell_ids, :]
         min_periods = SUBLINEAGE_MIN_PERIODS
 
-    num_of_cpg = region_df.shape[1]
-
-    with open(output_path, "w") as output_file:
-        for i in tqdm(range(0, num_of_cpg, window_size)):
-            window_indexes = region_df.columns[i:min(i + window_size, num_of_cpg)]  # Get the indexes
-            covariance_matrix = region_df.loc[:, window_indexes].cov(min_periods=min_periods)  # Create cov
-            np.fill_diagonal(covariance_matrix.values, np.nan)  # Remove the diagonal
-            average_covariance = covariance_matrix.mean()  # Create the avg
-
-            # Write the data
-            for cpg in window_indexes:
-                number = average_covariance[cpg]
-                if not np.isnan(number):
-                    line = BEDGRAPH_LINE_FORMAT.format(chr_name=chromosome, start=cpg, end=cpg + 1,
-                                                       number=number)
-                    output_file.write(line)
+    return min_periods, region_df
 
 
 def create_bedgraphs(filename, output_path, window_size=500, run_on_sublineage=False, run_on_cancer=True):
@@ -155,4 +176,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    slurm_tools.init_slurm(main)

@@ -7,12 +7,14 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy import stats
 from tqdm import tqdm
 
 plt.style.use('seaborn')
 
 sys.path.append(os.getcwd())
 from format_files import handle_pmds
+from commons import files_tools
 
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
@@ -138,12 +140,56 @@ def plot_covariance_hist(covariance_dict):
     plt.savefig("covariance_hist")
 
 
+def plot_cancer_covariance_vs_meth(input_files, covariance_dict, only_pmd=False):
+    mean_list = []
+    covariance_list = []
+    title = "across all genome" if not only_pmd else "across pmd"
+
+    for file_path in tqdm(input_files):
+        patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
+        patient_df = pd.read_pickle(file_path)
+
+        if only_pmd:
+            covariance_df = handle_pmds.get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
+            patient_df = handle_pmds.get_pmd_df(patient_df, chromosome)
+        else:
+            covariance_df = files_tools.load_badgraph_to_df(covariance_dict[chromosome])
+
+        cancer_samples_id = [cell_id for cell_id in patient_df.index if not cell_id.startswith('NC')]
+        cancer_df = patient_df.loc[cancer_samples_id, :]
+
+        z_cov = np.abs(stats.zscore(covariance_df._values))
+        covariance_df_o = covariance_df[(z_cov < 3)]  # Remove outliers
+        average = np.mean(cancer_df[covariance_df_o.index], axis=0)
+
+        average = np.round(average * 500).astype(np.int) / 500
+        # covariance_df_o = np.round(covariance_df_o * 100).astype(np.int) / 100
+        mean_list.append(average)
+        covariance_list.append(covariance_df_o)
+
+    mean_c = np.concatenate(mean_list)
+    covariance_c = np.concatenate(covariance_list)
+
+    new_df = pd.DataFrame(
+        data=np.hstack((mean_c.reshape(covariance_c.size, 1), covariance_c.reshape(covariance_c.size, 1))),
+        columns=["methylation", "covariance"])
+
+    plt.plot(new_df.groupby("methylation").mean(), linestyle='', marker='o', markersize=2)
+    plt.title("Avg Methylation level vs Avg Covariance, %s, %s" % (patient, title))
+    plt.xlabel("Avg methylation")
+    plt.ylabel("Avg Covariance value")
+    plt.savefig("methylation_vs_covariance_%s_%s" % (patient, title.replace(" ", "_")))
+    plt.close()
+
+
 def main():
     input_files, covariance_dict, output_dir = format_args()
     # plot_methylation_vs_covariance(input_files, covariance_dict, high_threshold=0.08, low_threshold=-0.03)
-    plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_threshold=0.08,
-                                        low_threshold=-0.03)
+    # plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_threshold=0.08,
+    #                                     low_threshold=-0.03)
     # plot_covariance_hist(covariance_dict)
+    plot_cancer_covariance_vs_meth(input_files, covariance_dict, only_pmd=False)
+    plot_cancer_covariance_vs_meth(input_files, covariance_dict, only_pmd=True)
 
 
 if __name__ == '__main__':

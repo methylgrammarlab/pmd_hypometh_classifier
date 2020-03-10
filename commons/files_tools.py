@@ -5,6 +5,8 @@ import re
 import sys
 import zlib
 
+import pandas as pd
+
 sys.path.append(os.path.dirname(os.getcwd()))
 import commons.consts as consts
 
@@ -70,3 +72,8 @@ def get_cpg_context_map(only_locations=False, load_with_path=consts.CONTEXT_MAP_
         chr_dict["%s" % chr_name] = data[:, 0] if only_locations else data
 
     return chr_dict
+
+
+def load_badgraph_to_df(bedgraph_path):
+    return pd.read_csv(bedgraph_path, sep="\t", names=["chr", "start", "end", "coverage"],
+                       usecols=["start", "coverage"], index_col="start")

@@ -113,9 +113,7 @@ def get_pmd_df(df, chromosome):
 
 
 def get_covariance_pmd_df(bedgraph_path, chromosome):
-    covariance_df = pd.read_csv(bedgraph_path, sep="\t", names=["chr", "start", "end", "coverage"],
-                                usecols=["start", "coverage"], index_col="start")
-
+    covariance_df = files_tools.load_badgraph_to_df(bedgraph_path)
     pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
     pmd_list = pmd_dict[chromosome]
     prev_mask = None
