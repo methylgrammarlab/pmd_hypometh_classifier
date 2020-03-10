@@ -14,6 +14,8 @@ import pandas as pd
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
+sys.path.append(os.getcwd())
+from commons import files_tools
 
 CSV_FILE = "common_cpg_in_cov_matrix_%s_chr_%s_region_%s.csv"
 
@@ -36,17 +38,18 @@ def get_files_to_work(files):
 
 def parse_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', help='Path to bedgrph files or folder', required=True)
+    parser.add_argument('--input', help='Path to bedgraph files or folder', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False,
                         default=os.path.dirname(sys.argv[0]))
-    parser.add_argument('--window_size', help='The window size, default is 500', default=5000,
+    parser.add_argument('--window_size', help='The window size, default is 5000', default=5000,
                         required=False, type=int)
+    parser.add_argument('--window_boundaries', help='File with the window boundries', required=False)
 
     args = parser.parse_args()
     return args
 
 
-def create_window_bedgraph(file_path, output_folder, window_size):
+def create_window_bedgraph(file_path, output_folder, window_size, window_boundries_path):
     patient, chromosome = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
     output_path = os.path.join(output_folder, "smooth", OUTPUT_FILE_FORMAT % (patient, chromosome,
                                                                               window_size))
@@ -61,10 +64,13 @@ def create_window_bedgraph(file_path, output_folder, window_size):
 
     input_file = pd.read_csv(file_path, sep="\t", header=None, names=["chr", "start", "end", "cov"])
     number_of_lines = input_file.shape[0]
-    for i in range(0, number_of_lines, window_size):
-        window = input_file[i:min(number_of_lines, i + window_size - 1)]
+    window_boundries = files_tools.load_compressed_pickle(window_boundries_path)
+
+    for tup in window_boundries[int(chromosome)]:
+        indices = np.logical_and(tup[0] <= input_file.start, input_file.start <= tup[1])
+        window = input_file[indices]
         window_value = window["cov"].median()
-        input_file.loc[i:min(number_of_lines, i + window_size - 1), "cov"] = window_value
+        input_file.loc[indices, "cov"] = window_value
 
     input_file.to_csv(output_path, sep="\t", header=None, index=False)
 
@@ -79,7 +85,7 @@ def main():
     all_file_paths = get_files_to_work(args.input)
 
     for file_path in tqdm(all_file_paths):
-        create_window_bedgraph(file_path, args.output_folder, args.window_size)
+        create_window_bedgraph(file_path, args.output_folder, args.window_size, args.window_boundaries)
 
 
 if __name__ == '__main__':
