@@ -6,7 +6,6 @@ import sys
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 from format_files import format_sublineage_info
@@ -74,31 +73,35 @@ def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_pa
     nans_removed = 0
     not_enough_pairs_removed = 0
 
-    with open(output_path, "w") as output_file:
-        for i in tqdm(range(0, num_of_cpg, window_size)):
-            window_indexes = region_df.columns[i:min(i + window_size, num_of_cpg)]  # Get the indexes
-            covariance_matrix = region_df.loc[:, window_indexes].cov(min_periods=min_periods)  # Create cov
-            np.fill_diagonal(covariance_matrix.values, np.nan)  # Remove the diagonal
-            average_covariance = covariance_matrix.mean()  # Create the avg
-            pairs_matrix = covariance_matrix.notnull().sum()
+    output_file = open(output_path, "w")
+    for i in range(0, num_of_cpg, window_size):
+        window_indexes = region_df.columns[i:min(i + window_size, num_of_cpg)]  # Get the indexes
+        covariance_matrix = region_df.loc[:, window_indexes].cov(min_periods=min_periods)  # Create cov
+        np.fill_diagonal(covariance_matrix.values, np.nan)  # Remove the diagonal
+        average_covariance = covariance_matrix.mean()  # Create the avg
+        pairs_matrix = covariance_matrix.notnull().sum()
 
-            # Write the data
-            for cpg in window_indexes:
-                number = average_covariance[cpg]
-                if not np.isnan(number) and pairs_matrix[cpg] > MIN_NUMBERS_OF_PAIRS:
-                    line = BEDGRAPH_LINE_FORMAT.format(chr_name=chromosome, start=cpg, end=cpg + 1,
-                                                       number=number)
-                    output_file.write(line)
-                    cpg_wrote += 1
+        # Write the data
+        for cpg in window_indexes:
+            number = average_covariance[cpg]
+            if not np.isnan(number) and pairs_matrix[cpg] > MIN_NUMBERS_OF_PAIRS:
+                line = BEDGRAPH_LINE_FORMAT.format(chr_name=chromosome, start=cpg, end=cpg + 1,
+                                                   number=number)
+                output_file.write(line)
+                cpg_wrote += 1
 
-                else:
+            else:
+                if np.isnan(number):
                     nans_removed += 1
+                else:
                     not_enough_pairs_removed += 1
 
+    output_file.close()
     total = cpg_wrote + nans_removed + not_enough_pairs_removed
-    print("total cpg: %s, written: %s (%s), removed because of nan: %s (%s), removed because of little "
-          "pairs: %s (%s)" % (total, cpg_wrote, cpg_wrote / total * 100, nans_removed, nans_removed / total *
-                              100, not_enough_pairs_removed, not_enough_pairs_removed / total * 100))
+    print("total cpg in chr: %s: %s, written: %s (%s), removed because of nan: %s (%s), removed because of "
+          "little pairs: %s (%s)" % (chromosome, total, cpg_wrote, cpg_wrote / total * 100, nans_removed,
+                                     nans_removed / total * 100, not_enough_pairs_removed,
+                                     not_enough_pairs_removed / total * 100))
 
 
 def get_region_df(df, sublineage_cells, sublineage_name, min_periods=MIN_PERIODS):
