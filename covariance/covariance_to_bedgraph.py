@@ -26,7 +26,7 @@ MIN_PERIODS = 10
 SUBLINEAGE_MIN_PERIODS = 5
 
 # The min number of CpG pairs we want to calculate the average
-MIN_NUMBERS_OF_PAIRS = 1000
+MIN_NUMBERS_OF_PAIRS = 750
 
 
 def get_files_to_work(cpg_format_files):
