@@ -115,7 +115,14 @@ def get_pmd_df(df, chromosome):
 def get_covariance_pmd_df(bedgraph_path, chromosome):
     covariance_df = files_tools.load_badgraph_to_df(bedgraph_path)
     pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
-    pmd_list = pmd_dict[chromosome]
+
+    if chromosome in pmd_dict:
+        pmd_list = pmd_dict[chromosome]
+    elif "chr%s" % chromosome in pmd_dict:
+        pmd_list = pmd_dict["chr%s" % chromosome]
+    else:
+        raise Exception("Chromosome name is invalid ")
+
     prev_mask = None
     for pmd_tuple in pmd_list:
         start, end = pmd_tuple

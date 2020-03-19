@@ -1,10 +1,11 @@
-import numpy as np
-import pandas as pd
-import sys
-import os
-import glob
 import argparse
 import copy
+import glob
+import os
+import sys
+
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
@@ -12,7 +13,7 @@ sys.path.append(os.getcwd())
 from commons import files_tools
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_chr%d.dummy.pkl.zip"
-PATIENTS = ['CRC01', 'CRC13', 'CRC10', 'CRC11']
+PATIENTS = ['CRC01', 'CRC13', 'CRC11']
 BEDGRAPH_FILE_FORMAT = "window_boundries.bedgraph"
 PICKLE_FILE_FORMAT = "window_boundries.dummy.pkl.zip"
 
@@ -55,7 +56,9 @@ def window_boundries(files):
     num_of_cpg = df.shape[1]
     window_size = 5000
     chr_windows = []
-    for i in tqdm(range(0, num_of_cpg, window_size)):
+    index_advance_value = 2500
+
+    for i in tqdm(range(0, num_of_cpg, index_advance_value)):
         window_indices = (df.columns[i], df.columns[min(i + window_size, num_of_cpg) - 1])  # Get the indexes
         chr_windows.append(window_indices)
     return chr_windows

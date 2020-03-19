@@ -76,7 +76,9 @@ def window_cov_across_patients(files_paths, window_boundries):
             input_file = patients_dict[patient]
 
             try:
-                value = float(input_file[input_file.start == start]["cov"])
+                window_data = input_file[np.logical_and(input_file.start > start, input_file.end < end)][
+                    "cov"]
+                value = float(window_data.mean())
             except TypeError:  # Will happened if we had nans in this window
                 value = np.nan
 
@@ -94,6 +96,7 @@ def create_min_bedgraph(chromosomes_dict):
 
     for chromosome in chromosomes_dict:
         data = chromosomes_dict[chromosome]
+        data = data.replace(np.nan, -1)
         only_patients_data = data.iloc[:, 2:]
         values = only_patients_data.min(axis=1)
 
@@ -121,11 +124,12 @@ def create_min_histogram(chromosomes_dict):
     total = 0
     for chromosome in chromosomes_dict:
         data = chromosomes_dict[chromosome]
+        data = data.replace(np.nan, -1)
         only_patients_data = data.iloc[:, 2:]
         values = only_patients_data.min(axis=1)
-        nans += np.sum(values.isnull())
+        nans += np.sum(values == -1)
         total += values.size
-        valid_windows.extend(values[~values.isnull()].tolist())
+        valid_windows.extend(values[values != -1].tolist())
 
     print("Number of windows without value is: %s/%s which is %s percent" % (nans, total, nans / total * 100))
 
@@ -137,6 +141,28 @@ def create_min_histogram(chromosomes_dict):
     plt.xlabel("Covariance value")
     plt.title("Histogram of min covariance value across the patients")
     plt.savefig("min_covariance_value_across_patients.png")
+
+
+def create_windows_to_use_list(chromosomes_dict):
+    output_dict = {}
+    cov_limit = 0.15
+
+    for chromosome in chromosomes_dict:
+        l = []
+        data = chromosomes_dict[chromosome]
+        data = data.replace(np.nan, -1)
+        only_patients_data = data.iloc[:, 2:]
+        values = only_patients_data.min(axis=1)
+
+        over_015 = data[values >= cov_limit]
+        for index in over_015.index:
+            row = over_015.loc[index]
+            start, end = int(row.start), int(row.end)
+            l.append((start, end))
+
+        output_dict[chromosome] = l
+
+    files_tools.save_as_compressed_pickle("windows_with_cov_over_%s.pkl" % cov_limit, output_dict)
 
 
 def main():
@@ -164,8 +190,9 @@ def main():
 
         files_tools.save_as_compressed_pickle("5000_window_cov_across_patients_hg19.pkl", chromosomes_dict)
 
-    create_min_histogram(chromosomes_dict)
-    create_min_bedgraph(chromosomes_dict)
+    # create_min_histogram(chromosomes_dict)
+    # create_min_bedgraph(chromosomes_dict)
+    create_windows_to_use_list(chromosomes_dict)
 
 
 if __name__ == '__main__':

@@ -54,7 +54,8 @@ def parse_input():
     return args
 
 
-def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_path, window_size, chromosome):
+def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_path, window_size,
+                           chromosome, index_advance_value=2500):
     """
     Creates a bedgraph of the mean covariance of CpG's, using data only from one region at a time,
     adding the NC. The covariance is calculated in windows.
@@ -74,7 +75,7 @@ def create_region_bedgraph(df_path, sublineage_cells, sublineage_name, output_pa
     not_enough_pairs_removed = 0
 
     output_file = open(output_path, "w")
-    for i in range(0, num_of_cpg, window_size):
+    for i in range(0, num_of_cpg, index_advance_value):
         window_indexes = region_df.columns[i:min(i + window_size, num_of_cpg)]  # Get the indexes
         covariance_matrix = region_df.loc[:, window_indexes].cov(min_periods=min_periods)  # Create cov
         np.fill_diagonal(covariance_matrix.values, np.nan)  # Remove the diagonal
