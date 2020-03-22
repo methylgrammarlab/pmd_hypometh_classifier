@@ -112,7 +112,7 @@ def get_pmd_df(df, chromosome):
     return df.loc[:, prev_mask]
 
 
-def get_covariance_pmd_df(bedgraph_path, chromosome):
+def get_covariance_pmd_df(bedgraph_path, chromosome, add_pmd_index=False):
     covariance_df = files_tools.load_badgraph_to_df(bedgraph_path)
     pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
 
@@ -123,10 +123,18 @@ def get_covariance_pmd_df(bedgraph_path, chromosome):
     else:
         raise Exception("Chromosome name is invalid ")
 
+    if add_pmd_index:
+        covariance_df["pmd_index"] = np.nan
+
     prev_mask = None
+    i = 0
     for pmd_tuple in pmd_list:
+        i += 1
         start, end = pmd_tuple
-        pmd_mask = (covariance_df.index >= start) & (covariance_df.index <= end)
+        pmd_mask = np.logical_and(covariance_df.index >= start, covariance_df.index <= end)
         prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+
+        if add_pmd_index:
+            covariance_df.loc[pmd_mask, "pmd_index"] = i
 
     return covariance_df.loc[prev_mask, :]
