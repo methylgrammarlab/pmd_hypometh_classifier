@@ -93,6 +93,8 @@ def window_cov_across_patients(files_paths, window_boundries):
 def create_min_bedgraph(chromosomes_dict):
     bedgraph_between_005_to_015 = open("coverage_btw_005_to_015_windows_5000_hg19.bed", "w")
     bedgraph_over_015 = open("coverage_over_015_windows_5000_hg19.bed", "w")
+    bedgraph_over_012 = open("coverage_over_012_windows_5000_hg19.bed", "w")
+
 
     for chromosome in chromosomes_dict:
         data = chromosomes_dict[chromosome]
@@ -102,6 +104,7 @@ def create_min_bedgraph(chromosomes_dict):
 
         between_005_and_015 = data[np.logical_and(values < 0.15, values >= 0.05)]
         over_015 = data[values >= 0.15]
+        over_real_012 = data[values > 0.12]
 
         for index in between_005_and_015.index:
             try:
@@ -114,8 +117,14 @@ def create_min_bedgraph(chromosomes_dict):
             row = over_015.loc[index]
             bedgraph_over_015.write("%s\t%s\t%s\n" % (chromosome, int(row.start), int(row.end)))
 
+        for index in over_real_012.index:
+            row = over_real_012.loc[index]
+            bedgraph_over_012.write("%s\t%s\t%s\n" % (chromosome, int(row.start), int(row.end)))
+
+
     bedgraph_over_015.close()
     bedgraph_between_005_to_015.close()
+    bedgraph_over_012.close()
 
 
 def create_min_histogram(chromosomes_dict):
@@ -145,7 +154,7 @@ def create_min_histogram(chromosomes_dict):
 
 def create_windows_to_use_list(chromosomes_dict):
     output_dict = {}
-    cov_limit = 0.15
+    cov_limit = 0.12
 
     for chromosome in chromosomes_dict:
         l = []
@@ -154,7 +163,7 @@ def create_windows_to_use_list(chromosomes_dict):
         only_patients_data = data.iloc[:, 2:]
         values = only_patients_data.min(axis=1)
 
-        over_015 = data[values >= cov_limit]
+        over_015 = data[values > cov_limit]
         for index in over_015.index:
             row = over_015.loc[index]
             start, end = int(row.start), int(row.end)
@@ -190,8 +199,8 @@ def main():
 
         files_tools.save_as_compressed_pickle("5000_window_cov_across_patients_hg19.pkl", chromosomes_dict)
 
-    # create_min_histogram(chromosomes_dict)
-    # create_min_bedgraph(chromosomes_dict)
+    create_min_histogram(chromosomes_dict)
+    create_min_bedgraph(chromosomes_dict)
     create_windows_to_use_list(chromosomes_dict)
 
 

@@ -15,7 +15,7 @@ COVARIANCE_INFO_FILE_FORMAT = "covariance_info_chr_*.pkl"
 COVARIANCE_CHR_FORMAT_RE = re.compile("covariance_info_chr_(\d{1,2}).pkl")
 OUTPUT_FILE = "classifier_data_chr%s.pkl"
 
-genome = pyfaidx.Fasta(consts.GENOME_FILE, sequence_always_upper=True, as_raw=True)
+genome = pyfaidx.Fasta(consts.GENOME_FILE_LOCAL_DROR, sequence_always_upper=True, as_raw=True)
 
 
 def parse_input():

@@ -56,7 +56,7 @@ def window_boundries(files):
     num_of_cpg = df.shape[1]
     window_size = 5000
     chr_windows = []
-    index_advance_value = 2500
+    index_advance_value = 50000
 
     for i in tqdm(range(0, num_of_cpg, index_advance_value)):
         window_indices = (df.columns[i], df.columns[min(i + window_size, num_of_cpg) - 1])  # Get the indexes

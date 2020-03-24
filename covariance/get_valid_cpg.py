@@ -13,7 +13,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from format_files import handle_pmds
-from commons import files_tools
+from commons import files_tools, slurm_tools
 from classifier import create_data
 from covariance import covariance_to_bedgraph
 
@@ -112,13 +112,13 @@ def main():
         for patient_info in cov_dict[chromosome]:
             patient, cov_df = patient_info
             if ind is not None:
-                ind |= cov_df.index
+                ind = set(cov_df.index.values) | ind
             else:
-                ind = cov_df.index
+                ind = set(cov_df.index.values)
 
-        sum_df["location"] = ind
+        sum_df["location"] = list(ind)
         sum_df["chromosome"] = chromosome
-        # sum_df["sequence"] = get_seq_info(ind, chromosome)
+        sum_df["sequence"] = get_seq_info(ind, chromosome)
 
         sum_df = sum_df.set_index("location")
         for patient_info in cov_dict[chromosome]:
@@ -131,9 +131,13 @@ def main():
         sum_list.append(sum_df)
 
     sum_df = pd.concat(sum_list)
-    sum_df.to_pickle("valid_cpg.pkl")
-    sum_df.to_csv("valid_cpg.csv")
-
+    try:
+        sum_df.to_pickle("/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror"
+                         "/covariance/cancer/5000_windows_2500_overlap_750_min_pairs/valid_cpg.pkl")
+        sum_df.to_csv("/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror"
+                      "/covariance/cancer/5000_windows_2500_overlap_750_min_pairs/valid_cpg.csv")
+    except:
+        sum_df.to_pickle("valid_cpg.pkl")
 
 if __name__ == '__main__':
-    main()
+    slurm_tools.init_slurm(main)
