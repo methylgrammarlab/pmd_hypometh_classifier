@@ -90,10 +90,11 @@ def window_cov_across_patients(files_paths, window_boundries):
     return df
 
 
-def create_min_bedgraph(chromosomes_dict):
-    bedgraph_between_005_to_015 = open("coverage_btw_005_to_015_windows_5000_hg19.bed", "w")
-    bedgraph_over_015 = open("coverage_over_015_windows_5000_hg19.bed", "w")
-    bedgraph_over_012 = open("coverage_over_012_windows_5000_hg19.bed", "w")
+def create_min_bedgraph(chromosomes_dict, output):
+    bedgraph_between_005_to_015 = open(os.path.join(output, "coverage_btw_005_to_015_windows_5000_hg19.bed"),
+                                       "w")
+    bedgraph_over_015 = open(os.path.join(output, "coverage_over_015_windows_5000_hg19.bed"), "w")
+    bedgraph_over_012 = open(os.path.join(output, "coverage_over_012_windows_5000_hg19.bed"), "w")
 
 
     for chromosome in chromosomes_dict:
@@ -127,7 +128,7 @@ def create_min_bedgraph(chromosomes_dict):
     bedgraph_over_012.close()
 
 
-def create_min_histogram(chromosomes_dict):
+def create_min_histogram(chromosomes_dict, output):
     valid_windows = []
     nans = 0
     total = 0
@@ -149,12 +150,12 @@ def create_min_histogram(chromosomes_dict):
 
     plt.xlabel("Covariance value")
     plt.title("Histogram of min covariance value across the patients")
-    plt.savefig("min_covariance_value_across_patients.png")
+    plt.savefig(os.path.join(output, "min_covariance_value_across_patients.png"))
 
 
-def create_windows_to_use_list(chromosomes_dict):
+def create_windows_to_use_list(chromosomes_dict, output):
     output_dict = {}
-    cov_limit = 0.12
+    cov_limit = 0.15
 
     for chromosome in chromosomes_dict:
         l = []
@@ -163,7 +164,7 @@ def create_windows_to_use_list(chromosomes_dict):
         only_patients_data = data.iloc[:, 2:]
         values = only_patients_data.min(axis=1)
 
-        over_015 = data[values > cov_limit]
+        over_015 = data[values >= cov_limit]
         for index in over_015.index:
             row = over_015.loc[index]
             start, end = int(row.start), int(row.end)
@@ -171,12 +172,13 @@ def create_windows_to_use_list(chromosomes_dict):
 
         output_dict[chromosome] = l
 
-    files_tools.save_as_compressed_pickle("windows_with_cov_over_%s.pkl" % cov_limit, output_dict)
+    files_tools.save_as_compressed_pickle(os.path.join(output, "windows_with_cov_over_%s.pkl" % cov_limit),
+                                          output_dict)
 
 
 def main():
     args = parse_input()
-
+    output = args.output_folder
     data_file = args.data_path
 
     if data_file:
@@ -197,11 +199,13 @@ def main():
             df = window_cov_across_patients(all_files_dict[ch], window_boundries[int(ch)])
             chromosomes_dict[ch] = df
 
-        files_tools.save_as_compressed_pickle("5000_window_cov_across_patients_hg19.pkl", chromosomes_dict)
+        files_tools.save_as_compressed_pickle(os.path.join(output,
+                                                           "5000_window_cov_across_patients_hg19.pkl"), \
+                                              chromosomes_dict)
 
-    create_min_histogram(chromosomes_dict)
-    create_min_bedgraph(chromosomes_dict)
-    create_windows_to_use_list(chromosomes_dict)
+    # create_min_histogram(chromosomes_dict,output)
+    # create_min_bedgraph(chromosomes_dict, output)
+    create_windows_to_use_list(chromosomes_dict, output)
 
 
 if __name__ == '__main__':

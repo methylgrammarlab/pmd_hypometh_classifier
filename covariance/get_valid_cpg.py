@@ -132,10 +132,8 @@ def main():
 
     sum_df = pd.concat(sum_list)
     try:
-        sum_df.to_pickle("/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror"
-                         "/covariance/cancer/5000_windows_2500_overlap_750_min_pairs/valid_cpg.pkl")
-        sum_df.to_csv("/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror"
-                      "/covariance/cancer/5000_windows_2500_overlap_750_min_pairs/valid_cpg.csv")
+        sum_df.to_pickle(os.path.join(args.output_folder, "valid_cpg.pkl"))
+        sum_df.to_csv(os.path.join(args.output_folder, "valid_cpg.pkl"))
     except:
         sum_df.to_pickle("valid_cpg.pkl")
 
