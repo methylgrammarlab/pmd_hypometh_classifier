@@ -20,7 +20,7 @@ from covariance import covariance_to_bedgraph
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 
 BEDGRPH_FILE_FORMAT = os.path.join("*", "*.bedgraph")
-BEDGRPAH_FORMAT_FILE_RE = re.compile(".*(CRC\d+)_chr_(\d+).*")
+BEDGRPAH_FORMAT_FILE_RE = re.compile(".*(CRC\d+)_chr(\d+).*")
 
 METHYLATION_FILE_FORMAT = "all_cpg_ratios_%s_chr%s.dummy.pkl.zip"
 SEQ_SIZE = 150
@@ -28,7 +28,6 @@ SEQ_SIZE = 150
 
 def parse_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--bedgraph_files', help='Path to bedgraph files', required=True)
     parser.add_argument('--methylation_folder', help='Path to methylation files', required=True)
     parser.add_argument('--windows_file', help='Path to files with windows we want to take', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
@@ -76,7 +75,7 @@ def get_cancer_methylation_of_patient(patient, chromosome, indexes, methylation_
                                          METHYLATION_FILE_FORMAT % (patient, chromosome))
     df = pd.read_pickle(methylation_file_path)
     _, df = covariance_to_bedgraph.get_region_df(df, sublineage_cells=[],
-                                                 sublineage_name=covariance_to_bedgraph.ALL_CANCER)
+                                                 sublineage_name=covariance_to_bedgraph.ONLY_PT)
     mdf = df.mean()
     return mdf.loc[indexes].values
 
@@ -84,30 +83,45 @@ def get_cancer_methylation_of_patient(patient, chromosome, indexes, methylation_
 def main():
     args = parse_input()
 
-    all_file_paths = get_bedgraph_files(args.bedgraph_files)
-    all_files_dict = get_bedgraph_in_dict(all_file_paths)
-
+    methylation_folder = args.methylation_folder
+    all_files_dict = get_bedgraph_in_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
     global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
     cov_dict = {}
 
     for chromosome in all_files_dict:
         cov_dict[chromosome] = []
-        windows_data = global_windows_data[chromosome]
+        try:
+            chromosome = str(chromosome)
+            windows_data = global_windows_data[chromosome]
+        except Exception:
+            chromosome = int(chromosome)
+            windows_data = global_windows_data[chromosome]
+
         for file_path in all_files_dict[chromosome]:
             patient, _ = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
-            covariance_pmd_df = handle_pmds.get_covariance_pmd_df(file_path, chromosome, True)
+            dff = pd.read_pickle(file_path)
+            try:
+                chromosome = str(chromosome)
+                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
+            except:
+                chromosome = int(chromosome)
+                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
 
             prev_mask = None
             for pmd_tuple in windows_data:
                 start, end = pmd_tuple
-                pmd_mask = (covariance_pmd_df.index >= start) & (covariance_pmd_df.index <= end)
+                pmd_mask = (covariance_pmd_df.columns >= start) & (covariance_pmd_df.columns <= end)
                 prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
 
-            cov_dict[chromosome].append((patient, covariance_pmd_df.loc[prev_mask, :]))
+            _, df = covariance_to_bedgraph.get_region_df(covariance_pmd_df.loc[:, prev_mask],
+                                                         sublineage_cells=[],
+                                                         sublineage_name=covariance_to_bedgraph.ONLY_PT)
+            mdf = df.mean()
+            cov_dict[chromosome].append((patient, mdf))
 
     sum_list = []
     for chromosome in cov_dict:
-        sum_df = pd.DataFrame(columns=["chromosome", "location", "pmd_index"])
+        sum_df = pd.DataFrame(columns=["chromosome", "location"])
         ind = None
         for patient_info in cov_dict[chromosome]:
             patient, cov_df = patient_info
@@ -120,26 +134,20 @@ def main():
         sum_df["chromosome"] = chromosome
         sum_df["sequence"] = get_seq_info(ind, chromosome)
 
-        # sum_df = sum_df.set_index("location")
+        sum_df = sum_df.set_index("location")
         for patient_info in cov_dict[chromosome]:
             patient, cov_df = patient_info
-            sum_df.loc[cov_df.index, "cov%s" % patient[-2:]] = cov_df["coverage"]
-            sum_df.loc[cov_df.index, "pmd_index"] = cov_df["pmd_index"]
-            try:
-                sum_df.loc[cov_df.index, "meth%s" % patient[-2:]] = \
-                    get_cancer_methylation_of_patient(patient, chromosome, cov_df.index,
-                                                      args.methylation_folder)
-                sum_list.append(sum_df)
-            except:
-                pass
+            sum_df.loc[cov_df.index, "meth%s" % patient[-2:]] = \
+                get_cancer_methylation_of_patient(patient, chromosome, cov_df.index, args.methylation_folder)
 
+        sum_list.append(sum_df)
 
     sum_df = pd.concat(sum_list)
     try:
-        sum_df.to_pickle(os.path.join(args.output_folder, "valid_cpg.pkl"))
-        sum_df.to_csv(os.path.join(args.output_folder, "valid_cpg.pkl"))
+        sum_df.to_pickle(os.path.join(args.output_folder, "all_patients_pmd_meth.pkl"))
+        sum_df.to_csv(os.path.join(args.output_folder, "all_patients_pmd_meth.pkl"))
     except:
-        sum_df.to_pickle("valid_cpg.pkl")
+        sum_df.to_pickle("all_patients_pmd_meth.pkl")
 
 
 if __name__ == '__main__':

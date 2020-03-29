@@ -102,7 +102,14 @@ def get_pmd_context_map():
 
 def get_pmd_df(df, chromosome):
     pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
-    pmd_list = pmd_dict[chromosome]
+
+    if chromosome in pmd_dict:
+        pmd_list = pmd_dict[chromosome]
+    elif "chr%s" % chromosome in pmd_dict:
+        pmd_list = pmd_dict["chr%s" % chromosome]
+    else:
+        raise Exception("Chromosome name is invalid ")
+
     prev_mask = None
     for pmd_tuple in pmd_list:
         start, end = pmd_tuple

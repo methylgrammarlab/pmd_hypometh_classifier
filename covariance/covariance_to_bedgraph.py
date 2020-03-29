@@ -19,6 +19,7 @@ CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_chr(\d+).dummy.pkl.zip")
 
 ALL = 'ALL'
 ALL_PT = "PT"
+ONLY_PT = "ONLY_PT"
 ALL_CANCER = "ALL_CANCER"
 
 # The min number of pairs needed in common between cells to count the covariance
@@ -111,13 +112,18 @@ def get_region_df(df, sublineage_cells, sublineage_name, min_periods=MIN_PERIODS
         region_df = df
 
     # NC + PT
-    elif ALL_CANCER:
+    elif sublineage_name == ALL_CANCER:
+
         region_cell_ids = [cell_id for cell_id in df.index if not cell_id.startswith('NC')]
         region_df = df.loc[region_cell_ids, :]
 
-    elif sublineage_cells == ALL_PT:
+    elif sublineage_name == ALL_PT:
         region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
         region_cell_ids.extend(cell_id for cell_id in df.index if cell_id.startswith("PT"))
+        region_df = df.loc[region_cell_ids, :]
+
+    elif sublineage_name == ONLY_PT:
+        region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('PT')]
         region_df = df.loc[region_cell_ids, :]
 
     # NC + sublineage

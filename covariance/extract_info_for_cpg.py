@@ -102,7 +102,7 @@ def plot_methylation_vs_covariance(df):
     plt.close()
 
     # Draw only PMD
-    ind = df_i["pmd_index"] <= 5
+    ind = df_i["pmd_index"] > 0
     meth_ip = meth_i[ind]
     cov_ip = cov_i[ind]
 
@@ -316,36 +316,163 @@ def plot_box_violin_all(df):
     # plt.show()
 
 
-def plot_box_violin_all_meth(df):
+def plot_box_violin_all_meth(df, meth_v):
     # pmd_df = df[np.logical_and(df["meth01"] >=0.4, df["meth01"] <= 0.6)]# not really, just middle lines
-    pmd_df = df[~df["meth01"].isnull()]
+    pmd_df = df[~df[meth_v].isnull()]
     x = []
 
     solo_rows = pmd_df[pmd_df["sequence"].str.count("CG") == 1]
-    cov_solo = solo_rows["meth01"]
+    cov_solo = solo_rows[meth_v]
     # x.extend(["solo"] * len(cov_solo))
 
     nsolo_rows = pmd_df[pmd_df["sequence"].str.count("CG") > 1]
-    cov_nsolo = nsolo_rows["meth01"]
+    cov_nsolo = nsolo_rows[meth_v]
 
     weak_rows = solo_rows[solo_rows["sequence"].str.contains("[AT]CG[AT]", regex=True)]
     strong_rows = solo_rows[solo_rows["sequence"].str.contains("[CG]CG[CG]", regex=True)]
 
-    cov_weak = weak_rows["meth01"]
-    cov_strong = strong_rows["meth01"]
+    cov_weak = weak_rows[meth_v]
+    cov_strong = strong_rows[meth_v]
 
     sns.distplot(cov_nsolo, hist=False, kde=True, kde_kws={'linewidth': 3}, label="not solo")
     sns.distplot(cov_solo, hist=False, kde=True, kde_kws={'linewidth': 3}, label="solo")
     sns.distplot(cov_strong, hist=False, kde=True, kde_kws={'linewidth': 3}, label="SCGS")
     sns.distplot(cov_weak, hist=False, kde=True, kde_kws={'linewidth': 3}, label="WSCW")
-    plt.show()
+    if meth_v != "meth_mean":
+        plt.title("Methylation density for CRC%s" % meth_v[-2:])
+    else:
+        plt.title("Methylation density - avg")
 
+    plt.savefig("methylation_dens_for_%s.png" % (meth_v))
+
+    plt.close()
+
+
+def plot_patients_meth(df):
+    solo_rows = df[df["sequence"].str.count("CG") == 1]
+
+    cov1 = solo_rows["meth13"]
+    cov11 = solo_rows["meth11"]
+    # plt.scatter(cov1.values, cov11.values)
+    # plt.show()
+    v = np.vstack((cov1.values, cov11.values))
+    dfs = pd.DataFrame(v.T, columns=["meth13", "meth11"])
+    # sns_plot = sns.jointplot(x="cov1", y="cov11", data=dfs, kind="kde")
+    # sns_plot.savefig("cov1vs11.png")
+    # plt.close()
+
+    sample = dfs.sample(frac=0.005)
+    plt.scatter(sample["meth13"], sample["meth11"])
+    plt.xlabel("meth13")
+    plt.ylabel("meth11")
+    plt.title("sample of meth01 and meth11 methylation")
+    plt.show()
+    plt.close()
+    #
+    # avg = (cov1 + cov11) /2
+    # diff = cov1 - cov11
+    # v = np.vstack((avg.values, diff.values))
+    # dfs = pd.DataFrame(v.T, columns=["avg", "diff"])
+    # sns_plot = sns.jointplot(x="avg", y="diff", data=dfs, kind="kde")
+    # sns_plot.savefig("avg_meth_vs_diff.png")
+    # plt.close()
+
+
+def get_num_of_seq_in_extreme_meth(df):
+    # Only create solo 
+    solo_rows = df[df["sequence"].str.count("CG") == 1]
+    methylation_columns = solo_rows[["meth01", "meth11", "meth13"]]
+
+    solo_rows["min_meth"] = np.min(methylation_columns, axis=1)
+    solo_rows["max_meth"] = np.max(methylation_columns, axis=1)
+
+    # v = pd.notnull(methylation_columns).sum(axis=1).values
+    # full_info_rows = solo_rows[v == 3]
+
+    extreme_index = np.logical_or(solo_rows["max_meth"] <= 0.2, solo_rows["min_meth"] >= 0.8)
+    extreme_rows = solo_rows[extreme_index]
+    print("We will be using %s/%s of seq" % (extreme_rows.shape[0], solo_rows.shape[0]))
+
+
+def plot_densitiy_met_cov_for_cpg_numb(df):
+    # df = df[df["chromosome"] =="1"]
+    for density in range(1, 7):
+        pmd_df = df[~df["meth01"].isnull()]
+
+        rows = pmd_df[pmd_df["sequence"].str.count("CG") == density]
+        meth_values = rows["meth01"]
+
+        weak_rows = rows[rows["sequence"].str.contains("[AT]CG[AT]", regex=True)]
+        strong_rows = rows[rows["sequence"].str.contains("[CG]CG[CG]", regex=True)]
+
+        meth_weak = weak_rows["meth01"]
+        meth_strong = strong_rows["meth01"]
+
+        sns.distplot(meth_values, hist=False, kde=True, kde_kws={'linewidth': 3}, label="any")
+        sns.distplot(meth_strong, hist=False, kde=True, kde_kws={'linewidth': 3}, label="SCGS")
+        sns.distplot(meth_weak, hist=False, kde=True, kde_kws={'linewidth': 3}, label="WSCW")
+        plt.title("Methylation density for CRC%swith cpg=%s" % ("meth01"[-2:], density))
+        plt.savefig("methylation_dens_for_%s_cpg%s.png" % ("meth01", density))
+
+        plt.close()
+
+        pmd_df = pmd_df[~pmd_df["cov01"].isnull()]
+
+        rows = pmd_df[pmd_df["sequence"].str.count("CG") == density]
+        cov_values = rows["cov01"]
+
+        weak_rows = rows[rows["sequence"].str.contains("[AT]CG[AT]", regex=True)]
+        strong_rows = rows[rows["sequence"].str.contains("[CG]CG[CG]", regex=True)]
+
+        cov_weak = weak_rows["cov01"]
+        cov_strong = strong_rows["cov01"]
+        sns.distplot(cov_values, hist=False, kde=True, kde_kws={'linewidth': 3}, label="any")
+        sns.distplot(cov_strong, hist=False, kde=True, kde_kws={'linewidth': 3}, label="SCGS")
+        sns.distplot(cov_weak, hist=False, kde=True, kde_kws={'linewidth': 3}, label="WSCW")
+        plt.title("Cov density for CRC%swith cpg=%s" % ("cov01"[-2:], density))
+        plt.savefig("cov_dens_for_%s_cpg%s.png" % ("cov01", density))
+
+        plt.close()
+
+
+def plot_densitiy_cov_between_02_to_06(df):
+    meth_v = "meth01"
+    pmd_df = df[np.logical_and(df["meth01"] >= 0.2, df["meth01"] <= 0.6)]  # not really, just middle lines
+
+    solo_rows = pmd_df[pmd_df["sequence"].str.count("CG") == 1]
+    cov_solo = solo_rows["cov01"]
+
+    nsolo_rows = pmd_df[pmd_df["sequence"].str.count("CG") > 1]
+    cov_nsolo = nsolo_rows["cov01"]
+
+    weak_rows = solo_rows[solo_rows["sequence"].str.contains("[AT]CG[AT]", regex=True)]
+    strong_rows = solo_rows[solo_rows["sequence"].str.contains("[CG]CG[CG]", regex=True)]
+
+    cov_weak = weak_rows["cov01"]
+    cov_strong = strong_rows["cov01"]
+
+    sns.distplot(cov_nsolo[np.abs(stats.zscore(cov_nsolo.values)) < 3], hist=False, kde=True,
+                 kde_kws={'linewidth': 3}, label="not solo")
+    sns.distplot(cov_solo[np.abs(stats.zscore(cov_solo.values)) < 3], hist=False, kde=True,
+                 kde_kws={'linewidth': 3}, label="solo")
+    sns.distplot(cov_strong[np.abs(stats.zscore(cov_strong.values)) < 3], hist=False, kde=True,
+                 kde_kws={'linewidth': 3}, label="SCGS")
+    sns.distplot(cov_weak[np.abs(stats.zscore(cov_weak.values)) < 3], hist=False, kde=True,
+                 kde_kws={'linewidth': 3}, label="WSCW")
+    if meth_v != "meth_mean":
+        plt.title("Methylation density for CRC%s" % meth_v[-2:])
+    else:
+        plt.title("Methylation density - avg")
+
+    plt.savefig("methylation_dens_for_%s_02_to_06.png" % (meth_v))
+
+    plt.close()
 
 def main():
     args = parse_input()
     df = pd.read_pickle(args.cpg_file)
-    cov_columns = df[["cov01", "cov11", "cov13"]]
-    methylation_columns = df[["meth01", "meth11", "meth13"]]
+    cov_columns = df[["cov01"]]
+    methylation_columns = df[["meth01"]]
 
     cov_mean = np.mean(cov_columns, axis=1)
     meth_mean = np.mean(methylation_columns, axis=1)
@@ -357,14 +484,25 @@ def main():
     # histogram_on_numb_of_cpg_per_pmd(df)
     # histogram_of_coverage_across_patients(df)
     # histogram_of_num_of_cg(df)
-    # plot_methylation_vs_covariance(df)
+    plot_methylation_vs_covariance(df)
     # plot_methylation_vs_covariance_solo(df)
     # check_flip_seq(df)
     # plot_methylation_vs_covariance_solo_vs_non_solo(df)
     # plot_methylation_vs_covariance_solo_weak_vs_strong(df)
     # plot_box_violin_all(df)
-    plot_box_violin_all_meth(df)
+    # plot_box_violin_all_meth(df, "meth01")
+    # plot_box_violin_all_meth(df, "meth11")
+    # plot_box_violin_all_meth(df, "meth13")
+    # plot_box_violin_all_meth(df, "meth_mean")
+    #
+    # for v in df.columns:
+    #     if v.startswith("meth"):
+    #         plot_box_violin_all_meth(df, v)
 
+    # plot_patients_meth(df)
+    # get_num_of_seq_in_extreme_meth(df)
+    # plot_densitiy_met_cov_for_cpg_numb(df)
+    # plot_densitiy_cov_between_02_to_06(df)
 
 if __name__ == '__main__':
     main()
