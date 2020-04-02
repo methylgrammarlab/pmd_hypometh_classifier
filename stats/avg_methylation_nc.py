@@ -18,11 +18,14 @@ from commons import data_tools, files_tools
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_chr%d.dummy.pkl.zip"
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 
+MET_AVG_FILE_FORMAT = "nc_average_methylation_chr%d.dummy.pkl.zip"
+
 BEDGRAPH_OUTPUT_FILE_FORMAT = "nc_methylated_coverage_chr%d_threshold_%d.bedgraph"
 BEDGRAPH_FILE_FORMAT = "nc_methylated_coverage_chr*_threshold_*.bedgraph"
 BEDGRAPH_FILE_FORMAT_RE = re.compile(".+nc_methylated_coverage_chr(\d+)_threshold_\d+.bedgraph")
 CSV_FILE = "average_methylation_of_nc_%s.csv"
-PATIENTS = ['CRC01', 'CRC13', 'CRC04', 'CRC10', 'CRC11']
+PATIENTS = ['CRC01', 'CRC13', 'CRC11']
+# PATIENTS = ['CRC01', 'CRC13', 'CRC04', 'CRC10', 'CRC11']
 
 met_threshold = 0.5
 
@@ -209,7 +212,42 @@ def met_coverage_main():
     f.close()
 
 
+def create_patient_series(patients_list):
+    avg_dict = {}
+    for patient in patients_list:
+        name = CPG_FORMAT_FILE_RE.findall(patient)[0][0]
+        df = pd.read_pickle(patient)
+        normal_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
+        normal_df = df.loc[normal_cell_ids, :]
+        average = np.mean(normal_df, axis=0)
+        avg_dict[name] = average
+    return pd.DataFrame(avg_dict)
+
+
+def avg_df_main():
+    args = parse_input()
+
+    output = args.output_folder
+    if not output:
+        output = os.path.dirname(sys.argv[0])
+
+    all_cpg_format_file_paths = dict()
+    for chr in range(1, 23):
+        all_cpg_format_file_paths[chr] = []
+
+    for patient in PATIENTS:
+        for chr in range(1, 23):
+            cpg_format_file_path = os.path.join(args.cpg_format_folder, patient, CPG_FORMAT_FILE_FORMAT % chr)
+            all_cpg_format_file_paths[chr] += glob.glob(cpg_format_file_path)
+
+    for chr in tqdm(all_cpg_format_file_paths):
+        path = os.path.join(output, MET_AVG_FILE_FORMAT % chr)
+        chr_avgs = create_patient_series(all_cpg_format_file_paths[chr])
+        chr_avgs.to_pickle(path)
+
+
 if __name__ == '__main__':
-    avg_main()
-    diff_main()
-    met_coverage_main()
+    # avg_main()
+    avg_df_main()
+    # diff_main()
+    # met_coverage_main()
