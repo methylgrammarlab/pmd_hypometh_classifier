@@ -27,14 +27,13 @@ CSV_FILE = "average_methylation_of_nc_%s.csv"
 PATIENTS = ['CRC01', 'CRC13', 'CRC11']
 # PATIENTS = ['CRC01', 'CRC13', 'CRC04', 'CRC10', 'CRC11']
 
-met_threshold = 0.5
+MET_THRESHOLD = 0.5
 
 
 def parse_input():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cpg_format_folder', help='Path to folder of parsed scWGBS', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
-    # TODO continue tidying file
     parser.add_argument('--nc_avg',
                         help='Create a csv file with counts of how many times each methylation average appears',
                         required=False)
@@ -47,12 +46,20 @@ def parse_input():
     parser.add_argument('--methylation_coverage',
                         help='Receives the above bedgraph and creates a csv of how many CpGs are methylated for how many patients',
                         required=False)
+    parser.add_argument('--methylation_average',
+                        help='Creates a DF per chromosome t=with the avergae methylation of each patient',
+                        required=False)
 
     args = parser.parse_args()
     return args
 
 
 def average_nc_methylation(cpg_format_file):
+    """
+    Creates a list of all the average values of the normal cells per patient.
+    :param cpg_format_file: File with the CpG data
+    :return: List containing all the average values
+    """
     df = pd.read_pickle(cpg_format_file)
     normal_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
     normal_df = df.loc[normal_cell_ids, :]
@@ -60,13 +67,12 @@ def average_nc_methylation(cpg_format_file):
     return average.dropna().values
 
 
-def avg_main():
-    args = parse_input()
-
-    output = args.output_folder
-    if not output:
-        output = os.path.dirname(sys.argv[0])
-
+def avg_main(args, output):
+    """
+    Create a csv file with counts of how many times each methylation average appears
+    :param args: The program arguments
+    :param output: The output folder
+    """
     cpg_format_file_path = os.path.join(args.cpg_format_folder, CPG_FORMAT_FILE_FORMAT)
     all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
 
@@ -82,6 +88,17 @@ def avg_main():
 
 
 def create_nc_coverage_bedgraph(patients_list, chr, output, bedgraph=False, dump_indices=False):
+    """
+    creates different stats of the coverage of normal cells - fins
+    If dump_indices saves a dictionary of all the methylated indices - over MET_THRESHOLD% of the cells had at least a
+    threshold% methylation average and if bedgraph saves to a bedgraph the number per CpG.
+    :param patients_list: All the paths of CpG files per chromosome
+    :param chr: The current chromosome
+    :param output: The output folder
+    :param bedgraph: Save to bedgraph?
+    :param dump_indices: Return a list of the indices?
+    :return: Only if dump_indices
+    """
     all_met = []
     all_nan = []
     threshold = 0.6
@@ -120,11 +137,17 @@ def create_nc_coverage_bedgraph(patients_list, chr, output, bedgraph=False, dump
         nan_coverage = np.sum(all_nan_df, axis=1)
         met_nan = pd.concat([met_coverage, nan_coverage], axis=1, names=['met', 'nan'])
         met_nan_ratio = met_coverage / nan_coverage
-        methylated_indices = nan_coverage.index[met_nan_ratio >= met_threshold]
+        methylated_indices = nan_coverage.index[met_nan_ratio >= MET_THRESHOLD]
         return list(methylated_indices)
 
 
-def methylation_diff(patients_list, f):
+def methylation_diff(patients_list):
+    """
+    Finds the percentage per chromosome of the number of CpGs that were methylated (average of over 0.6%) out of the
+    total amount of covered CpGs.
+    :param patients_list:
+    :return:
+    """
     all_met_ind = []
 
     not_nan = None
@@ -153,46 +176,57 @@ def methylation_diff(patients_list, f):
     return len(met_and & not_nan) / len(met_or & not_nan) * 100
 
 
-def diff_main():
-    args = parse_input()
-
-    output = args.output_folder
-    if not output:
-        output = os.path.dirname(sys.argv[0])
-
+def diff_main(args, output):
+    """
+    Different stats depending on the args
+    :param output:
+    :return:
+    """
     f = open(os.path.join(output, "avg_methylation_60.out"), "w")
+    all_cpg_format_file_paths = create_chr_paths_dict(args)
 
-    all_cpg_format_file_paths = dict()
-    for chr in range(1, 23):
-        all_cpg_format_file_paths[chr] = []
+    for chr in tqdm(all_cpg_format_file_paths):
+        v = methylation_diff(all_cpg_format_file_paths[chr])
+        f.write("chr%s:%s\n" % (chr, v))
+        print(v)
 
-    for patient in PATIENTS:
-        for chr in range(1, 23):
-            cpg_format_file_path = os.path.join(args.cpg_format_folder, patient, CPG_FORMAT_FILE_FORMAT % chr)
-            all_cpg_format_file_paths[chr] += glob.glob(cpg_format_file_path)
+
+def nc_coverage_main(args, output):
+    """
+    Different stats depending on the args
+    :param output:
+    :return:
+    """
+    all_cpg_format_file_paths = create_chr_paths_dict(args)
 
     methylation_indices_dict = {}
 
     for chr in tqdm(all_cpg_format_file_paths):
-        # v = methylation_diff(all_cpg_format_file_paths[chr])
-        # f.write("chr%s:%s\n" % (chr, v))
-        # print(v)
-        indices_list = create_nc_coverage_bedgraph(all_cpg_format_file_paths[chr], chr, output, bedgraph=False,
-                                                   dump_indices=True)
+        indices_list = create_nc_coverage_bedgraph(all_cpg_format_file_paths[chr], chr, output,
+                                                   bedgraph=args.nc_coverage_bedgraph,
+                                                   dump_indices=args.nc_coverage_inds)
         methylation_indices_dict[chr] = indices_list
-    path = os.path.join(output, "methylated_indices_threshold_%d.pickle.zlib" % (met_threshold * 100))
+    path = os.path.join(output, "methylated_indices_threshold_%d.pickle.zlib" % (MET_THRESHOLD * 100))
     files_tools.save_as_compressed_pickle(path, methylation_indices_dict)
 
-    f.close()
+
+def create_chr_paths_dict(args):
+    all_cpg_format_file_paths = dict()
+    for chr in range(1, 23):
+        all_cpg_format_file_paths[chr] = []
+    for patient in PATIENTS:
+        for chr in range(1, 23):
+            cpg_format_file_path = os.path.join(args.cpg_format_folder, patient, CPG_FORMAT_FILE_FORMAT % chr)
+            all_cpg_format_file_paths[chr] += glob.glob(cpg_format_file_path)
+    return all_cpg_format_file_paths
 
 
-def met_coverage_main():
-    args = parse_input()
-
-    output = args.output_folder
-    if not output:
-        output = os.path.dirname(sys.argv[0])
-
+def met_coverage_main(args, output):
+    """
+    Counts how many of the patients cover each CpG and output to a bedgraph
+    :param args: The program arguments
+    :param output: The output folder
+    """
     cpg_format_file_path = os.path.join(args.cpg_format_folder, BEDGRAPH_FILE_FORMAT)
     all_methylation_coverage_paths = glob.glob(cpg_format_file_path)
 
@@ -213,6 +247,10 @@ def met_coverage_main():
 
 
 def create_patient_series(patients_list):
+    """
+    Receives a list of all the paths of CpG files per chromosome, creates an average of all the normal cells and return
+    as a DF of patient/genome location.
+    """
     avg_dict = {}
     for patient in patients_list:
         name = CPG_FORMAT_FILE_RE.findall(patient)[0][0]
@@ -224,21 +262,13 @@ def create_patient_series(patients_list):
     return pd.DataFrame(avg_dict)
 
 
-def avg_df_main():
-    args = parse_input()
-
-    output = args.output_folder
-    if not output:
-        output = os.path.dirname(sys.argv[0])
-
-    all_cpg_format_file_paths = dict()
-    for chr in range(1, 23):
-        all_cpg_format_file_paths[chr] = []
-
-    for patient in PATIENTS:
-        for chr in range(1, 23):
-            cpg_format_file_path = os.path.join(args.cpg_format_folder, patient, CPG_FORMAT_FILE_FORMAT % chr)
-            all_cpg_format_file_paths[chr] += glob.glob(cpg_format_file_path)
+def avg_df_main(args, output):
+    """
+    Creates a DF per chromosome t=with the avergae methylation of each patient.
+    :param args: The program arguments
+    :param output: The output folder
+    """
+    all_cpg_format_file_paths = create_chr_paths_dict(args)
 
     for chr in tqdm(all_cpg_format_file_paths):
         path = os.path.join(output, MET_AVG_FILE_FORMAT % chr)
@@ -246,8 +276,23 @@ def avg_df_main():
         chr_avgs.to_pickle(path)
 
 
+def main():
+    args = parse_input()
+    output = args.output_folder
+    if not output:
+        output = os.path.dirname(sys.argv[0])
+
+    if args.nc_avg:
+        avg_main(args, output)
+    elif args.methylation_diff:
+        diff_main(args, output)
+    elif args.methylation_coverage:
+        met_coverage_main(args, output)
+    elif args.nc_coverage_inds or args.nc_coverage_bedgraph:
+        nc_coverage_main(args, output)
+    elif args.methylation_average:
+        avg_df_main(args, output)
+
+
 if __name__ == '__main__':
-    # avg_main()
-    avg_df_main()
-    # diff_main()
-    # met_coverage_main()
+    main()
