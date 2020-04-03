@@ -21,6 +21,8 @@ ALL = 'ALL'
 ALL_PT = "PT"
 ONLY_PT = "ONLY_PT"
 ALL_CANCER = "ALL_CANCER"
+LN_AND_PT = "LN_AND_PT"
+ONLY_NC = "NC"
 
 # The min number of pairs needed in common between cells to count the covariance
 MIN_PERIODS = 10
@@ -111,12 +113,22 @@ def get_region_df(df, sublineage_cells, sublineage_name, min_periods=MIN_PERIODS
     if sublineage_name == ALL:
         region_df = df
 
-    # NC + PT
-    elif sublineage_name == ALL_CANCER:
-
-        region_cell_ids = [cell_id for cell_id in df.index if not cell_id.startswith('NC')]
+    elif sublineage_name == ONLY_NC:
+        region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
         region_df = df.loc[region_cell_ids, :]
 
+    elif sublineage_name == LN_AND_PT:
+        region_cell_ids = [cell_id for cell_id in df.index if (cell_id.startswith('PT') or
+                                                               cell_id.startswith("LN"))]
+        region_df = df.loc[region_cell_ids, :]
+
+
+    elif sublineage_name == ALL_CANCER:
+        region_cell_ids = [cell_id for cell_id in df.index if not cell_id.startswith('NC')]
+        region_cell_ids = [cell_id for cell_id in region_cell_ids if not cell_id.startswith('MP')]
+        region_df = df.loc[region_cell_ids, :]
+
+    # NC + PT
     elif sublineage_name == ALL_PT:
         region_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
         region_cell_ids.extend(cell_id for cell_id in df.index if cell_id.startswith("PT"))

@@ -71,75 +71,14 @@ def get_seq_info(ind, chromosome):
     return seq
 
 
-def get_cancer_methylation_of_patient(patient, chromosome, indexes, methylation_folder):
+def get_methylation_of_patient(patient, chromosome, indexes, methylation_folder, sublineage_name):
     methylation_file_path = os.path.join(methylation_folder, patient,
                                          METHYLATION_FILE_FORMAT % (patient, chromosome))
     df = pd.read_pickle(methylation_file_path)
     _, df = covariance_to_bedgraph.get_region_df(df, sublineage_cells=[],
-                                                 sublineage_name=covariance_to_bedgraph.ALL_CANCER)
+                                                 sublineage_name=sublineage_name)
     mdf = df.mean()
     return mdf.loc[indexes]
-
-
-def main():
-    args = parse_input()
-
-    all_file_paths = get_bedgraph_files(args.bedgraph_files)
-    all_files_dict = get_bedgraph_in_dict(all_file_paths)
-
-    global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
-    cov_dict = {}
-
-    for chromosome in all_files_dict:
-        cov_dict[chromosome] = []
-        windows_data = global_windows_data[int(chromosome)]
-        for file_path in all_files_dict[chromosome]:
-            patient, _ = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
-            covariance_pmd_df = handle_pmds.get_covariance_pmd_df(file_path, chromosome, True)
-
-            prev_mask = None
-            for pmd_tuple in windows_data:
-                start, end = pmd_tuple
-                pmd_mask = (covariance_pmd_df.index >= start) & (covariance_pmd_df.index <= end)
-                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-            cov_dict[chromosome].append((patient, covariance_pmd_df.loc[prev_mask, :]))
-
-    sum_list = []
-    for chromosome in cov_dict:
-        sum_df = pd.DataFrame(columns=["chromosome", "location", "pmd_index"])
-        ind = None
-        for patient_info in cov_dict[chromosome]:
-            patient, cov_df = patient_info
-            if ind is not None:
-                ind = set(cov_df.index.values) | ind
-            else:
-                ind = set(cov_df.index.values)
-
-        sum_df["location"] = list(ind)
-        sum_df["chromosome"] = chromosome
-        sum_df["sequence"] = get_seq_info(ind, chromosome)
-
-        # sum_df = sum_df.set_index("location")
-        for patient_info in cov_dict[chromosome]:
-            patient, cov_df = patient_info
-            sum_df.loc[cov_df.index, "cov%s" % patient[-2:]] = cov_df["coverage"]
-            sum_df.loc[cov_df.index, "pmd_index"] = cov_df["pmd_index"]
-            try:
-                sum_df.loc[cov_df.index, "meth%s" % patient[-2:]] = \
-                    get_cancer_methylation_of_patient(patient, chromosome, cov_df.index,
-                                                      args.methylation_folder)
-                sum_list.append(sum_df)
-            except:
-                pass
-
-
-    sum_df = pd.concat(sum_list)
-    try:
-        sum_df.to_pickle(os.path.join(args.output_folder, "valid_cpg.pkl"))
-        sum_df.to_csv(os.path.join(args.output_folder, "valid_cpg.pkl"))
-    except:
-        sum_df.to_pickle("valid_cpg.pkl")
 
 
 def main2():
@@ -154,7 +93,7 @@ def main2():
 
     for chromosome in all_files_dict:
         cov_dict[chromosome] = []
-        windows_data = global_windows_data[chromosome]
+        windows_data = global_windows_data[int(chromosome)]
         for file_path in all_files_dict[chromosome]:
             patient, _ = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
             covariance_pmd_df = handle_pmds.get_covariance_pmd_df(file_path, chromosome, True)
@@ -190,9 +129,14 @@ def main2():
             patient, cov_df = patient_info
             sum_df.loc[cov_df.index, "cov%s" % patient[-2:]] = cov_df["coverage"]
             sum_df.loc[cov_df.index, "pmd_index"] = cov_df["pmd_index"]
-            methylation = get_cancer_methylation_of_patient(patient, chromosome, cov_df.index,
-                                                            args.methylation_folder)
-            sum_df.loc[cov_df.index, "meth%s" % patient[-2:]] = methylation
+            methylation = get_methylation_of_patient(patient, chromosome, cov_df.index,
+                                                     args.methylation_folder,
+                                                     sublineage_name=covariance_to_bedgraph.ALL_CANCER)
+            sum_df.loc[methylation.index, "meth%s" % patient[-2:]] = methylation
+            nc_methylation = get_methylation_of_patient(patient, chromosome, cov_df.index,
+                                                        args.methylation_folder,
+                                                        sublineage_name=covariance_to_bedgraph.ONLY_NC)
+            sum_df.loc[nc_methylation.index, "nc_meth%s" % patient[-2:]] = nc_methylation
 
         sum_list.append(sum_df.reset_index())
 
@@ -205,5 +149,4 @@ def main2():
 
 if __name__ == '__main__':
     # slurm_tools.init_slurm(main)
-    # main()
     slurm_tools.init_slurm(main2)

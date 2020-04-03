@@ -129,27 +129,33 @@ def plot_methylation_vs_covariance(df):
     plt.close()
 
 
-def plot_methylation_vs_covariance_solo(df):
+def plot_methylation_vs_covariance_solo(df, patient):
+    cov_label = "cov%s" % patient
+    meth_label = "meth%s" % patient
+
+
     solo_rows = df[df["sequence"].str.count("CG") == 1]
-    solo_rows = solo_rows[solo_rows["pmd_index"] <= 5]
-    meth_mean = solo_rows["meth_mean"]
-    cov_mean = solo_rows["cov_mean"]
+    solo_rows = solo_rows[~solo_rows[meth_label].isnull()]
+    # solo_rows = solo_rows[solo_rows["pmd_index"] <= 5]
+    meth_mean = solo_rows[meth_label]
+    cov_mean = solo_rows[cov_label]
 
     # meth_mean = np.round(meth_mean * 500).astype(np.int) / 500
     z_cov = np.abs(stats.zscore(cov_mean.values))
-    outliers_ind = z_cov < 3
+    outliers_ind = z_cov > 0
     plt.plot(meth_mean[outliers_ind], cov_mean[outliers_ind], linestyle='', marker='o', markersize=0.5)
-    plt.title("Methylation level vs Covariance in solo CpG")
+    plt.title("Methylation level vs Covariance in solo CpG for patient %s" % patient)
     plt.xlabel("Avg methylation level")
     plt.ylabel("Covariance in window")
-    plt.savefig("solo_meth_vs_cov_scatter.png")
+    plt.savefig("solo_meth_vs_cov_scatter_patient%s.png" % patient)
     plt.close()
-
-    v = np.vstack((meth_mean[outliers_ind].values, cov_mean[outliers_ind].values))
-    dfs = pd.DataFrame(v.T, columns=["meth", "cov"])
-    sns_plot = sns.jointplot(x="meth", y="cov", data=dfs, kind="kde")
-    sns_plot.savefig("solo_meth_vs_cov.png")
-    plt.close()
+    #
+    # v = np.vstack((meth_mean[outliers_ind].values, cov_mean[outliers_ind].values))
+    # dfs = pd.DataFrame(v.T, columns=["meth", "cov"])
+    # sns_plot = sns.jointplot(x="meth", y="cov", data=dfs, kind="kde")
+    # plt.title("Methylation level vs Covariance in solo CpG for patient %s" %patient)
+    # sns_plot.savefig("solo_meth_vs_cov_patient%s.png" %patient)
+    # plt.close()
 
 
 def check_flip_seq(df):
@@ -477,52 +483,119 @@ def data_on_patient_cpg_is_1(df, patient, cov_limit, meth_limit):
     print("##############################")
 
 
+def data_on_patient_cpg_is_1_only_meth(df, patient, meth_limit):
+    df = df[df["chromosome"] == "1"]
+    print("##############################")
+    print("data for patient %s" % patient)
+
+    cov_label = "cov%s" % patient
+    meth_label = "meth%s" % patient
+
+    solo_rows = df[df["sequence"].str.count("CG") == 1]
+
+    weak_rows = solo_rows[solo_rows["small_seq"].str.contains("[AT]CG[AT]", regex=True)]
+    strong_rows = solo_rows[solo_rows["small_seq"].str.contains("[CG]CG[CG]", regex=True)]
+
+    size_total = solo_rows.shape[0]
+    size_weak = weak_rows.shape[0]
+    size_strong = strong_rows.shape[0]
+    print("Out of %s CpG we have %s(%s%%) SCGS and %s(%s%%) WCGW" %
+          (size_total, size_strong, size_strong / size_total * 100, size_weak, size_weak / size_total * 100))
+
+    solo_rows_with_cov_limit = solo_rows[solo_rows[meth_label] >= meth_limit]
+    weak_with_cov_limit = weak_rows[weak_rows[meth_label] >= meth_limit]
+    strong_with_cov_limit = strong_rows[strong_rows[meth_label] >= meth_limit]
+
+    size_total = solo_rows_with_cov_limit.shape[0]
+    size_weak = weak_with_cov_limit.shape[0]
+    size_strong = strong_with_cov_limit.shape[0]
+    print("Out of %s CpG with meth >= %s we have %s(%s%%) SCGS and %s(%s%%) WCGW" %
+          (size_total, meth_limit, size_strong, size_strong / size_total * 100, size_weak,
+           size_weak / size_total * 100))
+
+    solo_with_meth_limit = solo_rows[solo_rows[meth_label] < meth_limit]
+    weak_with_meth_limit_and_cov = weak_rows[weak_rows[meth_label] < meth_limit]
+    strong_with_meth_limit_and_cov = strong_rows[strong_rows[meth_label] < meth_limit]
+
+    size_total = solo_with_meth_limit.shape[0]
+    size_weak = weak_with_meth_limit_and_cov.shape[0]
+    size_strong = strong_with_meth_limit_and_cov.shape[0]
+    print("Out of %s CpG with meth < %s we have %s(%s%%) SCGS and %s(%s%%) WCGW" %
+          (size_total, meth_limit, size_strong, size_strong / size_total * 100, size_weak,
+           size_weak / size_total * 100))
+
+    print("Out of %s WCGW we have %s(%s%%) with high meth and %s(%s%%) with low meth" %
+          (weak_rows.shape[0], weak_with_cov_limit.shape[0],
+           weak_with_cov_limit.shape[0] / weak_rows.shape[0] * 100,
+           weak_with_meth_limit_and_cov.shape[0],
+           weak_with_meth_limit_and_cov.shape[0] / weak_rows.shape[0] * 100)
+          )
+
+    print("Out of %s SCGS we have %s(%s%%) with high  meth and %s(%s%%) with  meth" %
+          (strong_rows.shape[0], strong_with_cov_limit.shape[0],
+           strong_with_cov_limit.shape[0] / strong_rows.shape[0] * 100,
+           strong_with_meth_limit_and_cov.shape[0],
+           strong_with_meth_limit_and_cov.shape[0] / strong_rows.shape[0] * 100)
+          )
+
+    print("##############################")
+
+
+
 def main():
     args = parse_input()
     df = pd.read_pickle(args.cpg_file)
     df["small_seq"] = df["sequence"].str[73:77]
     cov_columns = df[["cov01", "cov11", "cov13"]]
     methylation_columns = df[["meth01", "meth11", "meth13"]]
+    meth_nc_columns = df[["nc_meth01", "nc_meth11", "nc_meth13"]]
 
-    cov_mean = np.mean(cov_columns, axis=1)
-    meth_mean = np.mean(methylation_columns, axis=1)
+    df["cov_mean"] = np.mean(cov_columns, axis=1)
+    df["meth_mean"] = np.mean(methylation_columns, axis=1)
+    df["nc_meth_mean"] = np.mean(meth_nc_columns, axis=1)
 
-    df["cov_mean"] = cov_mean
-    df["meth_mean"] = meth_mean
-
-    # global_cpg_info(df)
-    # histogram_on_numb_of_cpg_per_pmd(df)
-    # histogram_of_coverage_across_patients(df)
-    # histogram_of_num_of_cg(df)
-    # plot_methylation_vs_covariance(df)
-    # plot_methylation_vs_covariance_solo(df)
-    # check_flip_seq(df)
-    # plot_methylation_vs_covariance_solo_vs_non_solo(df)
-    # plot_methylation_vs_covariance_solo_weak_vs_strong(df)
-    # plot_box_violin_all(df)
-    # plot_box_violin_all_meth(df, "meth01")
-    # plot_box_violin_all_meth(df, "meth11")
-    # plot_box_violin_all_meth(df, "meth13")
-    # plot_box_violin_all_meth(df, "meth_mean")
+    df = df[df["nc_meth_mean"] > 0.6]
     #
-    # for v in df.columns:
-    #     if v.startswith("meth"):
-    #         plot_box_violin_all_meth(df, v)
-
-    # plot_patients_meth(df)
-    # get_num_of_seq_in_extreme_meth(df)
-    # plot_densitiy_met_cov_for_cpg_numb(df, patient="01")
-    # plot_densitiy_met_cov_for_cpg_numb(df, patient="11")
-    # plot_densitiy_met_cov_for_cpg_numb(df, patient="13")
-    # plot_densitiy_cov_between_02_to_06(df)
-
-    # plot_densitiy_met_cov_01_to_03_for_cpg(df, patient="01")
-    # plot_densitiy_met_cov_01_to_03_for_cpg(df, patient="11")
-    # plot_densitiy_met_cov_01_to_03_for_cpg(df, patient="13")
+    # global_cpg_info(df)
+    # # histogram_on_numb_of_cpg_per_pmd(df)
+    # # histogram_of_coverage_across_patients(df)
+    # # histogram_of_num_of_cg(df)
+    # # plot_methylation_vs_covariance(df)
+    # # plot_methylation_vs_covariance_solo(df)
+    # # check_flip_seq(df)
+    plot_methylation_vs_covariance_solo_vs_non_solo(df)
+    plot_methylation_vs_covariance_solo_weak_vs_strong(df)
+    # # plot_box_violin_all(df)
+    # # plot_box_violin_all_meth(df, "meth01")
+    # # plot_box_violin_all_meth(df, "meth11")
+    # # plot_box_violin_all_meth(df, "meth13")
+    # # plot_box_violin_all_meth(df, "meth_mean")
+    # #
+    # # for v in df.columns:
+    # #     if v.startswith("meth"):
+    # #         plot_box_violin_all_meth(df, v)
+    #
+    # # plot_patients_meth(df)
+    # # get_num_of_seq_in_extreme_meth(df)
+    plot_densitiy_met_cov_for_cpg_numb(df, patient="01")
+    plot_densitiy_met_cov_for_cpg_numb(df, patient="11")
+    plot_densitiy_met_cov_for_cpg_numb(df, patient="13")
+    # # plot_densitiy_cov_between_02_to_06(df)
+    #
+    plot_densitiy_met_cov_01_to_03_for_cpg(df, patient="01")
+    plot_densitiy_met_cov_01_to_03_for_cpg(df, patient="11")
+    plot_densitiy_met_cov_01_to_03_for_cpg(df, patient="13")
     data_on_patient_cpg_is_1(df, patient="01", cov_limit=0.01, meth_limit=0.35)
     data_on_patient_cpg_is_1(df, patient="11", cov_limit=0.01, meth_limit=0.35)
     data_on_patient_cpg_is_1(df, patient="13", cov_limit=0.01, meth_limit=0.35)
 
+    data_on_patient_cpg_is_1_only_meth(df, patient="01", meth_limit=0.35)
+    data_on_patient_cpg_is_1_only_meth(df, patient="11", meth_limit=0.35)
+    data_on_patient_cpg_is_1_only_meth(df, patient="13", meth_limit=0.35)
+
+    plot_methylation_vs_covariance_solo(df, patient="01")
+    plot_methylation_vs_covariance_solo(df, patient="11")
+    plot_methylation_vs_covariance_solo(df, patient="13")
 
 if __name__ == '__main__':
     main()
