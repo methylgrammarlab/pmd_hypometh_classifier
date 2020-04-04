@@ -1,13 +1,10 @@
 import argparse
 import os
 import pickle
-import sys
 
 import numpy as np
 
 np.random.seed(7)  # for reproducibility
-
-from sklearn.model_selection import train_test_split
 
 # tf.python.control_flow_ops = tf
 
@@ -26,34 +23,10 @@ import matplotlib as mpl
 mpl.use('Agg')
 # from keras.utils.layer_utils import print_layer_shapes
 
-path_to_scripts = "./Scripts/"
-sys.path.append(path_to_scripts)
-from classifier.DeepRiPe.Scripts.util_funcs import precision, recall, seq_to_mat
 
-SEQ_CONSTANT = "seq10"
+DATA_PATH = r"H:\Study\university\Computational-Biology\Year 3\Projects\proj_scwgbs\classifier\dataset\classifier_data_ccpg1.pkl"
 
-
-def load_data_merged(path_to_data):
-    """
-    load the data
-    :param path_to_data: path to file (consist of train, valid and test data)
-    """
-    with open(path_to_data, "rb") as path_to_data_h:
-        data = pickle.load(path_to_data_h)
-
-    train_data, test_data = data["train"], data["test"]
-
-    X_train_seq = np.array([seq_to_mat(seq) for seq in train_data[SEQ_CONSTANT]])
-    y_train = train_data["label"].values
-
-    X_test_seq = np.array([seq_to_mat(seq) for seq in test_data[SEQ_CONSTANT]])
-    y_test = test_data["label"].values
-
-    # TODO: in the future need to see how to do it with cross-validation
-    X_train_seq, X_valid_seq, y_train, y_valid = train_test_split(X_train_seq, y_train, test_size=0.2,
-                                                                  random_state=42)
-
-    return X_train_seq, y_train, X_valid_seq, y_valid, X_test_seq, y_test
+from classifier.utils import precision, recall, load_data_merged
 
 
 def create_seq_model(input_len):
@@ -63,17 +36,10 @@ def create_seq_model(input_len):
     """
     K.clear_session()
     # tf.random.set_seed(5005)
-    dim = 4  # TODO: this might need to be 1
 
-    filters_num = [90, 100]
-    filter_len = [7, 7]
-    pool_len = [4, 10]
-    strides = [2, 5]
-
-    input_node = Input(shape=(input_len, dim), name="input")
-    conv1 = Conv1D(filters=filters_num[0], kernel_size=filter_len[0], padding='valid', activation="relu",
-                   name="conv1")(input_node)
-    pool1 = MaxPooling1D(pool_size=pool_len[0], strides=strides[0], name="left_pool1")(conv1)
+    input_node = Input(shape=(input_len, 4), name="input")
+    conv1 = Conv1D(filters=90, kernel_size=7, padding='valid', activation="relu", name="conv1")(input_node)
+    pool1 = MaxPooling1D(pool_size=4, strides=2, name="left_pool1")(conv1)
     drop1 = Dropout(0.25, name="left_drop1")(pool1)
 
     # conv_merged = Conv1D(filters=100, kernel_size=5, padding='valid', activation="relu", name="conv_merged")(
@@ -102,7 +68,6 @@ def train_diff_model(data_path, res_path, model_name, input_len,
     :param model_path:
     :return:
     """
-    filter_lengths = [4, 5]
     print('creating model')
     model = create_seq_model(input_len)
     print('compiling model')
@@ -113,7 +78,7 @@ def train_diff_model(data_path, res_path, model_name, input_len,
     # tb=TensorBoard(log_dir='./Output/logs', histogram_freq=0, write_graph=True, write_images=False)
 
     print('loading data')
-    x_train_seq, y_train, x_valid_seq, y_valid, x_test_seq, y_test = load_data_merged(data_path)
+    x_train_seq, y_train, x_valid_seq, y_valid, x_test_seq, y_test = load_data_merged(data_path, input_len)
 
     print('fitting the model')
     history = model.fit(x_train_seq, y_train, epochs=num_epoch, batch_size=batchsize,
@@ -142,17 +107,12 @@ def train_diff_model(data_path, res_path, model_name, input_len,
 #
 ################################################################################
 
-def test_model(output_path, data_path, res_path, model_name):
+def test_model(output_path, data_path, res_path, model_name, input_len):
     print('test the model and plot the curve')
     model = load_model(os.path.join(res_path, model_name + ".h5"),
                        custom_objects={'precision': precision, 'recall': recall})
 
-    with open(data_path, "rb") as data_path_h:
-        data = pickle.load(data_path_h)
-
-    test_data = data["test"]
-    X_test_seq = test_data[SEQ_CONSTANT].values
-    y_test = test_data["label"].values
+    _, _, _, _, X_test_seq, y_test = load_data_merged(data_path, input_len, only_test=True)
 
     print('predicting on test data')
     y_pred = model.predict(X_test_seq, verbose=1)
@@ -184,15 +144,12 @@ def main():
     #                  input_len=args.input_len, num_epoch=args.num_epoch, batchsize=args.batchsize,
     #                  model_path=args.model_path)
     train_diff_model(
-        data_path=r"H:\Study\university\Computational-Biology\Year 3\Projects\proj_scwgbs\classifier\classifier_data_ccpg1.pkl",
-        res_path=".", model_name="test",
-        input_len=10, num_epoch=100, batchsize=32,
-        model_path="model")
+        data_path=DATA_PATH, res_path=".", model_name="test", input_len=10, num_epoch=4, batchsize=32)
 
-    if args.test:
-        print("testing the model and plot the curves")
-        test_model(output_path=args.prediction_path, data_path=args.data_path, res_path=args.output_path,
-                   model_name=args.model_name)
+    # if args.test:
+    #     print("testing the model and plot the curves")
+    #     test_model(output_path=args.prediction_path, data_path=args.data_path, res_path=args.output_path,
+    #                model_name=args.model_name)
 
 
 if __name__ == '__main__':

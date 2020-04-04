@@ -1,7 +1,45 @@
+import pickle
 import sys
 
 import keras.backend as K
 import numpy as np
+from sklearn.model_selection import train_test_split
+
+SMALL_SEQ = "seq10"
+BIG_SEQ = "sequence"
+
+
+def load_data_merged(path_to_data, input_len, only_test=False):
+    """
+    load the data
+    :param path_to_data: path to file (consist of train, valid and test data)
+    """
+    if input_len == 150:
+        seq_label = BIG_SEQ
+    elif input_len == 10:
+        seq_label = SMALL_SEQ
+    else:
+        raise ("Unknown label to use")
+
+    with open(path_to_data, "rb") as path_to_data_h:
+        data = pickle.load(path_to_data_h)
+
+    train_data, test_data = data["train"], data["test"]
+
+    X_test_seq = np.array([seq_to_mat(seq) for seq in test_data[seq_label]])
+    y_test = test_data["label"].values
+
+    if only_test:
+        return None, None, None, None, X_test_seq, y_test
+
+    X_train_seq = np.array([seq_to_mat(seq) for seq in train_data[seq_label]])
+    y_train = train_data["label"].values
+
+    # TODO: in the future need to see how to do it with cross-validation
+    X_train_seq, X_valid_seq, y_train, y_valid = train_test_split(X_train_seq, y_train, test_size=0.2,
+                                                                  random_state=42)
+
+    return X_train_seq, y_train, X_valid_seq, y_valid, X_test_seq, y_test
 
 
 ########################
