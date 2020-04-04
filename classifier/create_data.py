@@ -12,8 +12,6 @@ sys.path.append(os.getcwd())
 OUTPUT_FILE = "classifier_data_ccpg1.pkl"
 TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 
-METH_LEVEL = 0.3
-UNMETH_LABEL = 0
 TRAIN_PATIENT = ["CRC11", "CRC01"]
 TEST_PATIENT = ["CRC13"]
 
@@ -134,6 +132,8 @@ def label_based_on_extreme(df, extreme_value):
     low_value, high_value = sorted_values.iloc[low_index], sorted_values.iloc[high_index]
 
     filtered_df = df[np.logical_or(df["meth"] <= low_value, df["meth"] >= high_value)]
+    filtered_df.loc[filtered_df["meth"] >= high_value, "label"] = 0  # State didn't change
+    filtered_df.loc[filtered_df["meth"] <= low_value, "label"] = 1  # State changed
     return filtered_df
 
 def main():
