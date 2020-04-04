@@ -14,7 +14,7 @@ from tensorflow.python.keras.layers import Input
 from tensorflow.python.keras.layers import Dense, Dropout
 from tensorflow.python.keras.layers.convolutional import Conv1D
 from tensorflow.python.keras.layers.pooling import MaxPooling1D
-from tensorflow.python.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam
 from tensorflow.python.keras.callbacks import ModelCheckpoint, EarlyStopping
 import tensorflow.python.keras.backend as K
 
@@ -23,8 +23,6 @@ import matplotlib as mpl
 mpl.use('Agg')
 # from keras.utils.layer_utils import print_layer_shapes
 
-
-DATA_PATH = r"H:\Study\university\Computational-Biology\Year 3\Projects\proj_scwgbs\classifier\dataset\classifier_data_ccpg1.pkl"
 
 from classifier.utils import precision, recall, load_data_merged
 
@@ -53,6 +51,7 @@ def create_seq_model(input_len):
     model = Model(inputs=[input_node], outputs=output)
     print(model.summary())
     return model
+
 
 
 def train_diff_model(data_path, res_path, model_name, input_len,
@@ -144,7 +143,7 @@ def main():
     #                  input_len=args.input_len, num_epoch=args.num_epoch, batchsize=args.batchsize,
     #                  model_path=args.model_path)
     train_diff_model(
-        data_path=DATA_PATH, res_path=".", model_name="test", input_len=10, num_epoch=4, batchsize=32)
+        data_path=args.data_path, res_path=".", model_name="test", input_len=10, num_epoch=10, batchsize=32)
 
     # if args.test:
     #     print("testing the model and plot the curves")
