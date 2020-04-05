@@ -10,11 +10,11 @@ np.random.seed(7)  # for reproducibility
 
 
 from tensorflow.python.keras.models import Model, load_model
-from tensorflow.python.keras.layers import Input
+from tensorflow.python.keras.layers import Input, Flatten
 from tensorflow.python.keras.layers import Dense, Dropout
 from tensorflow.python.keras.layers.convolutional import Conv1D
 from tensorflow.python.keras.layers.pooling import MaxPooling1D
-from tensorflow.keras.optimizers import Adam
+from tensorflow.python.keras.optimizers import Adam
 from tensorflow.python.keras.callbacks import ModelCheckpoint, EarlyStopping
 import tensorflow.python.keras.backend as K
 
@@ -40,13 +40,17 @@ def create_seq_model(input_len):
     pool1 = MaxPooling1D(pool_size=4, strides=2, name="left_pool1")(conv1)
     drop1 = Dropout(0.25, name="left_drop1")(pool1)
 
-    # conv_merged = Conv1D(filters=100, kernel_size=5, padding='valid', activation="relu", name="conv_merged")(
-    #     drop1)
-    # merged_pool = MaxPooling1D(pool_size=10, strides=5)(conv_merged)
-    # merged_drop = Dropout(0.25)(merged_pool)
-    # merged_flat = Flatten()(merged_drop)
+    if input_len > 10:
+        conv_merged = Conv1D(filters=100, kernel_size=5, padding='valid', activation="relu",
+                             name="conv_merged")(
+            drop1)
+        merged_pool = MaxPooling1D(pool_size=10, strides=5)(conv_merged)
+        merged_drop = Dropout(0.25)(merged_pool)
+        merged_flat = Flatten()(merged_drop)
+    else:
+        merged_flat = drop1
 
-    hidden1 = Dense(250, activation='relu', name="hidden1")(drop1)
+    hidden1 = Dense(250, activation='relu', name="hidden1")(merged_flat)
     output = Dense(1, activation='sigmoid', name="output")(hidden1)
     model = Model(inputs=[input_node], outputs=output)
     print(model.summary())
@@ -143,7 +147,7 @@ def main():
     #                  input_len=args.input_len, num_epoch=args.num_epoch, batchsize=args.batchsize,
     #                  model_path=args.model_path)
     train_diff_model(
-        data_path=args.data_path, res_path=".", model_name="test", input_len=10, num_epoch=10, batchsize=32)
+        data_path=args.data_path, res_path=".", model_name="test", input_len=150, num_epoch=10, batchsize=32)
 
     # if args.test:
     #     print("testing the model and plot the curves")

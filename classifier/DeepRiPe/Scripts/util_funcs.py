@@ -1,5 +1,6 @@
 import sys
 
+import h5py
 import keras.backend as K
 import numpy as np
 
