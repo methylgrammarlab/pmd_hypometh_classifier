@@ -62,6 +62,12 @@ def recall(y_true, y_pred):
     return recall
 
 
+def f1_score(y_true, y_pred):
+    precision = precision(y_true, y_pred)
+    recall = recall(y_true, y_pred)
+    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+
+
 ##########################################################
 ### Function to convert the sequence to one-hot encode ###
 ##########################################################
