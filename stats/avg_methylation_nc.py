@@ -24,8 +24,9 @@ BEDGRAPH_OUTPUT_FILE_FORMAT = "nc_methylated_coverage_chr%d_threshold_%d.bedgrap
 BEDGRAPH_FILE_FORMAT = "nc_methylated_coverage_chr*_threshold_*.bedgraph"
 BEDGRAPH_FILE_FORMAT_RE = re.compile(".+nc_methylated_coverage_chr(\d+)_threshold_\d+.bedgraph")
 CSV_FILE = "average_methylation_of_nc_%s.csv"
-PATIENTS = ['CRC01', 'CRC13', 'CRC11']
+# PATIENTS = ['CRC01', 'CRC13', 'CRC11']
 # PATIENTS = ['CRC01', 'CRC13', 'CRC04', 'CRC10', 'CRC11']
+PATIENTS = ['CRC01', 'CRC13', 'CRC11', "CRC02", "CRC04", "CRC09", "CRC10", "CRC12", "CRC14", "CRC15"]
 
 MET_THRESHOLD = 0.5
 

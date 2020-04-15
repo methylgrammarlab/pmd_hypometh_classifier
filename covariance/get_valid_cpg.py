@@ -7,6 +7,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import pyfaidx
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -14,8 +15,8 @@ sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from format_files import handle_pmds
 from commons import files_tools, slurm_tools
-from classifier import create_data
 from covariance import covariance_to_bedgraph
+from commons import consts
 
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 
@@ -24,6 +25,17 @@ BEDGRPAH_FORMAT_FILE_RE = re.compile(".*(CRC\d+)_chr_(\d+).*")
 
 METHYLATION_FILE_FORMAT = "all_cpg_ratios_%s_chr%s.dummy.pkl.zip"
 SEQ_SIZE = 150
+MEAN = 1
+VAR = 2
+
+genome = pyfaidx.Fasta(consts.GENOME_FILE, sequence_always_upper=True, as_raw=True)
+
+
+def get_seq_for_cpg(chr_num, i, seq_size):
+    chr_info = genome[chr_num]
+    # assert chr_info[i] == "G"
+    seq_size = int((seq_size - 2) / 2)
+    return chr_info[i - seq_size - 1:i + seq_size + 1]
 
 
 def parse_input():
@@ -31,6 +43,7 @@ def parse_input():
     parser.add_argument('--bedgraph_files', help='Path to bedgraph files', required=True)
     parser.add_argument('--methylation_folder', help='Path to methylation files', required=True)
     parser.add_argument('--windows_file', help='Path to files with windows we want to take', required=True)
+    parser.add_argument('--nc_files', help='Path to nc files', required=True)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     args = parser.parse_args()
     return args
@@ -66,18 +79,32 @@ def get_bedgraph_in_dict(all_file_paths):
 def get_seq_info(ind, chromosome):
     seq = []
     for i in ind:
-        seq.append(create_data.get_seq_for_cpg(chromosome, i, SEQ_SIZE))
+        seq.append(get_seq_for_cpg(chromosome, i, SEQ_SIZE))
 
     return seq
 
 
-def get_methylation_of_patient(patient, chromosome, indexes, methylation_folder, sublineage_name):
+def get_methylation_of_patient(patient, chromosome, indexes, methylation_folder, sublineage_name, oper=MEAN):
     methylation_file_path = os.path.join(methylation_folder, patient,
                                          METHYLATION_FILE_FORMAT % (patient, chromosome))
     df = pd.read_pickle(methylation_file_path)
     _, df = covariance_to_bedgraph.get_region_df(df, sublineage_cells=[],
                                                  sublineage_name=sublineage_name)
-    mdf = df.mean()
+
+    if oper == MEAN:
+        mdf = df.mean()
+
+    elif oper == VAR:
+        mdf = df.var()
+
+    return mdf.loc[indexes]
+
+
+def get_nc_avg(chromosome, indexes, nc_files):
+    f = glob.glob(os.path.join(nc_files, "*chr%s.dummy*" % chromosome))[0]
+
+    df = pd.read_pickle(f)
+    mdf = df.mean(axis=1)
     return mdf.loc[indexes]
 
 
@@ -137,6 +164,16 @@ def main2():
                                                         args.methylation_folder,
                                                         sublineage_name=covariance_to_bedgraph.ONLY_NC)
             sum_df.loc[nc_methylation.index, "nc_meth%s" % patient[-2:]] = nc_methylation
+
+            cancer_var = get_methylation_of_patient(patient, chromosome, cov_df.index,
+                                                    args.methylation_folder,
+                                                    sublineage_name=covariance_to_bedgraph.ALL_CANCER,
+                                                    oper=VAR)
+            sum_df.loc[cancer_var.index, "cancer_var%s" % patient[-2:]] = cancer_var
+
+            nc_meth_avg = get_nc_avg(chromosome, cov_df.index, args.nc_files)
+            sum_df.loc[nc_meth_avg.index, "nc_avg"] = nc_meth_avg
+
 
         sum_list.append(sum_df.reset_index())
 
