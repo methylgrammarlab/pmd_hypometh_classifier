@@ -1,7 +1,6 @@
 import argparse
 import glob
 import os
-import pickle
 import re
 import sys
 import warnings
@@ -114,9 +113,17 @@ def main():
                                                          sublineage_cells=[],
                                                          sublineage_name=covariance_to_bedgraph.ALL_CANCER)
 
-            coverage = np.sum(~pd.isnull(df), axis=1) / df.shape[1]
+            ##
+            # Get the coverage of cpg
+            ##
+            cpg_coverage = np.sum(~pd.isnull(df), axis=0)
+            cpg_s = cpg_coverage.shape[0]
+            n_to_remove = int(cpg_s * TOP_LOW_PERCENTAGE_TO_REMOVE / 100)
+            cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
+            df = df[cpg_to_keep]  # this remove the 5% lower and top
+
             meth = np.mean(df, axis=1)
-            patients_dict[patient].append((chromosome, meth, coverage, set(coverage.index)))
+            patients_dict[patient].append((chromosome, meth, set(meth.index)))
 
             # n_cells = coverage.shape[0]
             # cells_to_ignore = int(n_cells * 2.5 / 100)
@@ -124,27 +131,16 @@ def main():
     pa_cells = set([])
     for pa in patients_dict:
         for t in patients_dict[pa]:
-            cells = t[3]
+            cells = t[2]
             pa_cells |= cells
 
         pa_df_meth = pd.DataFrame(index=list(pa_cells))
-        pa_df_cov = pd.DataFrame(index=list(pa_cells))
         for t in patients_dict[pa]:
-            chromosome, df, coverage, cells = t
-            pa_df_cov.loc[coverage.index, chromosome] = coverage
+            chromosome, df, cells = t
             pa_df_meth.loc[df.index, chromosome] = df
 
-        cov_sorted = np.mean(pa_df_cov, axis=1).sort_values()
-        n_cells = cov_sorted.shape[0]
-        cells_to_ignore = int(n_cells * TOP_LOW_PERCENTAGE_TO_REMOVE / 100)
-        cells_to_use = cov_sorted.index[cells_to_ignore:-cells_to_ignore]
-
-        patients_dict_f[pa] = (pa_df_cov, pa_df_meth, cells_to_use)
-
-    for pa in patients_dict_f:
-        pa_df_meth = patients_dict_f[pa][1]
-        cells_to_use = patients_dict_f[pa][2]
-        values = pa_df_meth.loc[cells_to_use].median(axis=1).sort_values()
+        patients_dict_f[pa] = pa_df_meth
+        values = pa_df_meth.median(axis=1).sort_values()
         x = [i for i in range(values.shape[0])]
         plt.bar(x, values)
         plt.xlabel("tumor cells (self sorted)")
@@ -153,10 +149,10 @@ def main():
         plt.savefig("cell_methylation_means_for_%s.png" % pa)
         plt.close()
 
-    # This save dict with patient name as key and value of:
-    # (coverage per chromosome, methylation per chromosome, cells to use after removing 5% of cov)
-    with open("methylation_avg_per_cells.pickle", "wb") as output:
-        pickle.dump(patients_dict_f, output)
+    # # This save dict with patient name as key and value of:
+    # # (coverage per chromosome, methylation per chromosome, cells to use after removing 5% of cov)
+    # with open("methylation_avg_per_cells.pickle", "wb") as output:
+    #     pickle.dump(patients_dict_f, output)
 
 
 if __name__ == '__main__':
