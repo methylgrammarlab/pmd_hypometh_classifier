@@ -125,7 +125,7 @@ def get_region_df(df, sublineage_cells, sublineage_name, min_periods=MIN_PERIODS
 
     elif sublineage_name == ALL_CANCER:
         region_cell_ids = [cell_id for cell_id in df.index if not cell_id.startswith('NC')]
-        region_cell_ids = [cell_id for cell_id in region_cell_ids if not cell_id.startswith('MP')]
+        # region_cell_ids = [cell_id for cell_id in region_cell_ids if not cell_id.startswith('MP')]
         region_df = df.loc[region_cell_ids, :]
 
     # NC + PT
