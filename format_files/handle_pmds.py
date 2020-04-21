@@ -14,6 +14,9 @@ pmd_dict_mu = {}
 sys.path.append(os.getcwd())
 from commons import consts
 from commons import files_tools
+from covariance import covariance_to_bedgraph
+
+TOP_LOW_PERCENTAGE_TO_REMOVE = 5
 
 
 def create_pmd_dict(bed_file, output_path):
@@ -154,3 +157,50 @@ def get_covariance_pmd_df(bedgraph_path, chromosome, add_pmd_index=False):
             covariance_df.loc[pmd_mask, "pmd_index"] = i
 
     return covariance_df.loc[prev_mask, :]
+
+
+def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windows_data,
+                                                    top_low_level_to_remove=TOP_LOW_PERCENTAGE_TO_REMOVE):
+    patients_dict = {}
+    for patient in all_files_dict:
+        patients_dict[patient] = {}
+        for t in all_files_dict[patient]:
+            chromosome, file_path = t
+            dff = pd.read_pickle(file_path)
+
+            try:
+                chromosome = str(chromosome)
+                windows_data = global_windows_data[chromosome]
+            except Exception:
+                chromosome = int(chromosome)
+                windows_data = global_windows_data[chromosome]
+
+            try:
+                chromosome = str(chromosome)
+                covariance_pmd_df = get_pmd_df(dff, chromosome)
+            except:
+                chromosome = int(chromosome)
+                covariance_pmd_df = get_pmd_df(dff, chromosome)
+
+            prev_mask = None
+            for pmd_tuple in windows_data:
+                start, end = pmd_tuple
+                pmd_mask = (covariance_pmd_df.columns >= start) & (covariance_pmd_df.columns <= end)
+                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+
+            _, df = covariance_to_bedgraph.get_region_df(covariance_pmd_df.loc[:, prev_mask],
+                                                         sublineage_cells=[],
+                                                         sublineage_name=covariance_to_bedgraph.ALL_CANCER)
+
+            ##
+            # Get the coverage of cpg
+            ##
+            cpg_coverage = np.sum(~pd.isnull(df), axis=0)
+            cpg_s = cpg_coverage.shape[0]
+            n_to_remove = int(cpg_s * top_low_level_to_remove / 100)
+            cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
+            df = df[cpg_to_keep]  # this remove the 5% lower and top
+
+            patients_dict[patient][chromosome] = df
+
+    return patients_dict

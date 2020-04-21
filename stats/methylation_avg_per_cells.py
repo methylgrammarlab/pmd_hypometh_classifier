@@ -79,80 +79,28 @@ def main():
     methylation_folder = args.methylation_folder
     all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
     global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
-    patients_dict = {}
-    patients_dict_f = {}
-
-    # get df per patient only for valid PMD
-    for patient in all_files_dict:
-        patients_dict[patient] = []
-        patients_dict_f[patient] = []
-        for t in all_files_dict[patient]:
-            chromosome, file_path = t
-            try:
-                chromosome = str(chromosome)
-                windows_data = global_windows_data[chromosome]
-            except Exception:
-                chromosome = int(chromosome)
-                windows_data = global_windows_data[chromosome]
-
-            dff = pd.read_pickle(file_path)
-            try:
-                chromosome = str(chromosome)
-                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
-            except:
-                chromosome = int(chromosome)
-                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
-
-            prev_mask = None
-            for pmd_tuple in windows_data:
-                start, end = pmd_tuple
-                pmd_mask = (covariance_pmd_df.columns >= start) & (covariance_pmd_df.columns <= end)
-                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-            _, df = covariance_to_bedgraph.get_region_df(covariance_pmd_df.loc[:, prev_mask],
-                                                         sublineage_cells=[],
-                                                         sublineage_name=covariance_to_bedgraph.ALL_CANCER)
-
-            ##
-            # Get the coverage of cpg
-            ##
-            cpg_coverage = np.sum(~pd.isnull(df), axis=0)
-            cpg_s = cpg_coverage.shape[0]
-            n_to_remove = int(cpg_s * TOP_LOW_PERCENTAGE_TO_REMOVE / 100)
-            cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
-            df = df[cpg_to_keep]  # this remove the 5% lower and top
-
-            meth = np.mean(df, axis=1)
-            patients_dict[patient].append((chromosome, meth, set(meth.index)))
-
-            # n_cells = coverage.shape[0]
-            # cells_to_ignore = int(n_cells * 2.5 / 100)
+    patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
+                                                                                global_windows_data)
 
     pa_cells = set([])
-    for pa in patients_dict:
-        for t in patients_dict[pa]:
-            cells = t[2]
-            pa_cells |= cells
+    for patient in patients_dict:
+        for chromosome in patients_dict[patient]:
+            df = patients_dict[patient][chromosome]
+            pa_cells |= df.index
 
         pa_df_meth = pd.DataFrame(index=list(pa_cells))
-        for t in patients_dict[pa]:
-            chromosome, df, cells = t
-            pa_df_meth.loc[df.index, chromosome] = df
+        for chromosome in patients_dict[patient]:
+            df = patients_dict[patient][chromosome]
+            pa_df_meth.loc[df.index, chromosome] = np.mean(df, axis=1)
 
-        patients_dict_f[pa] = pa_df_meth
         values = pa_df_meth.median(axis=1).sort_values()
         x = [i for i in range(values.shape[0])]
         plt.bar(x, values)
         plt.xlabel("tumor cells (self sorted)")
         plt.ylabel("avg meth")
-        plt.title("cell methylation means for %s" % pa)
-        plt.savefig("cell_methylation_means_for_%s.png" % pa)
+        plt.title("cell methylation means for %s" % patient)
+        plt.savefig("cell_methylation_means_for_%s.png" % patient)
         plt.close()
-
-    # # This save dict with patient name as key and value of:
-    # # (coverage per chromosome, methylation per chromosome, cells to use after removing 5% of cov)
-    # with open("methylation_avg_per_cells.pickle", "wb") as output:
-    #     pickle.dump(patients_dict_f, output)
 
 
 if __name__ == '__main__':

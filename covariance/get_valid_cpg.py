@@ -27,6 +27,7 @@ METHYLATION_FILE_FORMAT = "all_cpg_ratios_%s_chr%s.dummy.pkl.zip"
 SEQ_SIZE = 150
 MEAN = 1
 VAR = 2
+TOP_LOW_PERCENTAGE_TO_REMOVE = 5
 
 genome = pyfaidx.Fasta(consts.GENOME_FILE, sequence_always_upper=True, as_raw=True)
 
@@ -58,6 +59,22 @@ def get_bedgraph_files(files):
         all_file_paths = [files]
 
     return all_file_paths
+
+
+def get_patient_dict(all_file_paths):
+    d = {}
+    for file_path in all_file_paths:
+        try:
+            patient, chromosome = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
+        except:
+            continue
+
+        if patient not in d:
+            d[patient] = []
+
+        d[patient].append((chromosome, file_path))
+
+    return d
 
 
 def get_bedgraph_in_dict(all_file_paths):
@@ -174,6 +191,124 @@ def main2():
             nc_meth_avg = get_nc_avg(chromosome, cov_df.index, args.nc_files)
             sum_df.loc[nc_meth_avg.index, "nc_avg"] = nc_meth_avg
 
+
+        sum_list.append(sum_df.reset_index())
+
+    final_df = pd.concat(sum_list)
+    try:
+        final_df.to_pickle(os.path.join(args.output_folder, "valid_cpg.pkl"))
+        # final_df.to_csv(os.path.join(args.output_folder, "valid_cpg.csv" ))
+    except:
+        final_df.to_pickle("valid_cpg.pkl")
+
+
+def get_(all_files_dict, global_windows_data):
+    for patient in all_files_dict:
+        patients_dict[patient] = []
+        patients_dict_f[patient] = []
+        for t in all_files_dict[patient]:
+            chromosome, file_path = t
+            try:
+                chromosome = str(chromosome)
+                windows_data = global_windows_data[chromosome]
+            except Exception:
+                chromosome = int(chromosome)
+                windows_data = global_windows_data[chromosome]
+
+            dff = pd.read_pickle(file_path)
+            try:
+                chromosome = str(chromosome)
+                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
+            except:
+                chromosome = int(chromosome)
+                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
+
+            prev_mask = None
+            for pmd_tuple in windows_data:
+                start, end = pmd_tuple
+                pmd_mask = (covariance_pmd_df.columns >= start) & (covariance_pmd_df.columns <= end)
+                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+
+            _, df = covariance_to_bedgraph.get_region_df(covariance_pmd_df.loc[:, prev_mask],
+                                                         sublineage_cells=[],
+                                                         sublineage_name=covariance_to_bedgraph.ALL_CANCER)
+
+            ##
+            # Get the coverage of cpg
+            ##
+            cpg_coverage = np.sum(~pd.isnull(df), axis=0)
+            cpg_s = cpg_coverage.shape[0]
+            n_to_remove = int(cpg_s * TOP_LOW_PERCENTAGE_TO_REMOVE / 100)
+            cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
+            df = df[cpg_to_keep]  # this remove the 5% lower and top
+
+
+# This will work with the 15% of cells
+def main3():
+    args = parse_input()
+
+    methylation_folder = args.methylation_folder
+    all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
+    global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
+    patients_dict = {}
+
+    cov_dict = {}
+
+    for chromosome in all_files_dict:
+        cov_dict[chromosome] = []
+        windows_data = global_windows_data[int(chromosome)]
+        for file_path in all_files_dict[chromosome]:
+            patient, _ = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
+            covariance_pmd_df = handle_pmds.get_covariance_pmd_df(file_path, chromosome, True)
+
+            prev_mask = None
+            for pmd_tuple in windows_data:
+                start, end = pmd_tuple
+                pmd_mask = (covariance_pmd_df.index >= start) & (covariance_pmd_df.index <= end)
+                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+
+            cov_dict[chromosome].append((patient, covariance_pmd_df.loc[prev_mask, :]))
+
+    sum_list = []
+    for chromosome in cov_dict:
+        ind = None
+        for patient_info in cov_dict[chromosome]:
+            patient, cov_df = patient_info
+            if ind is not None:
+                ind = set(cov_df.index.values) | ind
+            else:
+                ind = set(cov_df.index.values)
+
+        indexes = list(ind)
+        indexes.sort()
+        sum_df = pd.DataFrame(columns=["chromosome", "location"])
+        sum_df["location"] = indexes
+        sum_df["chromosome"] = chromosome
+        sum_df["sequence"] = get_seq_info(indexes, chromosome)
+
+        sum_df = sum_df.set_index("location")
+        sums = []
+        for patient_info in cov_dict[chromosome]:
+            patient, cov_df = patient_info
+            sum_df.loc[cov_df.index, "cov%s" % patient[-2:]] = cov_df["coverage"]
+            sum_df.loc[cov_df.index, "pmd_index"] = cov_df["pmd_index"]
+            methylation = get_methylation_of_patient(patient, chromosome, cov_df.index,
+                                                     args.methylation_folder,
+                                                     sublineage_name=covariance_to_bedgraph.ALL_CANCER)
+            sum_df.loc[methylation.index, "meth%s" % patient[-2:]] = methylation
+            nc_methylation = get_methylation_of_patient(patient, chromosome, cov_df.index,
+                                                        args.methylation_folder,
+                                                        sublineage_name=covariance_to_bedgraph.ONLY_NC)
+            sum_df.loc[nc_methylation.index, "nc_meth%s" % patient[-2:]] = nc_methylation
+
+            cancer_var = get_methylation_of_patient(patient, chromosome, cov_df.index,
+                                                    args.methylation_folder,
+                                                    sublineage_name=covariance_to_bedgraph.ALL_CANCER,
+                                                    oper=VAR)
+            sum_df.loc[cancer_var.index, "cancer_var%s" % patient[-2:]] = cancer_var
+
+            nc_meth_avg = get_nc_avg(chromosome, cov_df.index, args.nc_files)
+            sum_df.loc[nc_meth_avg.index, "nc_avg"] = nc_meth_avg
 
         sum_list.append(sum_df.reset_index())
 
