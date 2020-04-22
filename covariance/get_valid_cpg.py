@@ -1,6 +1,7 @@
 import argparse
 import glob
 import os
+import pickle
 import re
 import sys
 import warnings
@@ -45,6 +46,7 @@ def parse_input():
     parser.add_argument('--methylation_folder', help='Path to methylation files', required=True)
     parser.add_argument('--windows_file', help='Path to files with windows we want to take', required=True)
     parser.add_argument('--nc_files', help='Path to nc files', required=True)
+    parser.add_argument('--cells_to_use', help='Path to cells to use file', required=False)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     args = parser.parse_args()
     return args
@@ -177,6 +179,7 @@ def main2():
                                                      args.methylation_folder,
                                                      sublineage_name=covariance_to_bedgraph.ALL_CANCER)
             sum_df.loc[methylation.index, "meth%s" % patient[-2:]] = methylation
+
             nc_methylation = get_methylation_of_patient(patient, chromosome, cov_df.index,
                                                         args.methylation_folder,
                                                         sublineage_name=covariance_to_bedgraph.ONLY_NC)
@@ -191,7 +194,6 @@ def main2():
             nc_meth_avg = get_nc_avg(chromosome, cov_df.index, args.nc_files)
             sum_df.loc[nc_meth_avg.index, "nc_avg"] = nc_meth_avg
 
-
         sum_list.append(sum_df.reset_index())
 
     final_df = pd.concat(sum_list)
@@ -202,82 +204,43 @@ def main2():
         final_df.to_pickle("valid_cpg.pkl")
 
 
-def get_(all_files_dict, global_windows_data):
-    for patient in all_files_dict:
-        patients_dict[patient] = []
-        patients_dict_f[patient] = []
-        for t in all_files_dict[patient]:
-            chromosome, file_path = t
-            try:
-                chromosome = str(chromosome)
-                windows_data = global_windows_data[chromosome]
-            except Exception:
-                chromosome = int(chromosome)
-                windows_data = global_windows_data[chromosome]
-
-            dff = pd.read_pickle(file_path)
-            try:
-                chromosome = str(chromosome)
-                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
-            except:
-                chromosome = int(chromosome)
-                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
-
-            prev_mask = None
-            for pmd_tuple in windows_data:
-                start, end = pmd_tuple
-                pmd_mask = (covariance_pmd_df.columns >= start) & (covariance_pmd_df.columns <= end)
-                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-            _, df = covariance_to_bedgraph.get_region_df(covariance_pmd_df.loc[:, prev_mask],
-                                                         sublineage_cells=[],
-                                                         sublineage_name=covariance_to_bedgraph.ALL_CANCER)
-
-            ##
-            # Get the coverage of cpg
-            ##
-            cpg_coverage = np.sum(~pd.isnull(df), axis=0)
-            cpg_s = cpg_coverage.shape[0]
-            n_to_remove = int(cpg_s * TOP_LOW_PERCENTAGE_TO_REMOVE / 100)
-            cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
-            df = df[cpg_to_keep]  # this remove the 5% lower and top
-
-
 # This will work with the 15% of cells
 def main3():
     args = parse_input()
-
-    methylation_folder = args.methylation_folder
-    all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
-    global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
-    patients_dict = {}
-
     cov_dict = {}
 
-    for chromosome in all_files_dict:
-        cov_dict[chromosome] = []
-        windows_data = global_windows_data[int(chromosome)]
-        for file_path in all_files_dict[chromosome]:
-            patient, _ = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
-            covariance_pmd_df = handle_pmds.get_covariance_pmd_df(file_path, chromosome, True)
+    methylation_folder = args.methylation_folder
+    cells_to_use_path = args.cells_to_use
+    if not cells_to_use_path:
+        sys.exit("missing the following arg: --cells_to_use")
 
-            prev_mask = None
-            for pmd_tuple in windows_data:
-                start, end = pmd_tuple
-                pmd_mask = (covariance_pmd_df.index >= start) & (covariance_pmd_df.index <= end)
-                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+    all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
+    global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
+    patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
+                                                                                global_windows_data,
+                                                                                add_pmd_index=True)
+    with open(cells_to_use_path, "rb") as cells_to_use_f:
+        cells_to_use = pickle.load(cells_to_use_f)
 
-            cov_dict[chromosome].append((patient, covariance_pmd_df.loc[prev_mask, :]))
+    for patient in patients_dict:
+        patient_cells = cells_to_use[patient]
+        for chromosome in patients_dict[patient]:
+            df = patients_dict[patient][chromosome]
+            filtered_df = df[patient_cells]
+            cpg_coverage = np.sum(~pd.isnull(filtered_df), axis=0)
+            # TODO: check next line
+            filtered_df = filtered_df[cpg_coverage >= 5]  # we only want cpg with at least 5 points
+            if chromosome not in cov_dict:
+                cov_dict[chromosome] = []
+
+            cov_dict[chromosome].append((patient, filtered_df))
 
     sum_list = []
     for chromosome in cov_dict:
-        ind = None
+        ind = set([])
         for patient_info in cov_dict[chromosome]:
             patient, cov_df = patient_info
-            if ind is not None:
-                ind = set(cov_df.index.values) | ind
-            else:
-                ind = set(cov_df.index.values)
+            ind = set(cov_df.index.values) | ind
 
         indexes = list(ind)
         indexes.sort()
@@ -287,7 +250,6 @@ def main3():
         sum_df["sequence"] = get_seq_info(indexes, chromosome)
 
         sum_df = sum_df.set_index("location")
-        sums = []
         for patient_info in cov_dict[chromosome]:
             patient, cov_df = patient_info
             sum_df.loc[cov_df.index, "cov%s" % patient[-2:]] = cov_df["coverage"]
@@ -318,6 +280,7 @@ def main3():
         # final_df.to_csv(os.path.join(args.output_folder, "valid_cpg.csv" ))
     except:
         final_df.to_pickle("valid_cpg.pkl")
+
 
 if __name__ == '__main__':
     # slurm_tools.init_slurm(main)
