@@ -103,7 +103,7 @@ def get_pmd_context_map():
     return pmd_context_map
 
 
-def get_pmd_df(df, chromosome):
+def get_pmd_df(df, chromosome, add_pmd_index=False):
     pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_LIOR)
 
     if chromosome in pmd_dict:
@@ -114,7 +114,13 @@ def get_pmd_df(df, chromosome):
         raise Exception("Chromosome name is invalid ")
 
     prev_mask = None
+    i = 0
+    if add_pmd_index:
+        df["pmd_index"] = np.nan
+
+
     for pmd_tuple in pmd_list:
+        i += 1
         start, end = pmd_tuple
         try:
             pmd_mask = (df.columns >= start) & (df.columns <= end)
@@ -122,6 +128,8 @@ def get_pmd_df(df, chromosome):
             pmd_mask = (df.index >= start) & (df.index <= end)
 
         prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
+        if add_pmd_index:
+            df.loc[pmd_mask, "pmd_index"] = i
 
     try:
         data = df.loc[:, prev_mask]
@@ -160,7 +168,8 @@ def get_covariance_pmd_df(bedgraph_path, chromosome, add_pmd_index=False):
 
 
 def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windows_data,
-                                                    top_low_level_to_remove=TOP_LOW_PERCENTAGE_TO_REMOVE):
+                                                    top_low_level_to_remove=TOP_LOW_PERCENTAGE_TO_REMOVE,
+                                                    add_pmd_index=False):
     patients_dict = {}
     for patient in all_files_dict:
         patients_dict[patient] = {}
