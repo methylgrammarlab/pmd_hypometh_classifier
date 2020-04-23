@@ -104,7 +104,7 @@ def get_pmd_context_map():
 
 
 def get_pmd_df(df, chromosome, add_pmd_index=False):
-    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_LIOR)
+    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
 
     if chromosome in pmd_dict:
         pmd_list = pmd_dict[chromosome]
@@ -115,9 +115,6 @@ def get_pmd_df(df, chromosome, add_pmd_index=False):
 
     prev_mask = None
     i = 0
-    if add_pmd_index:
-        df["pmd_index"] = np.nan
-
 
     for pmd_tuple in pmd_list:
         i += 1
@@ -128,8 +125,6 @@ def get_pmd_df(df, chromosome, add_pmd_index=False):
             pmd_mask = (df.index >= start) & (df.index <= end)
 
         prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-        if add_pmd_index:
-            df.loc[pmd_mask, "pmd_index"] = i
 
     try:
         data = df.loc[:, prev_mask]
@@ -186,10 +181,10 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
 
             try:
                 chromosome = str(chromosome)
-                covariance_pmd_df = get_pmd_df(dff, chromosome)
+                covariance_pmd_df = get_pmd_df(dff, chromosome, add_pmd_index)
             except:
                 chromosome = int(chromosome)
-                covariance_pmd_df = get_pmd_df(dff, chromosome)
+                covariance_pmd_df = get_pmd_df(dff, chromosome, add_pmd_index)
 
             prev_mask = None
             for pmd_tuple in windows_data:
@@ -213,3 +208,22 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
             patients_dict[patient][chromosome] = df
 
     return patients_dict
+
+
+def get_pmd_index(df, chromosome, global_windows_data):
+    try:
+        chromosome = str(chromosome)
+        windows_data = global_windows_data[chromosome]
+    except Exception:
+        chromosome = int(chromosome)
+        windows_data = global_windows_data[chromosome]
+
+    df["pmd_index"] = np.nan
+    i = 0
+    for pmd_tuple in windows_data:
+        i += 1
+        start, end = pmd_tuple
+        pmd_mask = (df.index >= start) & (df.index <= end)
+        df.loc[pmd_mask, "pmd_index"] = i
+
+    return df["pmd_index"]

@@ -1,7 +1,6 @@
 import argparse
 import glob
 import os
-import pickle
 import re
 import sys
 import warnings
@@ -15,7 +14,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from format_files import handle_pmds
-from commons import files_tools, slurm_tools
+from commons import files_tools
 from covariance import covariance_to_bedgraph
 from commons import consts
 
@@ -28,9 +27,8 @@ METHYLATION_FILE_FORMAT = "all_cpg_ratios_%s_chr%s.dummy.pkl.zip"
 SEQ_SIZE = 150
 MEAN = 1
 VAR = 2
-TOP_LOW_PERCENTAGE_TO_REMOVE = 5
 
-genome = pyfaidx.Fasta(consts.GENOME_FILE, sequence_always_upper=True, as_raw=True)
+genome = pyfaidx.Fasta(consts.GENOME_FILE_LOCAL_DROR, sequence_always_upper=True, as_raw=True)
 
 
 def get_seq_for_cpg(chr_num, i, seq_size):
@@ -42,7 +40,7 @@ def get_seq_for_cpg(chr_num, i, seq_size):
 
 def parse_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--bedgraph_files', help='Path to bedgraph files', required=True)
+    parser.add_argument('--bedgraph_files', help='Path to bedgraph files', required=False)
     parser.add_argument('--methylation_folder', help='Path to methylation files', required=True)
     parser.add_argument('--windows_file', help='Path to files with windows we want to take', required=True)
     parser.add_argument('--nc_files', help='Path to nc files', required=True)
@@ -67,14 +65,14 @@ def get_patient_dict(all_file_paths):
     d = {}
     for file_path in all_file_paths:
         try:
-            patient, chromosome = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
+            patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
         except:
             continue
 
         if patient not in d:
             d[patient] = []
 
-        d[patient].append((chromosome, file_path))
+        d[patient].append((chromosome[3:], file_path))
 
     return d
 
@@ -204,84 +202,8 @@ def main2():
         final_df.to_pickle("valid_cpg.pkl")
 
 
-# This will work with the 15% of cells
-def main3():
-    args = parse_input()
-    cov_dict = {}
-
-    methylation_folder = args.methylation_folder
-    cells_to_use_path = args.cells_to_use
-    if not cells_to_use_path:
-        sys.exit("missing the following arg: --cells_to_use")
-
-    all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
-    global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
-    patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
-                                                                                global_windows_data,
-                                                                                add_pmd_index=True)
-    with open(cells_to_use_path, "rb") as cells_to_use_f:
-        cells_to_use = pickle.load(cells_to_use_f)
-
-    for patient in patients_dict:
-        patient_cells = cells_to_use[patient]
-        for chromosome in patients_dict[patient]:
-            df = patients_dict[patient][chromosome]
-            filtered_df = df[patient_cells]
-            cpg_coverage = np.sum(~pd.isnull(filtered_df), axis=0)
-            # TODO: check next line
-            filtered_df = filtered_df[cpg_coverage >= 5]  # we only want cpg with at least 5 points
-            if chromosome not in cov_dict:
-                cov_dict[chromosome] = []
-
-            cov_dict[chromosome].append((patient, filtered_df))
-
-    sum_list = []
-    for chromosome in cov_dict:
-        ind = set([])
-        for patient_info in cov_dict[chromosome]:
-            patient, cov_df = patient_info
-            ind = set(cov_df.index.values) | ind
-
-        indexes = list(ind)
-        indexes.sort()
-        sum_df = pd.DataFrame(columns=["chromosome", "location"])
-        sum_df["location"] = indexes
-        sum_df["chromosome"] = chromosome
-        sum_df["sequence"] = get_seq_info(indexes, chromosome)
-
-        sum_df = sum_df.set_index("location")
-        for patient_info in cov_dict[chromosome]:
-            patient, cov_df = patient_info
-            sum_df.loc[cov_df.index, "cov%s" % patient[-2:]] = cov_df["coverage"]
-            sum_df.loc[cov_df.index, "pmd_index"] = cov_df["pmd_index"]
-            methylation = get_methylation_of_patient(patient, chromosome, cov_df.index,
-                                                     args.methylation_folder,
-                                                     sublineage_name=covariance_to_bedgraph.ALL_CANCER)
-            sum_df.loc[methylation.index, "meth%s" % patient[-2:]] = methylation
-            nc_methylation = get_methylation_of_patient(patient, chromosome, cov_df.index,
-                                                        args.methylation_folder,
-                                                        sublineage_name=covariance_to_bedgraph.ONLY_NC)
-            sum_df.loc[nc_methylation.index, "nc_meth%s" % patient[-2:]] = nc_methylation
-
-            cancer_var = get_methylation_of_patient(patient, chromosome, cov_df.index,
-                                                    args.methylation_folder,
-                                                    sublineage_name=covariance_to_bedgraph.ALL_CANCER,
-                                                    oper=VAR)
-            sum_df.loc[cancer_var.index, "cancer_var%s" % patient[-2:]] = cancer_var
-
-            nc_meth_avg = get_nc_avg(chromosome, cov_df.index, args.nc_files)
-            sum_df.loc[nc_meth_avg.index, "nc_avg"] = nc_meth_avg
-
-        sum_list.append(sum_df.reset_index())
-
-    final_df = pd.concat(sum_list)
-    try:
-        final_df.to_pickle(os.path.join(args.output_folder, "valid_cpg.pkl"))
-        # final_df.to_csv(os.path.join(args.output_folder, "valid_cpg.csv" ))
-    except:
-        final_df.to_pickle("valid_cpg.pkl")
-
 
 if __name__ == '__main__':
     # slurm_tools.init_slurm(main)
-    slurm_tools.init_slurm(main2)
+    # slurm_tools.init_slurm(main3)
+    main2()
