@@ -80,52 +80,42 @@ def main():
         output = os.path.dirname(sys.argv[0])
 
     methylation_folder = args.methylation_folder
-    # all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "all*.pkl.zip")))
-    all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
+    patients = ["CRC01", "CRC04", "CRC10", "CRC13", "CRC14"]
+    path = os.path.join(methylation_folder, "%s", "all*.pkl.zip")
+    all_files_dict = get_patient_dict(
+        [path for sublist in [glob.glob(path % patient) for patient in patients] for path in sublist])
+    # all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
     global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
-
-    # get df per patient only for valid PMD
-    for patient in all_files_dict:
-        if patient not in ["CRC01", "CRC04", "CRC10", "CRC13", "CRC14"]:
-            continue
-        patients_dict = {}
-        for t in all_files_dict[patient]:
-            chromosome, file_path = t
-            try:
-                chromosome = str(chromosome)
-                windows_data = global_windows_data[chromosome]
-            except Exception:
-                chromosome = int(chromosome)
-                windows_data = global_windows_data[chromosome]
-
-            patient_chr_df = pd.read_pickle(file_path)
-            try:
-                chromosome = str(chromosome)
-                covariance_pmd_df = handle_pmds.get_pmd_df(patient_chr_df, chromosome)
-            except:
-                chromosome = int(chromosome)
-                covariance_pmd_df = handle_pmds.get_pmd_df(patient_chr_df, chromosome)
-
-            prev_mask = None
-            for pmd_tuple in windows_data:
-                start, end = pmd_tuple
-                pmd_mask = (covariance_pmd_df.columns >= start) & (covariance_pmd_df.columns <= end)
-                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-            _, df = covariance_to_bedgraph.get_region_df(covariance_pmd_df.loc[:, prev_mask],
-                                                         sublineage_cells=[],
-                                                         sublineage_name=covariance_to_bedgraph.ALL_CANCER)
-
-            cell_mean = df.mean(axis=1).sort_values()
-            bottom = min(len(cell_mean) - 1, int((len(cell_mean) / 100) * 15))
-            top = int((len(cell_mean) / 100) * 15)
-            low_15 = list(cell_mean.iloc[:bottom].index)
-            high_15 = list(cell_mean.iloc[-top - 1:-1].index)
-            patients_dict[chromosome] = {"low": low_15, "high": high_15}
-        output_path = os.path.join(output, "%s_15perc_low_high_avg_methylation_cells.pickle.zlib" % patient)
-        files_tools.save_as_compressed_pickle(output_path, patients_dict)
+    patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
+                                                                                global_windows_data)
+    bins_patients_dict = {}
+    for patient in patients_dict:
+        cell_mean = pd.concat(patients_dict[patient], axis=1).mean(axis=1).sort_values()
+        bottom = min(len(cell_mean) - 1, int((len(cell_mean) / 100) * 15))
+        top = int((len(cell_mean) / 100) * 15)
+        low_15 = list(cell_mean.iloc[:bottom].index)
+        high_15 = list(cell_mean.iloc[-top - 1:-1].index)
+        bins_patients_dict[patient] = {"low": low_15, "high": high_15}
+    output_path = os.path.join(output, "15perc_low_high_avg_methylation_cells.pickle.zlib")
+    files_tools.save_as_compressed_pickle(output_path, bins_patients_dict)
 
 
 if __name__ == '__main__':
     # slurm_tools.init_slurm(main)
     main()
+    # for patient in ["CRC01", "CRC04", "CRC10", "CRC13", "CRC14"]:
+    #     dict = files_tools.load_compressed_pickle(
+    #         R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\%s_15perc_low_high_avg_methylation_cells.pickle.zlib" % patient)
+    #     high_list = []
+    #     low_list = []
+    #     for chr in dict:
+    #         high_list += dict[chr]["high"]
+    #         low_list += dict[chr]["low"]
+    #     pd.Series(high_list).value_counts().plot('bar')
+    #     plt.title("%s high" % patient)
+    #     plt.savefig("top_bottom\%s_high" % patient)
+    #     plt.close()
+    #     pd.Series(low_list).value_counts().plot('bar')
+    #     plt.title("%s low" % patient)
+    #     plt.savefig("top_bottom\%s_low" % patient)
+    #     plt.close()
