@@ -8,7 +8,7 @@ import seaborn as sns
 
 plt.style.use('seaborn')
 
-PATIENTS = ["01", "04", "10", "11", "13", "14"]
+PATIENTS = ["01", "10", "11", "13"]
 
 
 def parse_input():
@@ -19,22 +19,21 @@ def parse_input():
     return args
 
 
-def global_cpg_info(df, name):
+def global_cpg_info(df):
     # Give some statistics on the data
 
     num_of_pmd = df.groupby(["chromosome", "pmd_index"]).ngroups
     num_of_unique_seq = len(df["sequence"].unique())
 
-    print("##########\nprinting information for %s\n#######" % name)
-    print("We have a total of %s CpG" % df.shape[0])
-    print("We have a total of %s PMDs" % num_of_pmd)
-    print("We have %s unique sequences" % num_of_unique_seq)
+    print("##########\nprinting information\n#######")
+    print("%s CpG passed PMD filter (%s PMDs). %s are unique seq" %
+          (df.shape[0], num_of_pmd, num_of_unique_seq))
 
     solo = [seq for seq in df["sequence"] if seq.count("CG") == 1]
     weak_solo = [seq for seq in solo if seq[73] in ["A", "T"] and seq[76] in ["A", "T"]]
     strong_solo = [seq for seq in solo if seq[73] in ["C", "G"] and seq[76] in ["C", "G"]]
 
-    print("We have %s(%s) solo CpG" % (len(solo), len(solo) / df.shape[0] * 100))
+    print("We have %s(%.2f%%) solo CpG" % (len(solo), len(solo) / df.shape[0] * 100))
     print("solo WCGW: %s(%s) and solo SCGS: %s(%s)" %
           (len(weak_solo), len(weak_solo) / len(solo) * 100,
            len(strong_solo), len(strong_solo) / len(solo) * 100))
@@ -109,17 +108,18 @@ def plot_meth_vs_var_scatter(df, output):
     for patient in PATIENTS:
         var_label = "var%s" % patient
         meth_label = "meth%s" % patient
-        nc_label = "nc_meth%s" % patient
-        df = df[df[meth_label] < 0.8]
-        df = df[df[nc_label] > 0.5]
-        plt.plot(df[meth_label], df[var_label], linestyle='', marker='o', markersize=0.5)
+        # df = df[df[meth_label] < 0.8]
+        # plt.plot(df[meth_label], df[var_label], linestyle='', marker='o', markersize=0.5)
+        # plt.title("Methylation level vs Covariance in solo CpG for patient %s" % patient)
+        # plt.xlabel("Methylation")
+        # plt.ylabel("Variance")
+        # plt.savefig(os.path.join(output, "solo_meth_vs_var_scatter_patient%s.png" % patient))
+        # plt.close()
+
+        sns_plot = sns.jointplot(x=meth_label, y=var_label, data=df, kind="kde")
         plt.title("Methylation level vs Covariance in solo CpG for patient %s" % patient)
         plt.xlabel("Methylation")
         plt.ylabel("Variance")
-        plt.savefig(os.path.join(output, "solo_meth_vs_var_scatter_patient%s.png" % patient))
-        plt.close()
-
-        sns_plot = sns.jointplot(x=meth_label, y=var_label, data=df, kind="kde")
         sns_plot.savefig(os.path.join(output, "dist_solo_meth_vs_var_scatter_patient%s.png" % patient))
         plt.close()
 
@@ -129,10 +129,23 @@ def get_basic_info(df, name, output_folder):
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
-    # global_cpg_info(df, name)
+    #
     plot_variance_histogram(df, output_folder)
     plot_variance_histogram_vs_type(df, output_folder)
     plot_var_density(df, output_folder)
+
+
+def remove_by_nc_methylation_info(df):
+    for patient in PATIENTS:
+        nc_label = "nc_avg"
+        var_label = "var%s" % patient
+        dfc = df.copy()
+        dfc = dfc[~pd.isnull(dfc[var_label])]
+        amount_of_cpg = dfc.shape[0]
+        amount_of_cpg_with_nc = np.sum(dfc[nc_label] > 0.5)
+
+        print("CRC%s using methylation in nc >0.5 will give %s%% cpg which is %s" %
+              (patient, amount_of_cpg_with_nc / amount_of_cpg * 100, amount_of_cpg))
 
 
 def main():
@@ -140,10 +153,23 @@ def main():
     df = pd.read_pickle(args.cpg_file)
     df["small_seq"] = df["sequence"].str[73:77]
 
+    # Remove empty cpg
+    methylation_columns = df[["meth%s" % i for i in PATIENTS]]
+    df = df[~pd.isnull(methylation_columns.min(axis=1))]
+
+    # keep only solo
     solo_rows = df[df["sequence"].str.count("CG") == 1]
 
+    remove_by_nc_methylation_info(solo_rows)
+
+    solo_after_nc_rows = solo_rows[solo_rows["nc_avg"] > 0.5]
+
     # just solo
-    get_basic_info(solo_rows, "solo", args.output_folder)
+    # global_cpg_info(df)
+    global_cpg_info(solo_after_nc_rows)
+    plot_meth_vs_var_scatter(solo_after_nc_rows, args.output_folder)
+
+    # get_basic_info(solo_rows, "solo", args.output_folder)
 
 
 if __name__ == '__main__':

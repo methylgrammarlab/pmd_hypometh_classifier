@@ -11,7 +11,7 @@ import pyfaidx
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-from commons import files_tools, consts, slurm_tools
+from commons import files_tools, consts
 from covariance import covariance_to_bedgraph
 from format_files import handle_pmds
 
@@ -108,7 +108,7 @@ def main():
 
     for k in all_files_dict:
         if k in cells_to_use:
-            all_files_dict_2[k] = [all_files_dict[k][0]]
+            all_files_dict_2[k] = all_files_dict[k]
 
     all_files_dict = all_files_dict_2
     patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
@@ -129,11 +129,15 @@ def main():
             total_cells.extend(high_cells)
 
             filtered_df = df.loc[total_cells]
-            cpg_coverage_low = np.sum(~pd.isnull(df.loc[low_cells]), axis=0)
-            cpg_coverage_high = np.sum(~pd.isnull(df.loc[high_cells]), axis=0)
-            low_filter = cpg_coverage_low >= 5
-            high_filter = cpg_coverage_high >= 5
-            both_filter = np.logical_and(cpg_coverage_high >= 5, cpg_coverage_low >= 5)
+
+            try:
+                cpg_coverage_low = np.sum(~pd.isnull(filtered_df.loc[low_cells]), axis=0)
+                cpg_coverage_high = np.sum(~pd.isnull(filtered_df.loc[high_cells]), axis=0)
+                low_filter = cpg_coverage_low >= 5
+                high_filter = cpg_coverage_high >= 5
+                both_filter = np.logical_and(low_filter, high_filter)
+            except:
+                pass
 
             data_file.write("%s,%s,%s,%s,%s,%s\n" %
                             (
@@ -190,5 +194,5 @@ def main():
 
 
 if __name__ == '__main__':
-    slurm_tools.init_slurm(main)
-    # main()
+    # slurm_tools.init_slurm(main)
+    main()
