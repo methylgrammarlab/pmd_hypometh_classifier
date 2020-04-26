@@ -129,7 +129,7 @@ def main():
 
 def save_coverage_graphs(avg, coverage, output, patient):
     plt.scatter(coverage, avg)
-    plt.xlabel("coverage")
+    plt.xlabel("coverage (percentage)")
     plt.ylabel("average methylation")
     plt.title("%s Average vs Covariance" % patient)
     plt.savefig(os.path.join(output, "%s_coverage.png" % patient))
@@ -180,9 +180,12 @@ def chosen_cell_stats(path):
         low_sampling_region = [convert_sublineage(sublineage, patient, cell) for cell in all_dict[patient]["low"]]
         sublineage_high_counter = Counter(high_sampling_region)
         sublineage_low_counters = Counter(low_sampling_region)
-        df = pd.DataFrame.from_dict(sublineage_high_counter, orient='index', columns=["high"]).join(
-            pd.DataFrame.from_dict(sublineage_low_counters, orient='index', columns=["low"]), lsuffix='_caller',
-            rsuffix='_other')
+        all_cells = set(sublineage_high_counter.keys()) | set(sublineage_low_counters.keys())
+        df = pd.DataFrame(index=all_cells).sort_index()
+        high_df = pd.DataFrame.from_dict(sublineage_high_counter, orient='index', columns=["high"])
+        low_df =pd.DataFrame.from_dict(sublineage_low_counters, orient='index', columns=["low"])
+        df.loc[high_df.index, "high"] = high_df.high
+        df.loc[low_df.index, "low"] = low_df.low
         df.plot.bar()
         plt.title("%s sublineage (%d cells)" % (patient, num_of_cells))
         plt.savefig("top_bottom\sublineage_%s_cells" % patient)
@@ -192,8 +195,8 @@ def chosen_cell_stats(path):
 
 if __name__ == '__main__':
     # slurm_tools.init_slurm(main)
-    main()
-    # chosen_cell_stats(
-    #     R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\20perc_low_high_avg_methylation_cells.pickle.zlib")
+    # main()
+    chosen_cell_stats(
+        R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\20perc_low_high_avg_methylation_cells.pickle.zlib")
 
 # To run -  python3 low_high_avg_meth_cells.py --methylation_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/cpg_format/filtered_by_bl_and_cpgi/ --windows_file /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/covariance/cancer/5000_with_750_minimum_pairs/boundries/window_boundries.dummy.pkl.zip --output_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/stats/low_high_avg_meth_cells
