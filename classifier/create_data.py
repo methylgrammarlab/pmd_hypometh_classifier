@@ -12,7 +12,7 @@ sys.path.append(os.getcwd())
 OUTPUT_FILE = "classifier_data_ccpg1.pkl"
 TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 
-TRAIN_PATIENT = ["CRC11", "CRC01"]
+TRAIN_PATIENT = ["CRC01", "CRC11"]
 TEST_PATIENT = ["CRC13"]
 
 TRAIN_EXTREME = 1 / 3
@@ -48,7 +48,7 @@ def get_reverse_seq(df):
 
 
 def split_df_by_pmd(df, test_patients=TEST_PATIENT, train_patient=TRAIN_PATIENT):
-    total_cpg = df.shape[0] * 2.5
+    total_cpg = df.shape[0] * 1.6
     max_pmd = df["pmd_index"].max()
 
     upper_limit = int(max_pmd) - 1
@@ -184,10 +184,10 @@ def v1():
         pickle.dump(output, output_file)
 
 
-def flat_pd_v2(df, TRAIN_PATIENT):
+def flat_pd_v2(df, patients):
     l = []
 
-    for patient in TRAIN_PATIENT:
+    for patient in patients:
         train_df = pd.DataFrame()
         meth_label = "meth%s" % patient[-2:]
         cov_label = "cov%s" % patient[-2:]
@@ -235,8 +235,134 @@ def v2():
         pickle.dump(output, output_file)
 
 
+def flat_pd_v3(df, patients):
+    l = []
+
+    for patient in patients:
+        train_df = pd.DataFrame()
+        var_label = "var%s" % patient[-2:]
+        meth_label = "meth%s" % patient[-2:]
+
+        train_df["meth"] = df[meth_label]
+        train_df["var"] = df[var_label]
+        train_df["sequence"] = df["sequence"]
+        train_df["ccpg"] = df["ccpg"]
+
+        l.append(train_df)
+
+    return pd.concat(l)
+
+
+def label_based_on_extreme_v3(df, name):
+    # Group 1 (partial loss)- variance > 0.2
+    # Group 2 (completely loss)- variance < 0.1 with meth < 0.2
+
+    df.loc[np.logical_and(df["meth"] <= 0.2, df["var"] <= 0.1), "label"] = 1  # Group 1 - completely loss
+    df.loc[df["var"] >= 0.2, "label"] = 0  # Group 0 - partial loss
+
+    filtered_df = df[~pd.isnull(df["label"])]
+
+    print("For %s we keep %s(%s%%) cpg after putting labels" % (name, filtered_df.shape[0],
+                                                                filtered_df.shape[0] / df.shape[0] * 100))
+    return filtered_df
+
+
+def flat_and_label_train_based_on_match(df, patients, name):
+    # TODO: This is a very bad code
+
+    if len(patients) > 2:
+        sys.exit("this code only work for 2 training patient")
+
+    # var_labels = ["var%s" % patient[-2:] for patient in patients]
+    #
+    # not_null = np.mean(~pd.isnull(df[var_labels]), axis=1) == 1
+    # print("We have %s(%s%%) shared cpg between %s" %
+    #       (np.sum(not_null), np.sum(not_null) * 100 / df.shape[0], ",".join(patients)))
+
+    # first_filter = df[not_null]
+    first_filter = df
+
+    for patient in patients:
+        label = "label%s" % patient[-2:]
+        var_label = "var%s" % patient[-2:]
+        meth_label = "meth%s" % patient[-2:]
+        first_filter[label] = 2  # other
+
+        # Group 1 - completely los
+        first_filter.loc[np.logical_and(first_filter[meth_label] <= 0.2,
+                                        first_filter[var_label] <= 0.1), label] = 1
+
+        # Group 0 - partial loss
+        first_filter.loc[first_filter[var_label] >= 0.2, label] = 0
+
+    label1 = "label%s" % patients[0][-2:]
+    label2 = "label%s" % patients[1][-2:]
+
+    other_other = np.logical_and(df[label1] == 2, df[label2] == 2)
+    partial_total = np.logical_and(df[label1] == 0, df[label2] == 1)
+    total_partial = np.logical_and(df[label1] == 1, df[label2] == 0)
+    bad_indexes = np.logical_or(other_other, partial_total)
+    bad_indexes = np.logical_or(bad_indexes, total_partial)
+
+    second_filter = first_filter[~bad_indexes]
+
+    l = []
+
+    for patient in patients:
+        train_df = pd.DataFrame()
+        label = "label%s" % patient[-2:]
+        var_label = "var%s" % patient[-2:]
+        meth_label = "meth%s" % patient[-2:]
+
+        train_df["meth"] = second_filter[meth_label]
+        train_df["var"] = second_filter[var_label]
+        train_df["sequence"] = second_filter["sequence"]
+        train_df["ccpg"] = second_filter["ccpg"]
+        train_df["label"] = second_filter[label]
+
+        l.append(train_df)
+
+    conc = pd.concat(l)
+    good_index = conc["label"] != 2
+    return conc[good_index]
+
+
+def v3_variance():
+    args = parse_input()
+
+    # Read and add features
+    df = pd.read_pickle(args.input_file)
+    df["ccpg"] = df["sequence"].str.count("CG")
+
+    # We start with solo which are methylated in NC
+    df = df[df["ccpg"] == 1]
+    df = df[df["nc_avg"] > 0.5]
+
+    # Split the data to train and test based on pmd
+    train, test = split_df_by_pmd(df)
+    # train = flat_pd_v3(train, TRAIN_PATIENT)
+    test = flat_pd_v3(test, TEST_PATIENT)
+
+    # Leave only the extreme
+    # train = label_based_on_extreme_v3(train, "train")
+    test = label_based_on_extreme_v3(test, "test")
+
+    train = flat_and_label_train_based_on_match(train, TRAIN_PATIENT, "train")
+
+    # Add reverse strand
+    train = add_reverse_strand(train)
+    test = add_reverse_strand(test)
+
+    print_statistics(train, test)
+
+    output = {"train": train, "test": test}
+    with open(os.path.join(args.output_folder, OUTPUT_FILE), "wb") as output_file:
+        pickle.dump(output, output_file)
+
+
 def main():
-    v2()
+    v3_variance()
+
 
 if __name__ == '__main__':
     main()
