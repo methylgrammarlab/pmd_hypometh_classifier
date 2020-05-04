@@ -3,13 +3,15 @@ import sys
 
 import keras.backend as K
 import numpy as np
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 
 SMALL_SEQ = "seq10"
 BIG_SEQ = "sequence"
 
+NO_KFOLD = 1
 
-def load_data_merged(path_to_data, input_len, only_test=False):
+
+def load_data_merged(path_to_data, input_len, only_test=False, kfold=NO_KFOLD):
     """
     load the data
     :param path_to_data: path to file (consist of train, valid and test data)
@@ -35,22 +37,28 @@ def load_data_merged(path_to_data, input_len, only_test=False):
     X_train_seq = np.array([seq_to_mat(seq) for seq in train_data[seq_label]])
     y_train = train_data["label"].values
 
-    kf = KFold(n_splits=5, random_state=42)
     x_train_list = []
     y_train_list = []
     x_validate_list = []
     y_validate_list = []
 
-    for train_index, validation_index in kf.split(X_train_seq):
-        X_train_fold, X_valid_fold = X_train_seq[train_index], X_train_seq[validation_index]
-        y_train_fold, y_valid_fold = y_train[train_index], y_train[validation_index]
-        x_train_list.append(X_train_fold)
-        y_train_list.append(y_train_fold)
-        x_validate_list.append(X_valid_fold)
-        y_validate_list.append(y_valid_fold)
+    if kfold == NO_KFOLD:
+        X_train_seq, X_valid_seq, y_train, y_valid = train_test_split(X_train_seq, y_train, test_size=0.2,
+                                                                      random_state=42)
+        x_train_list.append(X_train_seq)
+        y_train_list.append(y_train)
+        x_validate_list.append(X_valid_seq)
+        y_validate_list.append(y_valid)
 
-    # X_train_seq, X_valid_seq, y_train, y_valid = train_test_split(X_train_seq, y_train, test_size=0.2,
-    #                                                               random_state=42)
+    else:
+        kf = KFold(n_splits=kfold, random_state=42, shuffle=True)
+        for train_index, validation_index in kf.split(X_train_seq):
+            X_train_fold, X_valid_fold = X_train_seq[train_index], X_train_seq[validation_index]
+            y_train_fold, y_valid_fold = y_train[train_index], y_train[validation_index]
+            x_train_list.append(X_train_fold)
+            y_train_list.append(y_train_fold)
+            x_validate_list.append(X_valid_fold)
+            y_validate_list.append(y_valid_fold)
 
     return x_train_list, y_train_list, x_validate_list, y_validate_list, X_test_seq, y_test
 

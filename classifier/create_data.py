@@ -13,7 +13,7 @@ OUTPUT_FILE = "classifier_data_ccpg1.pkl"
 TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 
 TRAIN_PATIENT = ["CRC01", "CRC11"]
-TEST_PATIENT = ["CRC13"]
+TEST_PATIENT = ["CRC10", "CRC13"]
 
 TRAIN_EXTREME = 1 / 3
 TEST_EXTREME = 1 / 4
@@ -48,19 +48,19 @@ def get_reverse_seq(df):
 
 
 def split_df_by_pmd(df, test_patients=TEST_PATIENT, train_patient=TRAIN_PATIENT):
-    total_cpg = df.shape[0] * 1.6
+    total_cpg = df.shape[0] * 1.8
     max_pmd = df["pmd_index"].max()
 
     upper_limit = int(max_pmd) - 1
     lower_limit = 1
     num_of_cpg = np.sum(np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
 
-    while num_of_cpg / total_cpg <= 0.2:
+    while num_of_cpg / total_cpg <= 0.1:
         upper_limit -= 5
         lower_limit += 1
         num_of_cpg = np.sum(np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
 
-    while num_of_cpg / total_cpg > 0.2:
+    while num_of_cpg / total_cpg > 0.1:
         lower_limit -= 1
         num_of_cpg = np.sum(np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
 
@@ -267,7 +267,7 @@ def label_based_on_extreme_v3(df, name):
     return filtered_df
 
 
-def flat_and_label_train_based_on_match(df, patients, name):
+def flat_and_label_train_based_on_match(df, patients):
     # TODO: This is a very bad code
 
     if len(patients) > 2:
@@ -341,13 +341,14 @@ def v3_variance():
     # Split the data to train and test based on pmd
     train, test = split_df_by_pmd(df)
     # train = flat_pd_v3(train, TRAIN_PATIENT)
-    test = flat_pd_v3(test, TEST_PATIENT)
+    # test = flat_pd_v3(test, TEST_PATIENT)
 
     # Leave only the extreme
     # train = label_based_on_extreme_v3(train, "train")
-    test = label_based_on_extreme_v3(test, "test")
+    # test = label_based_on_extreme_v3(test, "test")
 
-    train = flat_and_label_train_based_on_match(train, TRAIN_PATIENT, "train")
+    train = flat_and_label_train_based_on_match(train, TRAIN_PATIENT)
+    test = flat_and_label_train_based_on_match(test, TEST_PATIENT)
 
     # Add reverse strand
     train = add_reverse_strand(train)
