@@ -4,7 +4,11 @@ import random
 
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
+import os
 
+sys.path.append(os.path.dirname(os.getcwd()))
+sys.path.append(os.getcwd())
 from classifier.utils import precision, recall
 
 plt.style.use('seaborn-deep')
@@ -192,27 +196,62 @@ def test_based_on_10_remove_uncertain(train_data, test_data):
            r, r / y_pred.shape[0] * 100))
 
 
+def test_by_given_length(train_data, test_data, output, i):
+    y_test = test_data["label"]
+    label = "seq_%s" % i
+
+    majority = np.round(np.mean(train_data["label"]))
+
+    if i == 0:
+        train_data[label] = train_data["sequence"]
+        test_data[label] = test_data["sequence"]
+
+    else:
+        train_data[label] = train_data["sequence"].str[i:-i]
+        test_data[label] = test_data["sequence"].str[i:-i]
+
+    mean_by_seq = train_data.groupby(label).mean()
+    seq_dict = np.round(mean_by_seq)["label"].to_dict()
+
+    y_pred = []
+    for seq in test_data[label]:
+        if seq in seq_dict:
+            y_pred.append(seq_dict[seq])
+        else:
+            y_pred.append(majority)
+
+    y_pred = np.array(y_pred)
+
+    output.write("%s,%s\n" % (150-2*i, accuracy(y_test, y_pred)))
+
+
 def main():
     args = format_args()
     train_data, test_data = get_data(args.data_path)
 
     # test_based_on_10_remove_uncertain(train_data, test_data)
-    test_agreement_by_10(train_data)
-    test_agreement_by_150(train_data)
+    # test_agreement_by_10(train_data)
+    # test_agreement_by_150(train_data)
+    #
+    # with open("output.csv", "w") as output:
+    #     output.write("test type, accuracy, recall, percision\n")
+    #     test_majority_vote(train_data, train_data, output)
+    #     test_based_on_4(train_data, train_data, output)
+    #     test_based_on_6(train_data, train_data, output)
+    #     test_based_on_8(train_data, train_data, output)
+    #     test_based_on_10(train_data, train_data, output)
+    #
+    #     test_majority_vote(train_data, test_data, output)
+    #     test_based_on_4(train_data, test_data, output)
+    #     test_based_on_6(train_data, test_data, output)
+    #     test_based_on_8(train_data, test_data, output)
+    #     test_based_on_10(train_data, test_data, output)
 
-    with open("output.csv", "w") as output:
-        output.write("test type, accuracy, recall, percision\n")
-        test_majority_vote(train_data, train_data, output)
-        test_based_on_4(train_data, train_data, output)
-        test_based_on_6(train_data, train_data, output)
-        test_based_on_8(train_data, train_data, output)
-        test_based_on_10(train_data, train_data, output)
-
-        test_majority_vote(train_data, test_data, output)
-        test_based_on_4(train_data, test_data, output)
-        test_based_on_6(train_data, test_data, output)
-        test_based_on_8(train_data, test_data, output)
-        test_based_on_10(train_data, test_data, output)
+    with open("accuracy_by_length70-80.csv", "w") as output:
+        output.write("length_of_seq, accuracy\n")
+        for i in range(69,80):
+            print(i)
+            test_by_given_length(train_data, test_data, output, i)
 
 
 if __name__ == '__main__':

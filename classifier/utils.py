@@ -68,6 +68,7 @@ def load_data_merged(path_to_data, input_len, only_test=False, kfold=NO_KFOLD):
 ########################
 
 def precision(y_true, y_pred):
+    # TP / P = TPR
     true_positives = np.sum(np.round(np.clip(y_true * y_pred, 0, 1)))
     # TPs=K.sum(K.round(K.clip(y_true * y_pred , 0, 1)))
     predicted_positives = np.sum(np.round(np.clip(y_pred, 0, 1)))
@@ -76,17 +77,12 @@ def precision(y_true, y_pred):
 
 
 def recall(y_true, y_pred):
+    # TP/ (TP+FP)
     true_positives = np.sum(np.round(np.clip(y_true * y_pred, 0, 1)))
     # TPs=K.sum(K.round(K.clip(y_ture * y_pred , 0, 1)))
     possible_positives = np.sum(np.round(np.clip(y_true, 0, 1)))
     recall = true_positives / (possible_positives + K.epsilon())
     return recall
-
-
-def f1_score(y_true, y_pred):
-    precision = precision(y_true, y_pred)
-    recall = recall(y_true, y_pred)
-    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
 
 
 ##########################################################
