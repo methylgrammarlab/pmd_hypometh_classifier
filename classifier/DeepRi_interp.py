@@ -76,7 +76,7 @@ def theirs():
 
 def ours():
     x_train_seq, y_train, x_valid_seq, y_valid, x_test_seq, y_test = load_data_merged(
-        r"dataset/classifier_data_ccpg1.pkl", 150, True)
+        r"dataset/solo_test_with_crc10_var_0.05.pkl", 150, True)
     # model = load_model("test.h5",custom_objects={'precision': precision,'recall': recall })
     model = load_model(r"dataset/test.h5")
     pred = model.predict([x_test_seq])

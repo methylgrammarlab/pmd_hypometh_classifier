@@ -8,7 +8,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-OUTPUT_FILE = "classifier_data_ccpg1.pkl"
+OUTPUT_FILE = "solo_test_with_crc10_var_0.05.pkl"
 TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 
 TRAIN_PATIENT = ["CRC11", "CRC13"]

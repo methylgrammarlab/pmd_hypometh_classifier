@@ -1,15 +1,15 @@
 import argparse
+import os
 import pickle
 import random
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
-import os
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from classifier.utils import precision, recall
+from classifier.utils import precision
 
 plt.style.use('seaborn-deep')
 
@@ -196,11 +196,12 @@ def test_based_on_10_remove_uncertain(train_data, test_data):
            r, r / y_pred.shape[0] * 100))
 
 
-def test_by_given_length(train_data, test_data, output, i):
+def test_by_given_length(train_data, test_data, output, i, dict_4):
     y_test = test_data["label"]
     label = "seq_%s" % i
 
-    majority = np.round(np.mean(train_data["label"]))
+    missing_values = 0
+    # majority = np.round(np.mean(train_data["label"]))
 
     if i == 0:
         train_data[label] = train_data["sequence"]
@@ -214,15 +215,27 @@ def test_by_given_length(train_data, test_data, output, i):
     seq_dict = np.round(mean_by_seq)["label"].to_dict()
 
     y_pred = []
-    for seq in test_data[label]:
+    y_test_l = []
+    for j in range(test_data.shape[0]):
+        seq = test_data.iloc[j][label]
+        truth = y_test.iloc[j]
+
         if seq in seq_dict:
             y_pred.append(seq_dict[seq])
+            y_test_l.append(truth)
         else:
-            y_pred.append(majority)
+            m = int(len(seq) / 2)
+            min_seq = seq[m - 4:m + 4]
+
+            y_pred.append(dict_4[min_seq])
+            y_test_l.append(truth)
+            missing_values += 1
 
     y_pred = np.array(y_pred)
+    y_test_l = np.array(y_test_l)
+    perc_of_data_exists = 100 - missing_values / y_test.shape[0] * 100
 
-    output.write("%s,%s\n" % (150-2*i, accuracy(y_test, y_pred)))
+    output.write("%s,%s,%s\n" % (150 - 2 * i, accuracy(y_test_l, y_pred), perc_of_data_exists))
 
 
 def main():
@@ -247,11 +260,17 @@ def main():
     #     test_based_on_8(train_data, test_data, output)
     #     test_based_on_10(train_data, test_data, output)
 
-    with open("accuracy_by_length70-80.csv", "w") as output:
-        output.write("length_of_seq, accuracy\n")
-        for i in range(69,80):
+    with open("accuracy_by_length40-60.csv", "w") as output:
+        output.write("length_of_seq, accuracy, percentage of seq\n")
+        label = "seq_d%s" % 4
+        train_data[label] = train_data["sequence"].str[71:-71]
+
+        mean_by_seq = train_data.groupby(label).mean()
+        seq_dict = np.round(mean_by_seq)["label"].to_dict()
+
+        for i in range(40, 60):
             print(i)
-            test_by_given_length(train_data, test_data, output, i)
+            test_by_given_length(train_data, test_data, output, i, seq_dict)
 
 
 if __name__ == '__main__':

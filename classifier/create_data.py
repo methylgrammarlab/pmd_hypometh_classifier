@@ -9,11 +9,13 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-OUTPUT_FILE = "classifier_data_ccpg1.pkl"
+OUTPUT_FILE = "solo_test_without_crc10_var_0.1.pkl"
 TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 
 TRAIN_PATIENT = ["CRC01", "CRC11"]
-TEST_PATIENT = ["CRC10", "CRC13"]
+# TEST_PATIENT = ["CRC10", "CRC13"]
+TEST_PATIENT = ["CRC13"]
+
 
 TRAIN_EXTREME = 1 / 3
 TEST_EXTREME = 1 / 4
@@ -257,7 +259,7 @@ def label_based_on_extreme_v3(df, name):
     # Group 1 (partial loss)- variance > 0.2
     # Group 2 (completely loss)- variance < 0.1 with meth < 0.2
 
-    df.loc[np.logical_and(df["meth"] <= 0.2, df["var"] <= 0.1), "label"] = 1  # Group 1 - completely loss
+    df.loc[np.logical_and(df["meth"] <= 0.2, df["var"] < 0.1), "label"] = 1  # Group 1 - completely loss
     df.loc[df["var"] >= 0.2, "label"] = 0  # Group 0 - partial loss
 
     filtered_df = df[~pd.isnull(df["label"])]
@@ -290,7 +292,7 @@ def flat_and_label_train_based_on_match(df, patients):
 
         # Group 1 - completely los
         first_filter.loc[np.logical_and(first_filter[meth_label] <= 0.2,
-                                        first_filter[var_label] <= 0.1), label] = 1
+                                        first_filter[var_label] <= 0.05), label] = 1
 
         # Group 0 - partial loss
         first_filter.loc[first_filter[var_label] >= 0.2, label] = 0
@@ -341,14 +343,14 @@ def v3_variance():
     # Split the data to train and test based on pmd
     train, test = split_df_by_pmd(df)
     # train = flat_pd_v3(train, TRAIN_PATIENT)
-    # test = flat_pd_v3(test, TEST_PATIENT)
+    test = flat_pd_v3(test, TEST_PATIENT)
 
     # Leave only the extreme
     # train = label_based_on_extreme_v3(train, "train")
-    # test = label_based_on_extreme_v3(test, "test")
+    test = label_based_on_extreme_v3(test, "test")
 
     train = flat_and_label_train_based_on_match(train, TRAIN_PATIENT)
-    test = flat_and_label_train_based_on_match(test, TEST_PATIENT)
+    # test = flat_and_label_train_based_on_match(test, TEST_PATIENT)
 
     # Add reverse strand
     train = add_reverse_strand(train)
