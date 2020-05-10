@@ -9,7 +9,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-OUTPUT_FILE = "solo_test_without_crc10_var_0.1.pkl"
+OUTPUT_FILE = "test.pkl"
 TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 
 TRAIN_PATIENT = ["CRC01", "CRC11"]
@@ -259,7 +259,7 @@ def label_based_on_extreme_v3(df, name):
     # Group 1 (partial loss)- variance > 0.2
     # Group 2 (completely loss)- variance < 0.1 with meth < 0.2
 
-    df.loc[np.logical_and(df["meth"] <= 0.2, df["var"] < 0.1), "label"] = 1  # Group 1 - completely loss
+    df.loc[np.logical_and(df["meth"] <= 0.2, df["var"] < 0.05), "label"] = 1  # Group 1 - completely loss
     df.loc[df["var"] >= 0.2, "label"] = 0  # Group 0 - partial loss
 
     filtered_df = df[~pd.isnull(df["label"])]
@@ -288,7 +288,9 @@ def flat_and_label_train_based_on_match(df, patients):
         label = "label%s" % patient[-2:]
         var_label = "var%s" % patient[-2:]
         meth_label = "meth%s" % patient[-2:]
-        first_filter[label] = 2  # other
+        first_filter[label] = 3  # misc
+        first_filter.loc[first_filter[meth_label].isnull(), label] = 2  # empty
+
 
         # Group 1 - completely los
         first_filter.loc[np.logical_and(first_filter[meth_label] <= 0.2,
@@ -300,13 +302,22 @@ def flat_and_label_train_based_on_match(df, patients):
     label1 = "label%s" % patients[0][-2:]
     label2 = "label%s" % patients[1][-2:]
 
-    other_other = np.logical_and(df[label1] == 2, df[label2] == 2)
-    partial_total = np.logical_and(df[label1] == 0, df[label2] == 1)
-    total_partial = np.logical_and(df[label1] == 1, df[label2] == 0)
-    bad_indexes = np.logical_or(other_other, partial_total)
-    bad_indexes = np.logical_or(bad_indexes, total_partial)
+    partial_partial = np.logical_and(df[label1] == 0, df[label2] == 0)
+    total_total = np.logical_and(df[label1] == 1, df[label2] == 1)
+    partial_empty = np.logical_and(df[label1] == 0, df[label2] == 2)
+    total_empty = np.logical_and(df[label1] == 1, df[label2] == 2)
+    empty_total = np.logical_and(df[label1] == 2, df[label2] == 0)
+    empty_partial = np.logical_and(df[label1] == 2, df[label2] == 1)
+    good_index = partial_partial | total_total | partial_empty | total_empty | empty_total | empty_partial
 
-    second_filter = first_filter[~bad_indexes]
+    # other_other = np.logical_and(df[label1] == 2, df[label2] == 2)
+    # partial_total = np.logical_and(df[label1] == 0, df[label2] == 1)
+    # total_partial = np.logical_and(df[label1] == 1, df[label2] == 0)
+    # bad_indexes = np.logical_or(other_other, partial_total)
+    # bad_indexes = np.logical_or(bad_indexes, total_partial)
+    #
+    # second_filter = first_filter[~bad_indexes]
+    second_filter = first_filter[good_index]
 
     l = []
 
@@ -325,7 +336,7 @@ def flat_and_label_train_based_on_match(df, patients):
         l.append(train_df)
 
     conc = pd.concat(l)
-    good_index = conc["label"] != 2
+    good_index = np.logical_and(conc["label"] != 2, conc["label"] != 3)
     return conc[good_index]
 
 

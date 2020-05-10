@@ -84,7 +84,6 @@ def precision_N(y_true, y_pred):
 
 
 def recall_TP(y_true, y_pred):
-    # TP/ (TP+FP)
     # true_positives = np.sum(np.round(np.clip(y_true * y_pred, 0, 1)))
     TPs = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))

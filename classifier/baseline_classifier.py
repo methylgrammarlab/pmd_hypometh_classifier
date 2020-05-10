@@ -260,7 +260,7 @@ def main():
     #     test_based_on_8(train_data, test_data, output)
     #     test_based_on_10(train_data, test_data, output)
 
-    with open("accuracy_by_length40-60.csv", "w") as output:
+    with open("accuracy_by_length60-75.csv", "w") as output:
         output.write("length_of_seq, accuracy, percentage of seq\n")
         label = "seq_d%s" % 4
         train_data[label] = train_data["sequence"].str[71:-71]
@@ -268,7 +268,7 @@ def main():
         mean_by_seq = train_data.groupby(label).mean()
         seq_dict = np.round(mean_by_seq)["label"].to_dict()
 
-        for i in range(40, 60):
+        for i in range(60, 75):
             print(i)
             test_by_given_length(train_data, test_data, output, i, seq_dict)
 
