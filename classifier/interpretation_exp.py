@@ -40,20 +40,22 @@ def plot_avg_sequence(ex_seq_d, output):
 
         fig.savefig(os.path.join(output, "Avg_seq_for_%s.png" % k))
 
+
 def hist_3d(ex_seq_d, number_of_seq, output):
     import matplotlib.pyplot as plt
     import pandas as pd
     for k in ex_seq_d:
         ex_seq = ex_seq_d[k][:number_of_seq]
-        tr = np.transpose(ex_seq[:, 70:80, :], axes=(1, 2, 0))
+        tr = np.transpose(ex_seq[:, 70:80, :], axes=(1, 2, 0)) # change
         for loc in tr:
             loc_df = pd.DataFrame(loc, index=["A", "C", "G", "T"])
-            loc_df.T.plot.hist(alpha=0.3)
+            # loc_df.T.plot.hist(alpha=0.9, histtype='step')  # plots just the outline
+            # loc_df.T.plot.hist(alpha=0.3, histtype='stepfilled')  # plots just the inside
+            loc_df.T.plot.hist(alpha=0.3, histtype='stepfilled', ec="k")  # plots with black outline
             plt.yscale('log')
             plt.title("Seq for location x of type %s" % k)
             plt.show()
         pass
-
 
 
 def main():
