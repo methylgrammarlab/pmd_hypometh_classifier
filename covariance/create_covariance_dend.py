@@ -2,16 +2,14 @@ import seaborn as sns; sns.set(color_codes=True)
 import argparse
 import glob
 import os
-import pickle
 import re
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
-import commons.slurm_tools
 
 # sys.path.append(os.path.dirname(os.getcwd()))
 
-CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"  # TODO remove the mini
+CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 
 def parse_input():
@@ -55,7 +53,6 @@ def main():
     else:
         all_cpg_format_file_paths = [args.cpg_format_files]
 
-    # TODO ask dror what format we want to save the PMD boundries as...
     pmd_boundries_dict = {"chr16": [(6500000, 6500100)]}
 
     # for file in tqdm(all_cpg_format_file_paths, desc='files'):

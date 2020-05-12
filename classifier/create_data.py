@@ -270,7 +270,7 @@ def label_based_on_extreme_v3(df, name):
 
 
 def flat_and_label_train_based_on_match(df, patients):
-    # TODO: This is a very bad code
+    # This is a bad written code
 
     if len(patients) > 2:
         sys.exit("this code only work for 2 training patient")

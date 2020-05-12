@@ -10,7 +10,6 @@ import numpy as np
 ############################################
 
 def load_data(path_to_data):
-    # TODO: need to rewrite this
     data = h5py.File(path_to_data, 'r')
     X_test_seq = np.transpose(np.array(data['test_in_seq']), axes=(0, 2, 1))
     X_test_region = np.transpose(np.array(data['test_in_region']), axes=(0, 2, 1))

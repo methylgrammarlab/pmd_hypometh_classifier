@@ -1,14 +1,15 @@
 import argparse
 import glob
-import matplotlib.pyplot as plt
+import os
 import re
 import sys
-import os
+
+import matplotlib.pyplot as plt
 
 sys.path.append(os.path.dirname(os.getcwd()))
 from commons import files_tools
 
-DICT_FILE_FORMAT = "dict_*_%s.pickle"  # TODO remove the mini
+DICT_FILE_FORMAT = "dict_*_%s.pickle"
 DICT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).pickle")
 TITLE_FORMAT = "histogram %s %s"
 HISTOGRAM_FORMAT = "histogram_%s_%s"

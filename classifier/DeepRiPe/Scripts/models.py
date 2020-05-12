@@ -35,7 +35,6 @@ def load_data_merged(path_to_data):
     load the data
     :param path_to_data: path to file (consist of train, valid and test data)
     """
-    # todo: rewrite this based on the format we have
     data = h5py.File(path_to_data, 'r')
     # X_train = np.transpose(np.array(data['train_in']),axes=(2,0,1))
     X_train_seq = np.transpose(np.array(data['train_in_seq']), axes=(0, 2, 1))
@@ -60,7 +59,7 @@ def create_seq_model(input_len):
     """
     K.clear_session()
     tf.set_random_seed(5005)
-    dim = 4  # TODO: this might need to be 1
+    dim = 4
 
     filters_num = [90, 100]
     filter_len = [7, 7]
@@ -144,7 +143,6 @@ def test_model(output_path, data_path, res_path, model_name):
     model = load_model(os.path.join(res_path, model_name + ".h5"),
                        custom_objects={'precision': precision, 'recall': recall})
 
-    # TODO: re-write this part of getting the data
     data = h5py.File(data_path, 'r')
     X_test_seq = np.transpose(np.array(data['test_in_seq']), axes=(0, 2, 1))
     y_test = np.array(data['test_out'])
