@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
@@ -15,7 +16,6 @@ TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 TRAIN_PATIENT = ["CRC01", "CRC11"]
 # TEST_PATIENT = ["CRC10", "CRC13"]
 TEST_PATIENT = ["CRC13"]
-
 
 TRAIN_EXTREME = 1 / 3
 TEST_EXTREME = 1 / 4
@@ -291,7 +291,6 @@ def flat_and_label_train_based_on_match(df, patients):
         first_filter[label] = 3  # misc
         first_filter.loc[first_filter[meth_label].isnull(), label] = 2  # empty
 
-
         # Group 1 - completely los
         first_filter.loc[np.logical_and(first_filter[meth_label] <= 0.2,
                                         first_filter[var_label] <= 0.05), label] = 1
@@ -374,8 +373,61 @@ def v3_variance():
         pickle.dump(output, output_file)
 
 
+def calculate_diff():
+    # This is very hard codded stuff
+    args = parse_input()
+
+    # Read and add features
+    df = pd.read_pickle(args.input_file)
+    df["ccpg"] = df["sequence"].str.count("CG")
+
+    # We start with solo which are methylated in NC
+    df = df[df["ccpg"] == 1]
+    df = df[df["nc_avg"] > 0.5]
+
+    patients = ["11", "01", "13", "10"]
+
+    meth_labels = ["meth%s" % i for i in patients]
+    meth_col = df[meth_labels]
+    not_null_meth = ~pd.isnull(meth_col)
+    not_null_in_at_least_both = not_null_meth.sum(axis=1) > 1
+
+    labels = []
+    for patient in patients:
+        label = "label_%s" % patient
+        labels.append(label)
+        df[label] = 2  # else
+        df.loc[pd.isnull(df["meth%s" % patient]), label] = -1  # no information
+        df.loc[np.logical_and(df["meth%s" % patient] <= 0.2, df["var%s" % patient] < 0.05), label] = 1  # cl
+        df.loc[df["var%s" % patient] >= 0.2, label] = 0  # pl
+
+    df = df[not_null_in_at_least_both]  # at least in 2
+
+    num_of_agree = 0
+    total = df.shape[0]
+    # we can probably do it with numpy but it's hard to think about it
+    for i in tqdm.tqdm(range(total)):
+        p1 = df.iloc[i][labels[0]]
+        p2 = df.iloc[i][labels[1]]
+        p3 = df.iloc[i][labels[2]]
+        p4 = df.iloc[i][labels[3]]
+
+        agree = True
+        use = [i for i in [p1, p2, p3, p4] if i != -1]
+
+        last_value = use[0]
+        for i in use[1:]:
+            if last_value != i:
+                agree = False
+
+        if agree:
+            num_of_agree += 1
+
+    print(num_of_agree / total * 100)
+
 def main():
-    v3_variance()
+    # v3_variance()
+    calculate_diff()
 
 
 if __name__ == '__main__':
