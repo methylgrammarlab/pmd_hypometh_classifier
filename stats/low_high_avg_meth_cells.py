@@ -145,7 +145,9 @@ def convert_sublineage(sublineage_info, patient, cell):
 
 def chosen_cell_stats(path):
     sublineage = files_tools.load_compressed_pickle(
-        R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\convert_sublineage.pickle.zlib")
+        R"/cs/usr/liorf/PycharmProjects/proj_scwgbs/stats/convert_sublineage.pickle.zlib")
+    # sublineage = files_tools.load_compressed_pickle(
+    #     R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\convert_sublineage.pickle.zlib")
     region_high_counters = {
         "CRC01": Counter(LN1=0, LN2=0, LN3=0, ML1=0, ML2=0, ML3=0, ML4=0, MP1=0, MP2=0, MP3=0, MP4=0, MP5=0, PT1=0,
                          PT2=0, PT3=0, PT4=0), "CRC04": Counter(LN1=0, LN2=0, PT1=0, PT2=0, PT3=0, PT4=0, PT5=0),
