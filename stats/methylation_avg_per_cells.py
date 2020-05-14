@@ -43,6 +43,11 @@ CONVERT_COLOURS = {'A0': '#F8B4C0', 'A1': '#E0E346', 'A2': '#6F51A1', 'A3': '#F8
                    'B1': '#66CAD4', 'B2': '#6D8841', 'B3': '#28898A', 'C0': '#E7CFA0', 'C1': '#DDBD7E',
                    'C2': '#D1A34A',
                    'C3': '#B89979', 'C4': '#AA845D', 'C5': '#8C6E4A', 'undefined': '#BBBABC'}
+REGION_COLOURS = {'NC': '#6FBE44', 'PT1': '#F57E32', 'PT2': '#3C8A45', 'PT3': '#3C8A45', 'PT4': '#53ABDA',
+                  'PT5': '#EBE94F', 'PT6': '#EFB0BC', 'LN1': '#B6B6BA', 'LN2': '#B28A8E', 'LN3': '#B28A8E','LN4': '#67532B', 'LN5': '#514321',
+                  'ML1': '#94D6E4', 'ML2': '#4872B7', 'ML3': '#1C49A0', 'ML4': '#333463', 'ML5': '#464B7D', 'ML6': '#3C3E69', 'MP1': '#CFB0D3',
+                  'MP2': '#BC85BB', 'MP3': '#8254A2', 'MP4': '#842F8D', 'MP5': '#632E65', 'MO1': '#E7CF9F',
+                  'MO2': '#E2C68E', 'MO3': '#E2C68E', 'MO4': '#D9B36B', 'MO5': '#D5AB5B', 'MO6': '#D1A349'}
 
 
 def parse_input():
@@ -91,21 +96,55 @@ def get_cancer_methylation_of_patient(patient, chromosome, indexes, methylation_
     return mdf.loc[indexes].values
 
 
-def get_sublineage(sublineage_info, patient, cell):
+def get_sublineage(cell, sublineage_info, patient):
     try:
         return sublineage_info[patient + '_' + cell]
     except:
         return "undefined"
 
 
-def get_colours(sublineage_info, patient, cell):
-    try:
-        return CONVERT_COLOURS[sublineage_info[patient + '_' + cell]]
-    except:
-        return CONVERT_COLOURS["undefined"]
+def get_colours(key, col_name):
+    if col_name == 'sublineage':
+        return CONVERT_COLOURS[key]
+    elif col_name == 'region':
+        return REGION_COLOURS[key]
+
+
+def get_legend_title(col_name):
+    if col_name == 'sublineage':
+        return 'Genetic\nsub-lineages:'
+    elif col_name == 'region':
+        return 'Sampling regions:'
+
+
+def create_colored_graphs(df, col_name, patient):
+    values = df.loc[df.patient == patient, 'median'].sort_values()
+    colors = [get_colours(key, col_name) for key in df.loc[df.patient == patient, col_name]]
+    x = [i for i in range(values.shape[0])]
+    legend_names = df.loc[df.patient == patient, col_name].unique()
+    custom_lines = [Line2D([0], [0], color=get_colours(key, col_name), ls=' ', marker='s', ms=12) for key in
+                    legend_names]
+    plt.bar(x, values, color=colors, width =1)
+    plt.xlabel("tumor cells (self sorted)")
+    plt.ylabel("avg meth")
+    title = get_legend_title(col_name)
+    lgd = plt.legend(custom_lines, legend_names, loc='center left', bbox_to_anchor=(1.0, 0.5),
+                     title=title)
+    plt.title("cell methylation means for %s" % patient)
+    plt.savefig("cell_methylation_means_for_%s_colored_%s.png" % (patient, col_name), bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.close()
+
+
+def create_graphs():
+    df = pd.read_pickle("all_patients_avg_data.pickle.zlib")
+    for patient in df.patient.unique():
+        create_colored_graphs(df, 'sublineage', patient)
+        create_colored_graphs(df, 'region', patient)
 
 
 def main():
+    create_graphs()
+    return
     args = parse_input()
 
     methylation_folder = args.methylation_folder
@@ -113,12 +152,13 @@ def main():
     global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
     patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
                                                                                 global_windows_data)
-    sublineage = files_tools.load_compressed_pickle(
-        R"/cs/usr/liorf/PycharmProjects/proj_scwgbs/stats/convert_sublineage.pickle.zlib")
     # sublineage = files_tools.load_compressed_pickle(
-    #     R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\convert_sublineage.pickle.zlib")
+    #     R"/cs/usr/liorf/PycharmProjects/proj_scwgbs/stats/convert_sublineage.pickle.zlib")
+    sublineage = files_tools.load_compressed_pickle(
+        R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\convert_sublineage.pickle.zlib")
 
     pa_cells = set([])
+    all_patients = []
     for patient in tqdm(patients_dict):
         for chromosome in patients_dict[patient]:
             df = patients_dict[patient][chromosome]
@@ -129,20 +169,32 @@ def main():
             df = patients_dict[patient][chromosome]
             pa_df_meth.loc[df.index, chromosome] = np.mean(df, axis=1)
 
-        values = pa_df_meth.median(axis=1).sort_values()
-        colors = [get_colours(sublineage, patient, cell) for cell in values.index]
-        x = [i for i in range(values.shape[0])]
-        legend_names = sorted({get_sublineage(sublineage, patient, cell) for cell in values.index})
-        custom_lines = [Line2D([0], [0], color=CONVERT_COLOURS[i], ls=' ', marker='s', ms=12) for i in
-                        legend_names]
-        plt.bar(x, values, color=colors)
-        plt.xlabel("tumor cells (self sorted)")
-        plt.ylabel("avg meth")
-        lgd = plt.legend(custom_lines, legend_names, loc='center left', bbox_to_anchor=(1.0, 0.5),
-                         title='Genetic\nsub-lineages:')
-        plt.title("cell methylation means for %s" % patient)
-        plt.savefig("cell_methylation_means_for_%s_paperc.png" % patient, bbox_extra_artists=(lgd,), bbox_inches='tight')
-        plt.close()
+        patient_df = pd.DataFrame(index=pa_df_meth.index, columns=["patient", "mean", "median", "sublineage"])
+        patient_df.loc[:, 'median'] = pa_df_meth.median(axis=1)
+        patient_df.loc[:, 'mean'] = pa_df_meth.mean(axis=1)
+        patient_df.loc[:, 'patient'] = patient
+        patient_df.loc[:, 'sublineage'] = pa_df_meth.index
+        patient_df.loc[:, 'sublineage'] = patient_df.loc[:, 'sublineage'].apply(get_sublineage,
+                                                                                args=(sublineage, patient))
+
+        all_patients.append(patient_df)
+    all_patients_df = pd.concat(all_patients)
+    all_patients_df.to_pickle("all_patients_avg_data.pickle.zlib")
+
+    # values = pa_df_meth.median(axis=1).sort_values()
+    # colors = [get_colours(sublineage, patient, cell) for cell in values.index]
+    # x = [i for i in range(values.shape[0])]
+    # legend_names = sorted({get_sublineage(sublineage, patient, cell) for cell in values.index})
+    # custom_lines = [Line2D([0], [0], color=CONVERT_COLOURS[i], ls=' ', marker='s', ms=12) for i in
+    #                 legend_names]
+    # plt.bar(x, values, color=colors)
+    # plt.xlabel("tumor cells (self sorted)")
+    # plt.ylabel("avg meth")
+    # lgd = plt.legend(custom_lines, legend_names, loc='center left', bbox_to_anchor=(1.0, 0.5),
+    #                  title='Genetic\nsub-lineages:')
+    # plt.title("cell methylation means for %s" % patient)
+    # plt.savefig("cell_methylation_means_for_%s_paperc.png" % patient, bbox_extra_artists=(lgd,), bbox_inches='tight')
+    # plt.close()
 
 
 if __name__ == '__main__':
