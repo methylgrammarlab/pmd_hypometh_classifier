@@ -36,7 +36,7 @@ CONVERT_COLOURS = {'A0': '#223b7c', 'A1': '#26428b', 'A2': '#2a499a', 'A3': '#2e
 NAN_COLOUR = '#9a9a9a'
 
 # colors used in paper
-CONVERT_COLOURS = {'A0': '#F8B4C0', 'A1': '#E0E346', 'A2': '#6F51A1', 'A3': '#F89C31', 'A4': '#EF292A',
+SUBLINEAGE_COLOURS = {'A0': '#F8B4C0', 'A1': '#E0E346', 'A2': '#6F51A1', 'A3': '#F89C31', 'A4': '#EF292A',
                    'A5': '#A45AA4',
                    'A6': '#993232', 'A7': '#2256A6', 'A8': '#BC84BA', 'A9': '#ED3095', 'B': '#3B86C6',
                    'B0': '#3B86C6',
@@ -105,7 +105,7 @@ def get_sublineage(cell, sublineage_info, patient):
 
 def get_colours(key, col_name):
     if col_name == 'sublineage':
-        return CONVERT_COLOURS[key]
+        return SUBLINEAGE_COLOURS[key]
     elif col_name == 'region':
         return REGION_COLOURS[key]
 
