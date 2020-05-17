@@ -1,4 +1,5 @@
 import pickle
+import re
 import sys
 
 import keras.backend as K
@@ -9,6 +10,8 @@ SMALL_SEQ = "seq10"
 BIG_SEQ = "sequence"
 
 NO_KFOLD = 1
+
+MOTIF_RE = re.compile("_*")
 
 
 def load_data_merged(path_to_data, input_len, only_test=False, kfold=NO_KFOLD):
@@ -187,6 +190,29 @@ def vecs2dna(seq_vecs):
             else:
                 print('Malformed position vector: ', seq_vecs[i, :, j],
                       'for sequence %d position %d' % (i, j), file=sys.stderr)
+        seqs.append(''.join(seq_list))
+
+    return seqs
+
+
+def vecs2motif(seq_vecs):
+    seqs = []
+    # seq_vecs = np.reshape(seq_vecs, (seq_vecs.shape[0], 4, -1))
+
+    for i in range(seq_vecs.shape[0]):
+        seq_list = [''] * seq_vecs.shape[1]
+        for j in range(seq_vecs.shape[1]):
+            if seq_vecs[i, j, 0] > 0:
+                seq_list[j] = 'A'
+            elif seq_vecs[i, j, 1] > 0:
+                seq_list[j] = 'C'
+            elif seq_vecs[i, j, 2] > 0:
+                seq_list[j] = 'G'
+            elif seq_vecs[i, j, 3] > 0:
+                seq_list[j] = 'T'
+            else:
+                seq_list[j] = "_"
+
         seqs.append(''.join(seq_list))
 
     return seqs

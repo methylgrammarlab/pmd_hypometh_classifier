@@ -2,12 +2,15 @@ import argparse
 import os
 import pickle
 import sys
+from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from classifier.plotseqlogo import seqlogo_fig
+from classifier.utils import vecs2motif
+from commons.data_tools import counter_to_csv
 
 NCOL = 2
 
@@ -22,9 +25,9 @@ def parse_input():
     return args
 
 
-def plot_seq_alone(seq, id, output, k):
-    fig = seqlogo_fig(seq[:, :], vocab="DNA",
-                      figsize=(8, 4), ncol=1,
+def plot_seq_alone(seq, id, output, k, yl=None):
+    fig = seqlogo_fig(seq[:, :], vocab="DNA", yl=yl,
+                      figsize=(20, 4), ncol=1,
                       plot_name="Seq for top %s of type %s" % (id, k))
 
     fig.savefig(os.path.join(output, "Seq_for_top_%s_of_type_%s" % (id, k)))
@@ -35,19 +38,20 @@ def plot_sequences(ex_seq_d, number_of_seq, output):
     for k in ex_seq_d:
         ex_seq = ex_seq_d[k][:number_of_seq]
         fig = seqlogo_fig(np.transpose(ex_seq[:, :, :], axes=(1, 2, 0)), vocab="DNA",
-                          figsize=(8, ex_seq.shape[0]), ncol=1,
+                          figsize=(8, ex_seq.shape[0]), ncol=1, yl=0.1,
                           plot_name="Seq for top %s of type %s" % (number_of_seq, k))
 
         fig.savefig(os.path.join(output, "Seq_for_top_%s_of_type_%s" % (number_of_seq, k)))
         # fig.show()
     plt.close()
 
+
 def plot_avg_sequence(ex_seq_d, output):
     for k in ex_seq_d:
         ex_seq = ex_seq_d[k]
         mean_seq = np.transpose(np.mean(ex_seq[:, 60:90, :], axis=0).reshape(1, 30, 4), axes=(1, 2, 0))
 
-        fig = seqlogo_fig(mean_seq, vocab="DNA", figsize=(8, 4), ncol=1,
+        fig = seqlogo_fig(mean_seq, vocab="DNA", figsize=(20, 4), ncol=1,
                           plot_name="Avg seq for %s" % k)
 
         fig.savefig(os.path.join(output, "Avg_seq_for_%s30.png" % k))
@@ -57,7 +61,7 @@ def plot_avg_sequence(ex_seq_d, output):
         ex_seq = ex_seq_d[k]
         mean_seq = np.transpose(np.mean(ex_seq[:, :, :], axis=0).reshape(1, 150, 4), axes=(1, 2, 0))
 
-        fig = seqlogo_fig(mean_seq, vocab="DNA", figsize=(8, 4), ncol=1,
+        fig = seqlogo_fig(mean_seq, vocab="DNA", figsize=(20, 4), ncol=1,
                           plot_name="Avg seq for %s" % k)
 
         fig.savefig(os.path.join(output, "Avg_seq_for_%s.png" % k))
@@ -76,7 +80,7 @@ def plot_avg_sequence_sw(ex_seq_d, output):
             new_seq[i][0] = mean_seq[i][0] + mean_seq[i][3]
             new_seq[i][1] = mean_seq[i][1] + mean_seq[i][2]
 
-        fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(8, 4), ncol=1, plot_name="Avg seq for %s" % k)
+        fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(20, 4), ncol=1, plot_name="Avg seq for %s" % k)
 
         fig.savefig(os.path.join(output, "Avg_seq_for_%s_sw30.png" % k))
         # fig.show()
@@ -89,7 +93,7 @@ def plot_avg_sequence_sw(ex_seq_d, output):
             new_seq[i][0] = mean_seq[i][0] + mean_seq[i][3]
             new_seq[i][1] = mean_seq[i][1] + mean_seq[i][2]
 
-        fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(8, 4), ncol=1, plot_name="Avg seq for %s" % k)
+        fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(20, 4), ncol=1, plot_name="Avg seq for %s" % k)
 
         fig.savefig(os.path.join(output, "Avg_seq_for_%s_sw.png" % k))
         # fig.show()
@@ -127,11 +131,12 @@ def plot_avg_sequence_sw_flatten_values(ex_seq_d, output):
             sw_index = 1 if delta > 0 else 0
             new_seq[i][sw_index] = abs(delta)
 
-        fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(8, 4), ncol=1, plot_name="Avg seq for %s" % k)
+        fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(20, 4), ncol=1, plot_name="Avg seq for %s" % k)
 
         fig.savefig(os.path.join(output, "Avg_seq_for_%s_sw_flatten.png" % k))
         # fig.show()
     plt.close()
+
 
 def hist_3d(ex_seq_d, number_of_seq, output):
     for k in ex_seq_d:
@@ -187,13 +192,14 @@ def print_each_seq(ex_seq_d, output_folder):
 
     # Remove duplicates
     seq = None
+
     for i in range(ex_seq_d["cl"].shape[0]):
         new_seq = ex_seq_d["cl"][i]
-        if np.all(new_seq == seq):
-            continue
-        else:
-            cl_list.append(new_seq)
-            seq = new_seq
+        # if np.all(new_seq == seq):
+        #     continue
+        # else:
+        cl_list.append(new_seq)
+        seq = new_seq
 
         #
     seq = None
@@ -204,13 +210,31 @@ def print_each_seq(ex_seq_d, output_folder):
         else:
             pl_list.append(new_seq)
             seq = new_seq
-    #
-    # for i in range(200):
-    #     plot_seq_alone(cl_list[i], i, os.path.join(output_folder, "cl"), "cl")
 
-    for i in range(200):
-        plot_seq_alone(pl_list[i], i, os.path.join(output_folder, "pl"), "pl")
+    for i in range(1000):
+        plot_seq_alone(cl_list[i], i, os.path.join(output_folder, "cl"), "cl", yl=0.1)
+
+    for i in range(1000):
+        plot_seq_alone(pl_list[i], i, os.path.join(output_folder, "pl"), "pl", yl=0.1)
     plt.close()
+
+
+def find_motifs(new_d, output_folder):
+    for k in new_d:
+        seqs = vecs2motif(new_d[k])
+        seqs_splitted = []
+        for seq in seqs:
+            seq_s = seq.split("_")
+            seq_l = [i for i in seq_s if i != "" and len(i) > 1]
+            seqs_splitted.append(list(set(seq_l)))
+
+        motif_counter = Counter()
+        for seq in seqs_splitted:
+            motif_counter.update(seq)
+
+        print(len(seqs_splitted))
+        counter_to_csv(motif_counter, os.path.join(output_folder, k + ".csv"))
+
 
 def main():
     args = parse_input()
@@ -222,11 +246,13 @@ def main():
 
     # hist_3d(ex_seq_d, 1000, args.output_folder)
     # plot_distance_weight(new_d, args.output_folder)
-    # plot_sequences(new_d, 10, args.output_folder)
-    plot_avg_sequence(new_d, args.output_folder)
+    # plot_sequences(new_d, 1000, args.output_folder)
+    # plot_avg_sequence(new_d, args.output_folder)
     # plot_avg_sequence_sw(new_d, args.output_folder)
     # plot_avg_sequence_sw_flatten_values(new_d, args.output_folder)
-    # print_each_seq(new_d,args.output_folder)
+    print_each_seq(new_d, args.output_folder)
+    # find_motifs(new_d, args.output_folder)
+
 
 if __name__ == '__main__':
     main()

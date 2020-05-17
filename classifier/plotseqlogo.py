@@ -126,7 +126,7 @@ def add_letter_to_axis(ax, let, col, x, y, height):
     return
 
 
-def seqlogo(letter_heights, vocab="DNA", ax=None):
+def seqlogo(letter_heights, vocab="DNA", ax=None, yl=None):
     """Make a logo plot
     # Arguments
         letter_heights: "motif length" x "vocabulary size" numpy array
@@ -153,7 +153,8 @@ def seqlogo(letter_heights, vocab="DNA", ax=None):
             if height > 0:
                 add_letter_to_axis(ax, polygons, color, 0.5 + x_pos, y_pos_pos, height)
                 y_pos_pos += height
-            elif height == 0 and ((x_pos == len(letter_heights)/2 and letter == 'C') or (x_pos == len(letter_heights)/2 - 1 and letter == 'G')):
+            elif height == 0 and ((x_pos == len(letter_heights) / 2 and letter == 'G') or (
+                    x_pos == len(letter_heights) / 2 - 1 and letter == 'C')):
                 height = 0.01
                 add_letter_to_axis(ax, polygons, "gray", 0.5 + x_pos, y_pos_pos, height)
                 y_pos_pos += height
@@ -166,6 +167,11 @@ def seqlogo(letter_heights, vocab="DNA", ax=None):
     # if add_hline:
     #     ax.axhline(color="black", linewidth=1)
     ax.set_xlim(x_range[0] - 1, x_range[1] + 1)
+
+    if yl:
+        ax.set_ylim(-yl, yl)
+
+
     ax.grid(False)
     # ax.set_xticks(list(range(*x_range)) + [x_range[-1]])
     ax.set_xticks([], [])
@@ -174,7 +180,7 @@ def seqlogo(letter_heights, vocab="DNA", ax=None):
     ax.autoscale_view()
 
 
-def seqlogo_fig(letter_heights, vocab="DNA", figsize=(10, 2), ncol=1, plot_name=None):
+def seqlogo_fig(letter_heights, vocab="DNA", figsize=(10, 2), ncol=1, plot_name=None, yl=None):
     """
     # Arguments
         plot_name: Title of the plot. Can be a list of names
@@ -201,7 +207,7 @@ def seqlogo_fig(letter_heights, vocab="DNA", figsize=(10, 2), ncol=1, plot_name=
         plt.tight_layout(h_pad=0.01)
 
         # plot the motif
-        seqlogo(w_cur, vocab, ax)
+        seqlogo(w_cur, vocab, ax, yl)
 
         # add the title
         if plot_name is not None:

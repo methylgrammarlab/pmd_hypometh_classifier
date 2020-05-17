@@ -36,7 +36,7 @@ def add_label(df, patient):
     # Group 2 (completely loss)- variance < 0.1 with meth < 0.2
 
     label = "label%s" % patient
-    df[label] = 2  # other
+    df.loc[~pd.isnull(df["meth%s" % patient]), label] = 2  # other - not empty
     df.loc[df["var%s" % patient] >= 0.2, label] = 0  # partial
     df.loc[np.logical_and(df["meth%s" % patient] <= 0.2, df["var%s" % patient] <= 0.1), label] = 1  # total
 
@@ -61,15 +61,17 @@ def create_three_on_three(df, p1, p2):
     fdf = pd.DataFrame(index=["crc13_partial", "crc13_total", "crc13_other"],
                        columns=["crc11_partial", "crc11_total", "crc11_other"])
 
-    fdf.loc["crc13_partial", "crc11_partial"] = partial_partial
-    fdf.loc["crc13_total", "crc11_total"] = total_total
-    fdf.loc["crc13_other", "crc11_other"] = other_other
-    fdf.loc["crc13_partial", "crc11_total"] = partial_total
-    fdf.loc["crc13_partial", "crc11_other"] = partial_other
-    fdf.loc["crc13_total", "crc11_partial"] = total_partial
-    fdf.loc["crc13_total", "crc11_other"] = total_other
-    fdf.loc["crc13_other", "crc11_total"] = other_total
-    fdf.loc["crc13_other", "crc11_partial"] = other_partial
+    s = partial_partial + total_total + other_other + partial_total + partial_other + total_partial \
+        + total_other + other_total + other_partial
+    fdf.loc["crc13_partial", "crc11_partial"] = partial_partial / s * 100
+    fdf.loc["crc13_total", "crc11_total"] = total_total / s * 100
+    fdf.loc["crc13_other", "crc11_other"] = other_other / s * 100
+    fdf.loc["crc13_partial", "crc11_total"] = partial_total / s * 100
+    fdf.loc["crc13_partial", "crc11_other"] = partial_other / s * 100
+    fdf.loc["crc13_total", "crc11_partial"] = total_partial / s * 100
+    fdf.loc["crc13_total", "crc11_other"] = total_other / s * 100
+    fdf.loc["crc13_other", "crc11_total"] = other_total / s * 100
+    fdf.loc["crc13_other", "crc11_partial"] = other_partial / s * 100
 
     with open("matching_labels.csv", "w") as output:
         output.write(fdf.to_csv().replace("\r\n", "\n"))
@@ -86,17 +88,17 @@ def main():
     df = df[df["ccpg"] == 1]
     df = df[df["nc_avg"] > 0.5]
 
+    df = add_label(df, "13")
     df = add_label(df, "11")
-    df = add_label(df, "01")
 
     # Filter places we don't have info
-    var_columns = df[["var11", "var01"]]
+    var_columns = df[["var13", "var11"]]
     not_null = np.mean(~pd.isnull(var_columns), axis=1) == 1
     print("We have %s(%s%%) shared cpg" % (np.sum(not_null), np.sum(not_null) * 100 / df.shape[0]))
 
     df = df[not_null]
 
-    create_three_on_three(df, "11", "01")
+    create_three_on_three(df, "13", "11")
 
 
 if __name__ == '__main__':
