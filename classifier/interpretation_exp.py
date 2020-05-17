@@ -140,17 +140,28 @@ def plot_avg_sequence_sw_flatten_values(ex_seq_d, output):
 
 def hist_3d(ex_seq_d, number_of_seq, output):
     for k in ex_seq_d:
+        if 'failed' in k:
+            continue
+        bins = 10
         ex_seq = ex_seq_d[k][:number_of_seq]
-        tr = np.transpose(ex_seq[:, 70:80, :], axes=(1, 2, 0))  # change
-        for loc in tr:
-            loc_df = pd.DataFrame(loc, index=["A", "C", "G", "T"])
-            # loc_df.T.plot.hist(alpha=0.9, histtype='step')  # plots just the outline
-            # loc_df.T.plot.hist(alpha=0.3, histtype='stepfilled')  # plots just the inside
-            loc_df.T.plot.hist(alpha=0.3, histtype='stepfilled', ec="k")  # plots with black outline
+        tr = np.transpose(ex_seq[:, 73:77, :], axes=(1, 2, 0))  # change
+        for loc_ind, loc in enumerate(tr):
+            loc_df = pd.DataFrame(loc, index=["A", "C", "G", "T"]).T
+            # loc_df.plot.hist(alpha=0.9, histtype='step')  # plots just the outline
+            # loc_df.plot.hist(alpha=0.3, histtype='stepfilled')  # plots just the inside
+            # loc_df.plot.hist(alpha=0.3, histtype='stepfilled', ec="k")  # plots with black outline
+            plt.hist([loc_df.loc[:, 'A'], loc_df.loc[:, 'C'], loc_df.loc[:, 'G'], loc_df.loc[:, 'T']],
+                     label=["A", "C", "G", "T"], alpha=0.5, align="mid")
+            plt.legend(loc='upper left')
             plt.yscale('log')
-            plt.title("Seq for location x of type %s" % k)
-            plt.show()
+            ind = str(int(loc_ind - ((len(tr) / 2) - 1))) if loc_ind <= ((len(tr) / 2) - 1) else '+' + str(
+                int(loc_ind - len(tr) / 2))
+            plt.title("Seq for location %s of type %s with %s seqs" % (ind, k, number_of_seq))
+            path = os.path.join('exp_output', k, "Seq_for_location_%s_of_type_%s_%s_seqs" % (ind, k, number_of_seq))
+            plt.savefig(path)
+            plt.close()
         pass
+
 
 
 def plot_distance_weight(ex_seq_d, output):
