@@ -206,11 +206,11 @@ def print_each_seq(ex_seq_d, output_folder):
 
     for i in range(ex_seq_d["cl"].shape[0]):
         new_seq = ex_seq_d["cl"][i]
-        # if np.all(new_seq == seq):
-        #     continue
-        # else:
-        cl_list.append(new_seq)
-        seq = new_seq
+        if np.all(new_seq == seq):
+            continue
+        else:
+            cl_list.append(new_seq)
+            seq = new_seq
 
         #
     seq = None
