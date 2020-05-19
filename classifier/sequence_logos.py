@@ -61,18 +61,34 @@ def create_ppm(seq_df):
 
 
 def plot_logomaker(seq_list):
-    counts_mat = lm.alignment_to_matrix(list(seq_list)).iloc[50:100, :]
+    # todo drop and color according to sequences, not hardcoded?
+    # drop 4 middle:
+    counts_mat = lm.alignment_to_matrix(list(seq_list)).drop([73, 74, 75, 76])  # .iloc[50:100, :]
+    # drop 2 middle
+    # counts_mat = lm.alignment_to_matrix(list(seq_list)).drop([74, 75])  # .iloc[50:100, :]
+
     lm.Logo(counts_mat)
+    plt.title('counts')
     plt.show()
+
     info_mat = lm.transform_matrix(counts_mat,
                                    from_type='counts',
                                    to_type='information')
-    lm.Logo(info_mat)
+    logo = lm.Logo(info_mat,
+                   stack_order='small_on_top')
+    # highlight middle CG
+    logo.highlight_position_range(74, 75, alpha=0.5, color='lightgray')
+    # highlight flanking
+    # logo.highlight_position(73, alpha=0.3, color='lightblue', edgecolor='black')
+    # logo.highlight_position(76,alpha=0.3, color='lightblue', edgecolor='black')
+    plt.title('bits')
     plt.show()
+
     prob_mat = lm.transform_matrix(counts_mat,
                                    from_type='counts',
                                    to_type='probability')
     lm.Logo(prob_mat)
+    plt.title('probability')
     plt.show()
 
 
