@@ -41,4 +41,7 @@ GENOME_FILE_LOCAL_DROR = r"H:\Study\university\Computational-Biology\Year " \
 
 # Lior local
 PMD_FILE_LOCAL_LIOR = r"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\resources\pmd_dict.pickle"
+CONTEXT_MAP_FILTERED_NO_BL_CPGI_LIOR = r"C:\Users\liorf\Documents\genomic_data\filtered_by_bl_and_cpgi"
+CONVERT_SUBLINEAGE_LIOR = R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\convert_sublineage.pickle.zlib"
+CONVERT_SUBLINEAGE_LIOR_AQUARIUM = R"/cs/usr/liorf/PycharmProjects/proj_scwgbs/stats/convert_sublineage.pickle.zlib"
 
