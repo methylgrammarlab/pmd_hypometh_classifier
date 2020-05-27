@@ -38,6 +38,8 @@ SUBLINEAGE_FILE_LOCAL_DROR = r"H:\Study\university\Computational-Biology\Year " 
                              r"3\Projects\proj_scwgbs\resource\sublineage\patient_sublineage_dict.pickle"
 GENOME_FILE_LOCAL_DROR = r"H:\Study\university\Computational-Biology\Year " \
                          r"3\Projects\proj_scwgbs\resource\full_genome\genome.fa"
+CONVERT_SUBLINEAGE_DROR = R"H:\Study\university\Computational-Biology\Year 3\Projects\proj_scwgbs\resource\convert_sublineage.pickle.zlib"
+NC_DROR = r"H:\Study\university\Computational-Biology\Year 3\Projects\proj_scwgbs\resource\average_nc_methylation"
 
 # Lior local
 PMD_FILE_LOCAL_LIOR = r"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\resources\pmd_dict.pickle"

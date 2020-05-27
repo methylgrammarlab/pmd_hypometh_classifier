@@ -5,12 +5,14 @@ import re
 import sys
 import warnings
 
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
 import matplotlib.colors
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.lines import Line2D
 from tqdm import tqdm
+
+from variance.get_valid_cpg import get_nc_avg
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -33,9 +35,12 @@ SEQ_SIZE = 150
 TOP_LOW_PERCENTAGE_TO_REMOVE = 5
 
 # colors where A, B, C are each in similar shades
-CONVERT_COLOURS = {'A0': '#223b7c', 'A1': '#26428b', 'A2': '#2a499a', 'A3': '#2e51aa', 'A4': '#3358b9', 'A5': '#375fc8',
-                   'A6': '#476ccd', 'A7': '#5678d1', 'A8': '#6584d5', 'A9': '#7591d9', 'B': '#42d142', 'B0': '#52d552',
-                   'B1': '#61d961', 'B2': '#71dc71', 'B3': '#81e081', 'C0': '#d251cd', 'C1': '#d660d2', 'C2': '#da70d6',
+CONVERT_COLOURS = {'A0': '#223b7c', 'A1': '#26428b', 'A2': '#2a499a', 'A3': '#2e51aa', 'A4': '#3358b9',
+                   'A5': '#375fc8',
+                   'A6': '#476ccd', 'A7': '#5678d1', 'A8': '#6584d5', 'A9': '#7591d9', 'B': '#42d142',
+                   'B0': '#52d552',
+                   'B1': '#61d961', 'B2': '#71dc71', 'B3': '#81e081', 'C0': '#d251cd', 'C1': '#d660d2',
+                   'C2': '#da70d6',
                    'C3': '#de80da', 'C4': '#e28fdf', 'C5': '#e69fe3'}
 NAN_COLOUR = '#9a9a9a'
 
@@ -56,13 +61,17 @@ REGION_COLOURS = {'NC': '#6FBE44', 'PT1': '#F57E32', 'PT2': '#3C8A45', 'PT3': '#
                   'MO2': '#E2C68E', 'MO3': '#E2C68E', 'MO4': '#D9B36B', 'MO5': '#D5AB5B', 'MO6': '#D1A349'}
 
 # PATTERNS_TO_CALC = ["ACGAA", "ACGAT", "ACGTA", "ACGTT", "AACGA", "ATCGA", "TACGA", "TTCGA"]
-PATTERNS_TO_CALC = ['AACGAA', 'AACGAT', 'AACGTA', 'AACGTT', 'ATCGAA', 'ATCGAT', 'ATCGTA', 'ATCGTT', 'TACGAA', 'TACGAT',
+PATTERNS_TO_CALC = ['AACGAA', 'AACGAT', 'AACGTA', 'AACGTT', 'ATCGAA', 'ATCGAT', 'ATCGTA', 'ATCGTT', 'TACGAA',
+                    'TACGAT',
                     'TACGTA', 'TACGTT', 'TTCGAA', 'TTCGAT', 'TTCGTA', 'TTCGTT']  # WWCGWW
-PATTERNS_TO_CALC = ['CACGAC', 'CACGAG', 'CACGTC', 'CACGTG', 'CTCGAC', 'CTCGAG', 'CTCGTC', 'CTCGTG', 'GACGAC', 'GACGAG',
+PATTERNS_TO_CALC = ['CACGAC', 'CACGAG', 'CACGTC', 'CACGTG', 'CTCGAC', 'CTCGAG', 'CTCGTC', 'CTCGTG', 'GACGAC',
+                    'GACGAG',
                     'GACGTC', 'GACGTG', 'GTCGAC', 'GTCGAG', 'GTCGTC', 'GTCGTG']  # SWCGWS
-PATTERNS_TO_CALC = ['CACGAC', 'CACGAG', 'CACGAA', 'CACGAT', 'GACGAC', 'GACGAG', 'GACGAA', 'GACGAT', 'AACGAC', 'AACGAG',
+PATTERNS_TO_CALC = ['CACGAC', 'CACGAG', 'CACGAA', 'CACGAT', 'GACGAC', 'GACGAG', 'GACGAA', 'GACGAT', 'AACGAC',
+                    'AACGAG',
                     'AACGAA', 'AACGAT', 'TACGAC', 'TACGAG', 'TACGAA', 'TACGAT']  # [SW]ACGA[SW]
-PATTERNS_TO_CALC = ['CACGAC', 'CACGAG', 'CACGAA', 'CACGAT', 'GACGAC', 'GACGAG', 'GACGAA', 'GACGAT', 'AACGAC', 'AACGAG',
+PATTERNS_TO_CALC = ['CACGAC', 'CACGAG', 'CACGAA', 'CACGAT', 'GACGAC', 'GACGAG', 'GACGAA', 'GACGAT', 'AACGAC',
+                    'AACGAG',
                     'AACGAA', 'AACGAT', 'TACGAC', 'TACGAG', 'TACGAA', 'TACGAT']  # [SW]ACGA[SW]
 
 
@@ -71,7 +80,8 @@ def parse_input():
     parser.add_argument('--methylation_folder', help='Path to methylation files', required=True)
     parser.add_argument('--windows_file', help='Path to files with windows we want to take', required=True)
     parser.add_argument('--patients_data', help='Path to files with the calculated data', required=False)
-    parser.add_argument('--pmd_dicts', help='Path to location with the pre-calculated PMD dicts', required=False)
+    parser.add_argument('--pmd_dicts', help='Path to location with the pre-calculated PMD dicts',
+                        required=False)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     args = parser.parse_args()
     return args
@@ -139,10 +149,12 @@ def get_legend_title(col_name):
         return 'Sampling regions:'
 
 
-def create_multiple_plots(df, color_by_superimpose_first, to_plot_superimpose_second, superimpose=False, third=None,
+def create_multiple_plots(df, color_by_superimpose_first, to_plot_superimpose_second, superimpose=False,
+                          third=None,
                           forth=None, plot_all=None, ylen=14):
     fig, axs = plt.subplots(3, 4, figsize=(22, ylen))
-    layout_dict = {'CRC01': (0, 0), 'CRC02': (0, 1), 'CRC04': (0, 2), 'CRC09': (0, 3), 'CRC10': (1, 0), 'CRC11': (1, 1),
+    layout_dict = {'CRC01': (0, 0), 'CRC02': (0, 1), 'CRC04': (0, 2), 'CRC09': (0, 3), 'CRC10': (1, 0),
+                   'CRC11': (1, 1),
                    'CRC12': (1, 2), 'CRC13': (1, 3), 'CRC14': (2, 1), 'CRC15': (2, 2)}
     for patient in tqdm(df.patient.unique()):
         if superimpose:
@@ -163,7 +175,8 @@ def create_multiple_plots(df, color_by_superimpose_first, to_plot_superimpose_se
 
     if superimpose:
         fig_title = 'cell methylation %s vs %s' % (color_by_superimpose_first, to_plot_superimpose_second)
-        path = "cell_methylation_means_superimposed_%s_%s" % (color_by_superimpose_first, to_plot_superimpose_second)
+        path = "cell_methylation_means_superimposed_%s_%s" % (
+            color_by_superimpose_first, to_plot_superimpose_second)
         labels = [color_by_superimpose_first, to_plot_superimpose_second]
         custom_lines = [Line2D([0], [0], color='#4872B7'), Line2D([0], [0], color='#8254A2')]
         if third:
@@ -189,12 +202,14 @@ def create_multiple_plots(df, color_by_superimpose_first, to_plot_superimpose_se
             line.set_linewidth(2)
         plt.savefig("all_WACGAW.png")
     else:
-        fig.suptitle('cell methylation for %s colored by %s' % (to_plot_superimpose_second, color_by_superimpose_first),
+        fig.suptitle('cell methylation for %s colored by %s' % (
+            to_plot_superimpose_second, color_by_superimpose_first),
                      fontsize=24)
         legend_names = sorted(df.loc[:, color_by_superimpose_first].unique())
-        custom_lines = [Line2D([0], [0], color=get_colours(key, color_by_superimpose_first), ls=' ', marker='s', ms=14)
-                        for key in
-                        legend_names]
+        custom_lines = [
+            Line2D([0], [0], color=get_colours(key, color_by_superimpose_first), ls=' ', marker='s', ms=14)
+            for key in
+            legend_names]
         title = get_legend_title(color_by_superimpose_first)
         lgd = fig.legend(custom_lines, legend_names, loc='center right', fontsize=14)
         lgd.set_title(title, prop={'size': 14})
@@ -289,7 +304,6 @@ def get_all_pattern_cells_from_df(df, context_info, pattern):
     pattern_cells = context_info[context_info.str.contains(pattern)]
     return np.mean(df.loc[:, df.columns & pattern_cells.index], axis=1)
 
-
 def main():
     args = parse_input()
 
@@ -297,31 +311,38 @@ def main():
         create_graphs(args.patients_data)
         return
 
+    nc_files = consts.NC_DROR  # todo: dror
+
     patients_dict = {}
     if args.pmd_dicts:  # files where to heavy to save, possibly will save in smaller bunches and then use this
-        for patient in ["CRC01", "CRC02", "CRC04", "CRC09", "CRC10", "CRC11", "CRC12", "CRC13", "CRC14", "CRC14"]:
+        for patient in ["CRC01", "CRC02", "CRC04", "CRC09", "CRC10", "CRC11", "CRC12", "CRC13", "CRC14",
+                        "CRC14"]:
             patients_dict[patient] = files_tools.load_compressed_pickle(
                 os.path.join(args.pmd_dicts, PMD_DICT_FILE_FORMAT % patient))
     else:
         methylation_folder = args.methylation_folder
-        all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
+        # all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
+        all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "CRC01", "*.pkl.zip")))
         global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
         patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
                                                                                     global_windows_data)
 
-    sublineage = files_tools.load_compressed_pickle(consts.CONVERT_SUBLINEAGE_LIOR)
+    sublineage = files_tools.load_compressed_pickle(consts.CONVERT_SUBLINEAGE_DROR)
+
 
     # # Collect global sequence information from the cpg dict
-    cpg_dict = files_tools.get_cpg_context_map(load_with_path=consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI_LIOR)
+    cpg_dict = files_tools.get_cpg_context_map(load_with_path=consts.CONTEXT_MAP_FILTERED_LOCAL_DROR)
     strong = {}
     weak = {}
     context_info = {}
+    cpg75flank = {}  # todo: dror
     for chr in range(1, 23):
         chr_info = cpg_dict['chr%d' % chr]
         weak['%d' % chr] = chr_info[chr_info[:, -2] == 1][:, 0]
         strong['%d' % chr] = chr_info[chr_info[:, -1] == 1][:, 0]
         context_info['%d' % chr] = pd.Series(chr_info[:, -3], index=chr_info[:, 0]).apply(
             format_cpg_context_map.convert_context_int_to_chr)
+        cpg75flank["%d" % chr] = chr_info[:, -7]  # todo: dror
 
     pa_cells = set([])
     all_patients_mean = []
@@ -340,11 +361,17 @@ def main():
         for chromosome in tqdm(patients_dict[patient], desc="chromosome data calc %s" % patient):
             df = patients_dict[patient][chromosome]
             pa_df_meth.loc[df.index, chromosome] = np.mean(df, axis=1)
-            pa_df_meth_strong.loc[df.index, chromosome] = np.mean(df.loc[:, df.columns & strong[chromosome]], axis=1)
-            pa_df_meth_weak.loc[df.index, chromosome] = np.mean(df.loc[:, df.columns & weak[chromosome]], axis=1)
+            pa_df_meth_strong.loc[df.index, chromosome] = np.mean(df.loc[:, df.columns & strong[chromosome]],
+                                                                  axis=1)
+            pa_df_meth_weak.loc[df.index, chromosome] = np.mean(df.loc[:, df.columns & weak[chromosome]],
+                                                                axis=1)
             for pattern in PATTERNS_TO_CALC:
-                pattern_cells[pattern].loc[df.index, chromosome] = get_all_pattern_cells_from_df(df, context_info[
-                    chromosome], pattern)
+                pattern_cells[pattern].loc[df.index, chromosome] = get_all_pattern_cells_from_df(df,
+                                                                                                 context_info[
+                                                                                                     chromosome],
+                                                                                                 pattern)
+
+            nc_meth_avg = get_nc_avg(chromosome, df.index, nc_files)  # todo: dror
 
         ### save median data ###
         patient_df_median = pd.DataFrame(index=pa_df_meth.index)
@@ -357,7 +384,8 @@ def main():
         patient_df_median.loc[:, 'sublineage'] = pa_df_meth.index
         patient_df_median.loc[:, 'sublineage'] = patient_df_median.loc[:, 'sublineage'].apply(get_sublineage,
                                                                                               args=(
-                                                                                                  sublineage, patient))
+                                                                                                  sublineage,
+                                                                                                  patient))
 
         ### save mean data ###
         patient_df_mean = pd.DataFrame(index=pa_df_meth.index)
@@ -369,7 +397,8 @@ def main():
         patient_df_mean.loc[:, 'region'] = patient_df_mean.loc[:, 'region'].apply(get_region)
         patient_df_mean.loc[:, 'sublineage'] = pa_df_meth.index
         patient_df_mean.loc[:, 'sublineage'] = patient_df_mean.loc[:, 'sublineage'].apply(get_sublineage,
-                                                                                          args=(sublineage, patient))
+                                                                                          args=(sublineage,
+                                                                                                patient))
 
         ### add the data for the pattern ###
         for pattern in PATTERNS_TO_CALC:
