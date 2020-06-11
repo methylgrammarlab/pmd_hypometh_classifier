@@ -7,10 +7,15 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 from classifier.plotseqlogo import seqlogo_fig
 from classifier.utils import vecs2motif
 from commons.data_tools import counter_to_csv
+
+sns.set()
+sns.set_style('whitegrid')
+
 
 NCOL = 2
 
@@ -51,8 +56,17 @@ def plot_avg_sequence(ex_seq_d, output):
         ex_seq = ex_seq_d[k]
         mean_seq = np.transpose(np.mean(ex_seq[:, 60:90, :], axis=0).reshape(1, 30, 4), axes=(1, 2, 0))
 
+        name = "Completely lost" if k == "cl" else "Partially lost"
         fig = seqlogo_fig(mean_seq, vocab="DNA", figsize=(20, 4), ncol=1,
-                          plot_name="Avg seq for %s" % k)
+                          plot_name="Average attribution score for prediction %s" % name)
+
+        ax = fig.axes[0]
+        # x = np.arange(-1 * int(mean_seq.shape[0] / 2), 1).astype(np.int)
+        # x = np.append(x,x[::-1] * -1)
+        # ax.set_xticks(x)
+        # ax.set_xlabel("Sequence")
+        # ax.set_ylabel("Attribute score (shannon values)")
+        ax.set_title("Average sequence for prediction %s" % name, fontsize=16)
 
         fig.savefig(os.path.join(output, "Avg_seq_for_%s30.png" % k))
         plt.close()
@@ -163,6 +177,41 @@ def hist_3d(ex_seq_d, number_of_seq, output):
         pass
 
 
+def plot_distance_weight_combine(ex_seq_d, output):
+    for k in ex_seq_d:
+        class_type = "Completely lost" if k == "cl" else "Partially lost"
+        ex_seq = np.abs(ex_seq_d[k])
+
+        mean_seq = np.transpose(np.mean(ex_seq[:, :, :], axis=0).reshape(1, 150, 4), axes=(1, 2, 0))
+        seq_weight = np.sum(mean_seq, axis=1)
+        std_seq = np.std(mean_seq, axis=1)
+        middle = int(seq_weight.shape[0] / 2) - 1
+        seq_weight[middle] = None
+        seq_weight[middle + 1] = None
+
+        # seq_to_values = np.flip(seq_weight[:middle])
+        # seq_from_values = seq_weight[middle + 2:]
+        # seq_to_std = np.flip(std_seq[:middle])
+        # seq_from_std = std_seq[middle + 2:]
+        x = np.arange(-74, 1).astype(np.int)
+        x = np.append(x, x[::-1] * -1)
+
+        # plt.errorbar(x, seq_to_values, seq_to_std, marker='^', label="to", alpha=0.5)
+        # plt.errorbar(x, seq_from_values, seq_from_std, marker='^', label="from", alpha=0.5)
+        # # plt.errorbar(x, np.mean([seq_to_values, seq_from_values],axis=0),
+        # #              np.mean([seq_to_std, seq_from_std], axis=0),  marker='^', label="combine", alpha=0.3)
+        x_ticks = [i for i in range(-70, 80, 10)]
+        plt.xticks(x_ticks)
+        plt.plot(x, seq_weight, '.-')
+        plt.legend()
+        plt.grid(axis="y")
+        plt.xlabel("Distance from CpG Site", fontsize=12)
+        plt.ylabel("Attribute score", fontsize=12)
+        plt.title("Attribute score base on distance from CpG site for %s" % class_type, fontsize=14)
+
+        plt.savefig(os.path.join(output, "pres_distance_importance_of_flanking_letters_type_%s.png" % k))
+        plt.close()
+
 
 def plot_distance_weight(ex_seq_d, output):
     """
@@ -247,6 +296,33 @@ def find_motifs(new_d, output_folder):
         counter_to_csv(motif_counter, os.path.join(output_folder, k + ".csv"))
 
 
+def plot_distance_weight_combine_single_letter(ex_seq_d, output):
+    np.nanmean(np.where(b >= 0, b, np.nan), axis=1)
+    for k in ex_seq_d:
+        class_type = "Completely lost" if k == "cl" else "Partially lost"
+        ex_seq = np.abs(ex_seq_d[k])
+
+        mean_seq = np.transpose(np.mean(ex_seq[:, :, :], axis=0).reshape(1, 150, 4), axes=(1, 2, 0))
+        seq_weight = np.sum(mean_seq, axis=1)
+        std_seq = np.std(mean_seq, axis=1)
+        middle = int(seq_weight.shape[0] / 2) - 1
+        seq_weight[middle] = None
+        seq_weight[middle + 1] = None
+
+        x = np.arange(-74, 1).astype(np.int)
+        x = np.append(x, x[::-1] * -1)
+        x_ticks = [i for i in range(-70, 80, 10)]
+        plt.xticks(x_ticks)
+        plt.plot(x, seq_weight, '.-')
+        plt.legend()
+        plt.grid(axis="y")
+        plt.xlabel("Distance from CpG Site")
+        plt.ylabel("Attribute score")
+        plt.title("Attribute score base on distance from CpG site for %s" % class_type)
+
+        plt.savefig(os.path.join(output, "pres_distance_importance_of_flanking_letters_type_%s.png" % k))
+        plt.close()
+
 def main():
     args = parse_input()
 
@@ -257,11 +333,13 @@ def main():
 
     # hist_3d(ex_seq_d, 1000, args.output_folder)
     # plot_distance_weight(new_d, args.output_folder)
+    # plot_distance_weight_combine(new_d, args.output_folder)
+    # plot_distance_weight_combine_single_letter(new_d, args.output_folder)
     # plot_sequences(new_d, 1000, args.output_folder)
-    # plot_avg_sequence(new_d, args.output_folder)
+    plot_avg_sequence(new_d, args.output_folder)
     # plot_avg_sequence_sw(new_d, args.output_folder)
     # plot_avg_sequence_sw_flatten_values(new_d, args.output_folder)
-    print_each_seq(new_d, args.output_folder)
+    # print_each_seq(new_d, args.output_folder)
     # find_motifs(new_d, args.output_folder)
 
 

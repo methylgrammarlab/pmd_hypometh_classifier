@@ -2,6 +2,7 @@ import argparse
 import os
 import pickle
 import random
+import re
 import sys
 
 import matplotlib.pyplot as plt
@@ -10,6 +11,16 @@ import numpy as np
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from classifier.utils import precision
+
+SS_RE = re.compile("[CG]CG[CG]")
+WW_RE = re.compile("[AT]CG[AT]")
+SWCGWS_RE = re.compile("[CG][AT]CG[AT][CG]")
+SSCGSS_RE = re.compile("[CG][CG]CG[CG][CG]")
+WSCGSW_RE = re.compile("[AT][CG]CG[CG][AT]")
+WWCGWW_RE = re.compile("[AT][AT]CG[AT][AT]")
+CWCGWG_RE = re.compile("C[AT]CG[AT]G")
+SW_RE = re.compile("[CG]CG[AT]")
+WS_RE = re.compile("[AT]CG[CG]")
 
 plt.style.use('seaborn-deep')
 
@@ -238,10 +249,43 @@ def test_by_given_length(train_data, test_data, output, i, dict_4):
     output.write("%s,%s,%s\n" % (150 - 2 * i, accuracy(y_test_l, y_pred), perc_of_data_exists))
 
 
+def test_based_on_learned(df):
+    y_test = df["label"]
+    x_test = list(df["sequence"])
+    y_pred = []
+    guess = 0
+
+    for i in x_test:
+        if WW_RE.search(i) != None:
+            if CWCGWG_RE.search(i) != None:
+                y_pred.append(1)
+
+            elif WWCGWW_RE.search(i) != None:
+                y_pred.append(0)
+            else:
+                y_pred.append(1)
+
+        elif SS_RE.search(i) != None:
+            if SSCGSS_RE.search(i) != None:
+                y_pred.append(1)
+            else:
+                y_pred.append(0)
+
+        elif SW_RE.search(i) != None or WS_RE.search(i) != None:
+            y_pred.append(0)
+
+        else:
+            y_pred.append(0)
+
+    y_pred = np.array(y_pred)
+    print(accuracy(y_test, y_pred))
+    # print(guess / y_pred.shape[0] * 100)
+
 def main():
     args = format_args()
     train_data, test_data = get_data(args.data_path)
 
+    test_based_on_learned(test_data)
     # test_based_on_10_remove_uncertain(train_data, test_data)
     # test_agreement_by_10(train_data)
     # test_agreement_by_150(train_data)
@@ -259,18 +303,18 @@ def main():
     #     test_based_on_6(train_data, test_data, output)
     #     test_based_on_8(train_data, test_data, output)
     #     test_based_on_10(train_data, test_data, output)
-
-    with open("accuracy_by_length60-75.csv", "a") as output:
-        # output.write("length_of_seq, accuracy, percentage of seq\n")
-        label = "seq_d%s" % 4
-        train_data[label] = train_data["sequence"].str[71:-71]
-
-        mean_by_seq = train_data.groupby(label).mean()
-        seq_dict = np.round(mean_by_seq)["label"].to_dict()
-
-        for i in range(0, 20):
-            print(i)
-            test_by_given_length(train_data, test_data, output, i, seq_dict)
+    #
+    # with open("accuracy_by_length60-75.csv", "a") as output:
+    #     # output.write("length_of_seq, accuracy, percentage of seq\n")
+    #     label = "seq_d%s" % 4
+    #     train_data[label] = train_data["sequence"].str[71:-71]
+    #
+    #     mean_by_seq = train_data.groupby(label).mean()
+    #     seq_dict = np.round(mean_by_seq)["label"].to_dict()
+    #
+    #     for i in range(0, 20):
+    #         print(i)
+    #         test_by_given_length(train_data, test_data, output, i, seq_dict)
 
 
 if __name__ == '__main__':

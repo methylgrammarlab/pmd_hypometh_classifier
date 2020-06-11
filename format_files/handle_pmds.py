@@ -104,7 +104,7 @@ def get_pmd_context_map():
 
 
 def get_pmd_df(df, chromosome, add_pmd_index=False):
-    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_LIOR)
+    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
 
     if chromosome in pmd_dict:
         pmd_list = pmd_dict[chromosome]

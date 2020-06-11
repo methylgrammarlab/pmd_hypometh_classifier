@@ -166,7 +166,7 @@ def seqlogo(letter_heights, vocab="DNA", ax=None, yl=None):
 
     # if add_hline:
     #     ax.axhline(color="black", linewidth=1)
-    ax.set_xlim(x_range[0] - 1, x_range[1] + 1)
+    # ax.set_xlim(x_range[0] - 1, x_range[1] + 1)
 
     if yl:
         ax.set_ylim(-yl, yl)

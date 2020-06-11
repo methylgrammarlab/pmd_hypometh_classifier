@@ -14,8 +14,8 @@ OUTPUT_FILE = "test.pkl"
 TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 
 TRAIN_PATIENT = ["CRC01", "CRC11"]
-# TEST_PATIENT = ["CRC10", "CRC13"]
-TEST_PATIENT = ["CRC13"]
+TEST_PATIENT = ["CRC10", "CRC13"]
+# TEST_PATIENT = ["CRC13"]
 
 TRAIN_EXTREME = 1 / 3
 TEST_EXTREME = 1 / 4
@@ -250,6 +250,7 @@ def flat_pd_v3(df, patients):
         train_df["sequence"] = df["sequence"]
         train_df["ccpg"] = df["ccpg"]
 
+
         l.append(train_df)
 
     return pd.concat(l)
@@ -331,6 +332,8 @@ def flat_and_label_train_based_on_match(df, patients):
         train_df["sequence"] = second_filter["sequence"]
         train_df["ccpg"] = second_filter["ccpg"]
         train_df["label"] = second_filter[label]
+        train_df["chr"] = second_filter["chromosome"]
+        train_df["start"] = second_filter["location"]
 
         l.append(train_df)
 
@@ -353,14 +356,14 @@ def v3_variance():
     # Split the data to train and test based on pmd
     train, test = split_df_by_pmd(df)
     # train = flat_pd_v3(train, TRAIN_PATIENT)
-    test = flat_pd_v3(test, TEST_PATIENT)
+    # test = flat_pd_v3(test, TEST_PATIENT)
 
     # Leave only the extreme
     # train = label_based_on_extreme_v3(train, "train")
-    test = label_based_on_extreme_v3(test, "test")
+    # test = label_based_on_extreme_v3(test, "test")
 
     train = flat_and_label_train_based_on_match(train, TRAIN_PATIENT)
-    # test = flat_and_label_train_based_on_match(test, TEST_PATIENT)
+    test = flat_and_label_train_based_on_match(test, TEST_PATIENT)
 
     # Add reverse strand
     train = add_reverse_strand(train)
@@ -426,8 +429,8 @@ def calculate_diff():
     print(num_of_agree / total * 100)
 
 def main():
-    # v3_variance()
-    calculate_diff()
+    v3_variance()
+    # calculate_diff()
 
 
 if __name__ == '__main__':

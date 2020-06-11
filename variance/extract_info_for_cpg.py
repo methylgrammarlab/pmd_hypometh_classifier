@@ -7,8 +7,9 @@ import pandas as pd
 import seaborn as sns
 
 plt.style.use('seaborn')
-
-PATIENTS = ["01", "10", "11", "13"]
+sns.set_style('whitegrid')
+# PATIENTS = ["01", "10", "11", "13"]
+PATIENTS = ["01"]
 
 
 def parse_input():
@@ -84,6 +85,91 @@ def plot_variance_histogram_vs_type(df, output):
         plt.close()
 
 
+def plot_meth_density_violin(df, output):
+    for patient in PATIENTS:
+        label = "var%s" % patient
+        meth_label = "meth%s" % patient
+        nc_label = "nc_meth%s" % patient
+        # df = df[df[meth_label] < 0.8]
+        df = df[df[nc_label] > 0.5]
+
+        # strong_rows = df[df["sequence"].str.contains("[CG]CG[CG]", regex=True)]
+        # weak_rows = df[df["sequence"].str.contains("[AT]CG[AT]", regex=True)]
+        new_df = pd.DataFrame()
+
+        #
+        for i in range(1, 6):
+            if i != 5:
+                df.loc[df["sequence"].str.count("CG") == i, "#CpG"] = "%s" % i
+                # sns.boxplot(data=df[df["sequence"].str.count("CG") ==i][meth_label])
+                # sns.distplot(df[df["sequence"].str.count("CG") ==i][meth_label],
+                #      hist=False, kde=True, kde_kws={'linewidth': 3}, label="#CpG=%s" %i)
+
+            else:
+                df.loc[df["sequence"].str.count("CG") >= i, "#CpG"] = ">%s" % i
+                # sns.boxplot(data=df[df["sequence"].str.count("CG") ==i][meth_label])
+
+                # sns.distplot(df[df["sequence"].str.count("CG") >=i][meth_label],
+                #              hist=False, kde=True, kde_kws={'linewidth': 3}, label="#CpG>=%s" %i)
+
+        new_df["Methylation level"] = df[meth_label]
+        new_df["#CpG"] = df["#CpG"]
+        sns.violinplot(y="Methylation level", x="#CpG", data=new_df, palette="muted", order=["1", "2", "3",
+                                                                                             "4", ">5"])
+        plt.title("Methylation density for for CRC%s" % patient)
+        plt.savefig(os.path.join(output, "density_meth_crc%s.png" % patient))
+        plt.close()
+
+
+def plot_meth_density(df, output):
+    for patient in PATIENTS:
+        label = "var%s" % patient
+        meth_label = "meth%s" % patient
+        nc_label = "nc_meth%s" % patient
+        # df = df[df[meth_label] < 0.8]
+        df = df[df[nc_label] > 0.5]
+        # sns.distplot(df[df["sequence"].str.count("CG") ==1][meth_label], norm_hist=True,
+        #              hist=True, kde=False, label="#CpG=1 (solo)")
+        # sns.distplot(df[df["sequence"].str.count("CG") >=5][meth_label],
+        #              hist=True, kde=False, norm_hist=True, label="#CpG>=5")
+
+        # strong_rows = df[df["sequence"].str.contains("[CG]CG[CG]", regex=True)]
+        # weak_rows = df[df["sequence"].str.contains("[AT]CG[AT]", regex=True)]
+        # new_df = pd.DataFrame()
+
+        #
+        for i in range(1, 6):
+            if i == 1:
+                sns.distplot(df[df["sequence"].str.count("CG") == i][meth_label],
+                             hist=False, kde=True, kde_kws={'linewidth': 3}, label="#CpG=%s (solo)" % (i - 1))
+            elif i != 5:
+                #         # df.loc[df["sequence"].str.count("CG") ==i, "#CpG"] = "%s" %i
+                #         # sns.boxplot(data=df[df["sequence"].str.count("CG") ==i][meth_label])
+                sns.distplot(df[df["sequence"].str.count("CG") == i][meth_label],
+                             hist=False, kde=True, kde_kws={'linewidth': 3}, label="#CpG=%s" % (i - 1))
+
+            else:
+                # df.loc[df["sequence"].str.count("CG") >=i, "#CpG"] = ">%s" %i
+                # sns.boxplot(data=df[df["sequence"].str.count("CG") ==i][meth_label])
+
+                sns.distplot(df[df["sequence"].str.count("CG") >= i][meth_label],
+                             hist=False, kde=True, kde_kws={'linewidth': 3}, label="#CpG>=%s" % (i - 1))
+
+        # new_df["Methylation level"] = df[meth_label]
+        # new_df["#CpG"] = df["#CpG"]
+        # sns.violinplot(y="Methylation level", x="#CpG", data=new_df,palette="muted", order=["1","2","3",
+        #                                                                                     "4",">5"])
+        plt.title("Methylation density for CRC%s" % patient, fontsize=20)
+        plt.xlabel("Methylation Level", fontsize=16)
+        plt.grid(False)
+        plt.ylabel("Distribution", fontsize=16)
+        plt.legend()
+
+        plt.savefig(os.path.join(output, "density_meth_crc%s.png" % patient))
+        plt.close()
+
+
+
 def plot_var_density(df, output):
     for patient in PATIENTS:
         label = "var%s" % patient
@@ -116,11 +202,12 @@ def plot_meth_vs_var_scatter(df, output):
         # plt.savefig(os.path.join(output, "solo_meth_vs_var_scatter_patient%s.png" % patient))
         # plt.close()
 
-        sns_plot = sns.jointplot(x=meth_label, y=var_label, data=df, kind="kde")
-        plt.title("Methylation level vs Covariance in solo CpG for patient %s" % patient)
-        plt.xlabel("Methylation")
-        plt.ylabel("Variance")
-        sns_plot.savefig(os.path.join(output, "dist_solo_meth_vs_var_scatter_patient%s.png" % patient))
+        plt.subplots_adjust(top=0.9)
+        sns_plot = sns.jointplot(x=df[meth_label], y=df[var_label], kind="kde")
+        sns_plot.fig.suptitle("Methylation vs Variance in solo CpG for CRC%s" % patient, fontsize=20)
+        sns_plot.set_axis_labels("Methylation level", "Variance", fontsize=16)
+
+        sns_plot.savefig(os.path.join(output, "dist_non_solo_meth_vs_var_scatter_patient%s.png" % patient))
         plt.close()
 
 
@@ -160,15 +247,15 @@ def main():
     # keep only solo
     solo_rows = df[df["sequence"].str.count("CG") == 1]
 
-    remove_by_nc_methylation_info(solo_rows)
+    # remove_by_nc_methylation_info(solo_rows)
 
     solo_after_nc_rows = solo_rows[solo_rows["nc_avg"] > 0.5]
 
     # just solo
     # global_cpg_info(df)
-    global_cpg_info(solo_after_nc_rows)
-    plot_meth_vs_var_scatter(solo_after_nc_rows, args.output_folder)
-
+    # global_cpg_info(solo_after_nc_rows)
+    # plot_meth_vs_var_scatter(solo_after_nc_rows, args.output_folder)
+    plot_meth_density(df, args.output_folder)
     # get_basic_info(solo_rows, "solo", args.output_folder)
 
 
