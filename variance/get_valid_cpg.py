@@ -164,7 +164,7 @@ def main():
         sum_df = pd.DataFrame(columns=["chromosome", "location"])
         sum_df["location"] = indexes
         sum_df["chromosome"] = chromosome
-        sum_df["sequence"] = get_seq_info(indexes, chromosome)
+        sum_df["sequence"] = get_seq_info(indexes, str(chromosome))
 
         sum_df = sum_df.set_index("location")
         for patient_info in cov_dict[chromosome]:
