@@ -6,10 +6,10 @@ import sys
 
 import numpy as np
 import pandas as pd
-import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 import commons.files_tools as tools
+import commons.consts as consts
 
 OUTPUT_FILE_FORMAT = "all_cpg_ratios_%s_hg19.dummy.pkl.zip"
 FILE_SUFFIX = "*.bedgraph.gz"
@@ -36,44 +36,45 @@ def get_data_from_file(bedgraph_path):
     data = pd.read_csv(bedgraph_path, sep="\t", names=["chr", "start", "end", "ratio", "reads"],
                        usecols=["chr", "start", "ratio", "reads"])
     data["start"] = data["start"] + 1
-    return data
+    return data[data["reads"] >= 5]
 
 
 def main():
     output, files_path = format_args()
     files_to_process = glob.glob(files_path)
-    all_cpg_locations = tools.get_cpg_context_map(only_locations=True)
+    all_cpg_locations = tools.get_cpg_context_map(only_locations=True,
+                                                  load_with_path=consts.CONTEXT_MAP_FULL)
 
-    chr_data = {}
+    chr_data_dict = {}
     for chr in all_cpg_locations:
-        chr_data[chr] = []
-
-    for f in tqdm.tqdm(files_to_process, desc="Reading files"):
-        data = get_data_from_file(f)
-        sample_name = FILE_RE.findall(os.path.basename(f))[0]
-
-        for chr in all_cpg_locations:
-            chr_data[chr].append((sample_name, data[data["chr"] == chr]))
-
-    for chr in tqdm.tqdm(all_cpg_locations, desc="Creating df"):
         chr_full_cpg = all_cpg_locations[chr]
-
-        chr_all_cells = np.full((len(chr_data[chr]) + 1, chr_full_cpg.size), None, dtype=np.float)
+        chr_all_cells = np.full((len(files_to_process) + 1, all_cpg_locations[chr].size), None,
+                                dtype=np.float)
         chr_all_cells[0, :] = chr_full_cpg
-        cell_names = []
+        chr_data_dict[chr] = chr_all_cells
 
-        i = 1
-        for sample in chr_data[chr]:
-            cell_names.append(sample[0])
-            cell = sample[1]
-            match = np.isin(chr_full_cpg, cell["start"])
-            chr_all_cells[i, match] = cell["ratio"]
+    i = 1
+    cell_names = []
+    for f in files_to_process:
+        sample_name = FILE_RE.findall(os.path.basename(f))[0]
+        try:
+            data = get_data_from_file(f)
+        except:
+            print(sample_name)
+        cell_names.append(sample_name)
 
-            i += 1
+        for chr in chr_data_dict:
+            chr_full_cpg = all_cpg_locations[chr]
+            chr_data = data[data["chr"] == chr]
+            match = np.isin(chr_full_cpg, chr_data["start"])
+            chr_data_dict[chr][i, match] = chr_data["ratio"]
 
+        i += 1
+
+    for chr in chr_data_dict:
+        chr_all_cells = chr_data_dict[chr]
         df = pd.DataFrame(data=chr_all_cells[1:, :], columns=chr_all_cells[0, :].astype(np.int),
-                          index=cell_names,
-                          dtype=np.float16)
+                          index=cell_names, dtype=np.float16)
         output_path = os.path.join(output, OUTPUT_FILE_FORMAT % chr)
         df.to_pickle(output_path, compression='zip')
 
