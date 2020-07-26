@@ -103,8 +103,8 @@ def get_pmd_context_map():
     return pmd_context_map
 
 
-def get_pmd_df(df, chromosome, add_pmd_index=False):
-    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
+def get_pmd_df(df, chromosome, add_pmd_index=False, pmd_file=consts.PMD_FILE):
+    pmd_dict = read_pmd_dict(pmd_file)
 
     if chromosome in pmd_dict:
         pmd_list = pmd_dict[chromosome]
@@ -134,9 +134,9 @@ def get_pmd_df(df, chromosome, add_pmd_index=False):
     return data
 
 
-def get_covariance_pmd_df(bedgraph_path, chromosome, add_pmd_index=False):
+def get_covariance_pmd_df(bedgraph_path, chromosome, add_pmd_index=False, pmd_file=consts.PMD_FILE):
     covariance_df = files_tools.load_badgraph_to_df(bedgraph_path)
-    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
+    pmd_dict = read_pmd_dict(pmd_file)
 
     if chromosome in pmd_dict:
         pmd_list = pmd_dict[chromosome]
@@ -196,18 +196,31 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
                                                          sublineage_cells=[],
                                                          sublineage_name=covariance_to_bedgraph.ALL_CANCER)
 
-            ##
-            # Get the coverage of cpg
-            ##
-            cpg_coverage = np.sum(~pd.isnull(df), axis=0)
-            cpg_s = cpg_coverage.shape[0]
-            n_to_remove = int(cpg_s * top_low_level_to_remove / 100)
-            cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
-            df = df[cpg_to_keep]  # this remove the 5% lower and top
+            df = remove_low_high_coverage(df, top_low_level_to_remove)
 
             patients_dict[patient][chromosome] = df
 
     return patients_dict
+
+
+def remove_low_high_coverage(df, top_low_level_to_remove=5):
+    cpg_coverage = np.sum(~pd.isnull(df), axis=0)
+    cpg_s = cpg_coverage.shape[0]
+    n_to_remove = int(cpg_s * top_low_level_to_remove / 100)
+    cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
+    return df[cpg_to_keep]  # this remove the top_low_level_to_remove lower and top
+
+
+def get_pmd_index_based_on_tuples_list(df, tuple_list):
+    df["pmd_index"] = np.nan
+    i = 0
+    for pmd_tuple in tuple_list:
+        i += 1
+        start, end = pmd_tuple
+        pmd_mask = (df.index >= start) & (df.index <= end)
+        df.loc[pmd_mask, "pmd_index"] = i
+
+    return df
 
 
 def get_pmd_index(df, chromosome, global_windows_data):
@@ -218,12 +231,4 @@ def get_pmd_index(df, chromosome, global_windows_data):
         chromosome = int(chromosome)
         windows_data = global_windows_data[chromosome]
 
-    df["pmd_index"] = np.nan
-    i = 0
-    for pmd_tuple in windows_data:
-        i += 1
-        start, end = pmd_tuple
-        pmd_mask = (df.index >= start) & (df.index <= end)
-        df.loc[pmd_mask, "pmd_index"] = i
-
-    return df["pmd_index"]
+    return get_pmd_index_based_on_tuples_list(df, windows_data)["pmd_index"]
