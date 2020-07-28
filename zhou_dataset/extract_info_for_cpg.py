@@ -107,10 +107,10 @@ def main():
 
     # keep only solo
     solo_rows = df[df["sequence"].str.count("CG") == 1]
-    # global_cpg_info(df)
-    # plot_variance_histogram_vs_type(solo_rows, args.output_folder)
-    # plot_meth_density_violin(df, args.output_folder)
-    # plot_meth_vs_var_scatter_dens(solo_rows, args.output_folder)
+    global_cpg_info(df)
+    plot_variance_histogram_vs_type(solo_rows, args.output_folder)
+    plot_meth_density_violin(df, args.output_folder)
+    plot_meth_vs_var_scatter_dens(solo_rows, args.output_folder)
     plot_meth_vs_var_scatter(solo_rows, args.output_folder)
 
 

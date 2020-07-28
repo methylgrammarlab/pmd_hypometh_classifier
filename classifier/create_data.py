@@ -3,9 +3,14 @@ import os
 import pickle
 import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import tqdm
+
+plt.style.use('seaborn')
+sns.set_style('whitegrid')
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
@@ -250,7 +255,6 @@ def flat_pd_v3(df, patients):
         train_df["sequence"] = df["sequence"]
         train_df["ccpg"] = df["ccpg"]
 
-
         l.append(train_df)
 
     return pd.concat(l)
@@ -375,6 +379,8 @@ def v3_variance():
     with open(os.path.join(args.output_folder, OUTPUT_FILE), "wb") as output_file:
         pickle.dump(output, output_file)
 
+    return train
+
 
 def calculate_diff():
     # This is very hard codded stuff
@@ -428,8 +434,19 @@ def calculate_diff():
 
     print(num_of_agree / total * 100)
 
+
+def plot_data(df):
+    plt.subplots_adjust(top=0.9)
+    sns.scatterplot(x=df["meth"], y=df["var"], hue=df["label"])
+
+    plt.show()
+
+
 def main():
-    v3_variance()
+    df = v3_variance()
+    plot_data(df)
+    df["label"].hist()
+    plt.show()
     # calculate_diff()
 
 

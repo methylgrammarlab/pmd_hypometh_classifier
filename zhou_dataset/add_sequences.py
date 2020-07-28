@@ -16,23 +16,31 @@ def parse_input():
     return args
 
 
-def get_seq_info(df):
+def get_seq_info(df, ):
     sequences = []
 
     for i in tqdm.trange(df.shape[0]):
-        chromosome = df.iloc[i]["chromosome"]
-        if not chromosome.isdigit():
-            chromosome = INT_RE.findall(chromosome)[0]
-        seq = get_seq_for_cpg(chr_num=chromosome, i=df.iloc[i]["location"], seq_size=SEQ_SIZE)
+        row = df.iloc[i]
+        seq = get_seq_for_cpg(chr_num=row["chromosome"], i=row["location"], seq_size=SEQ_SIZE)
         sequences.append(seq)
 
     return sequences
 
 
+def add_chr_number(df):
+    df["chr_num"] = 0
+    for chromosome in pd.unique(df["chromosome"]):
+        df.loc[df["chromosome"] == chromosome, "chr_num"] = INT_RE.findall(chromosome)[0]
+
+    return df
+
+
 def main():
     args = parse_input()
     input_file = args.input_file
+
     df = pd.read_pickle(input_file)
+    dff = add_chr_number(df)
 
     output_folder = os.path.dirname(input_file)
     output_file = os.path.basename(input_file) + "with_seq.pkl"

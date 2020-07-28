@@ -68,12 +68,12 @@ def get_cpgs_orig_methylated(df, cells_to_use):
     return mean_values >= 0.6
 
 
-def plot_graph(avg, output):
+def plot_graph(avg, output, title):
     plt.bar([i for i in range(len(avg))], avg)
     plt.xlabel("Cells")
-    plt.ylabel("Average methylation")
-    plt.title("Average Methylation of cells")
-    plt.savefig(os.path.join(output, "average_methylation_of_cells.png"))
+    plt.ylabel("%s" % title)
+    plt.title("%s of cells" % title)
+    plt.savefig(os.path.join(output, "%s_of_cells.png" % title.replace(" ", "_")))
     plt.close()
     # plt.show()
 
@@ -92,18 +92,20 @@ def main():
     rows_dict = {}
     for chromosome_file in tqdm.tqdm(all_files):
         chromosome, pmd_df = get_pmd_df(chromosome_file)
-        pmd_df = pmd_df.fillna(0)  # Replace the nan with 0 for next calculation steps
         cpgs_methylated = get_cpgs_orig_methylated(pmd_df, nc_cells)
         df = pmd_df.filter(items=variance_cells, axis=0)
         df = df.loc[:, cpgs_methylated]  # Leave only methylated cells
 
         df = handle_pmds.remove_low_high_coverage(df)  # remove the top and low 5 percentage
+
         for row in df.index.values:
             if row not in rows_dict:
                 rows_dict[row] = []
-            rows_dict[row].append(df.loc[row].values)
+            rows_dict[row].append(df.loc[row][np.isfinite(df.loc[row])].values.astype(np.float64))
 
-    rows_values = [(row, np.mean(rows_dict[row])) for row in rows_dict]
+    rows_values = [(row, np.mean(np.concatenate(rows_dict[row])), np.var(np.concatenate(rows_dict[row]))) for
+                   row in
+                   rows_dict]
     rows_values.sort(key=lambda x: x[1])
     # plot_graph([i[1] for i in rows_values], args.output_folder)
     with open(os.path.join(args.output_folder, "average_cells.pkl"), "wb") as f:
@@ -115,7 +117,8 @@ def plot_from_pickle():
     with open(args.methylation_folder, "rb") as f:
         rows_values = pickle.load(f)
 
-    plot_graph([i[1] for i in rows_values], args.output_folder)
+    plot_graph([i[1] for i in rows_values], args.output_folder, title="average methylation")
+    plot_graph([i[2] for i in rows_values], args.output_folder, title="methylation variance")
 
 
 if __name__ == '__main__':

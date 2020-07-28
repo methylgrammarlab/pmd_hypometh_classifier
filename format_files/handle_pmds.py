@@ -205,8 +205,10 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
 
 def remove_low_high_coverage(df, top_low_level_to_remove=5):
     cpg_coverage = np.sum(~pd.isnull(df), axis=0)
+    cpg_coverage = cpg_coverage.sort_values()
     cpg_s = cpg_coverage.shape[0]
     n_to_remove = int(cpg_s * top_low_level_to_remove / 100)
+
     cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
     return df[cpg_to_keep]  # this remove the top_low_level_to_remove lower and top
 

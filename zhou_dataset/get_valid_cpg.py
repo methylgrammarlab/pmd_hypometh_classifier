@@ -78,7 +78,7 @@ def get_pmd_df(chromosome_file):
     """
     chromosome = CPG_FORMAT_FILE_RE.findall(os.path.basename(chromosome_file))[0]
     df = pd.read_pickle(chromosome_file)
-    return chromosome, handle_pmds.get_pmd_df(df, chromosome, pmd_file=consts.PMD_FILE_LOCAL_DROR)
+    return chromosome, handle_pmds.get_pmd_df(df, chromosome)
 
 
 def get_cpgs_orig_methylated(df, cells_to_use):
@@ -94,14 +94,8 @@ def get_cpgs_orig_methylated(df, cells_to_use):
     return mean_values >= 0.6
 
 
-def main():
-    args = parse_input()
-
-    all_files = glob.glob(os.path.join(args.methylation_folder, METHYLATION_FILE_FORMAT))
-    cells_info_data = pd.read_csv(args.cell_info)
-    nc_cells = list(cells_info_data[cells_info_data[NC_CELLS_COLUMN] == 1][CELL_NAME_COLUMN])
-    nc_cells = [i.strip() for i in nc_cells]
-    with open(args.cells_avg_meth, "rb") as f:
+def get_variance_cells_to_use(file_path):
+    with open(file_path, "rb") as f:
         temp_variance_cells = pickle.load(f)
 
     temp_variance_cells.sort(key=lambda x: x[1])
@@ -109,12 +103,22 @@ def main():
     top = len(temp_variance_cells) - TOP_BOTTOM * len(temp_variance_cells) / 100 - 1
     variance_cells = temp_variance_cells[:int(low)] + temp_variance_cells[int(top):]
     variance_cells = [i[0] for i in variance_cells]
-    pmd_data = handle_pmds.read_pmd_dict(file_path=consts.PMD_FILE_LOCAL_DROR)
+    return variance_cells
+
+
+def main():
+    args = parse_input()
+
+    all_files = glob.glob(os.path.join(args.methylation_folder, METHYLATION_FILE_FORMAT))
+    cells_info_data = pd.read_csv(args.cell_info)
+    nc_cells = list(cells_info_data[cells_info_data[NC_CELLS_COLUMN] == 1][CELL_NAME_COLUMN])
+    nc_cells = [i.strip() for i in nc_cells]
+    variance_cells = get_variance_cells_to_use(args.cells_avg_meth)
+    pmd_data = handle_pmds.read_pmd_dict()
 
     df_list = []
     for chromosome_file in tqdm.tqdm(all_files):
         chromosome, pmd_df = get_pmd_df(chromosome_file)
-        pmd_df = pmd_df.fillna(0)  # Replace the nan with 0 for next calculation steps
         cpgs_methylated = get_cpgs_orig_methylated(pmd_df, nc_cells)
         df = pmd_df.filter(items=variance_cells, axis=0)
         df = df.loc[:, cpgs_methylated]  # Leave only methylated cells
