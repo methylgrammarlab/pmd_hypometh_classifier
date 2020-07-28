@@ -124,6 +124,8 @@ def main():
         df = df.loc[:, cpgs_methylated]  # Leave only methylated cells
 
         df = handle_pmds.remove_low_high_coverage(df)  # remove the top and low 5 percentage
+        # Note: we didn't removed CpG with less then 5 samples in low or high like we did in the scWGBS but
+        #  we checked that we don't have CpG like this
 
         chromosome_df = pd.DataFrame(columns=["chromosome", "location"])
         chromosome_df["location"] = df.columns

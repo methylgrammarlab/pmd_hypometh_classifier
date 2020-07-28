@@ -40,7 +40,6 @@ def main():
     input_file = args.input_file
 
     df = pd.read_pickle(input_file)
-    dff = add_chr_number(df)
 
     output_folder = os.path.dirname(input_file)
     output_file = os.path.basename(input_file) + "with_seq.pkl"

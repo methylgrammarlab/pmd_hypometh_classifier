@@ -164,7 +164,7 @@ def get_covariance_pmd_df(bedgraph_path, chromosome, add_pmd_index=False, pmd_fi
 
 def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windows_data,
                                                     top_low_level_to_remove=TOP_LOW_PERCENTAGE_TO_REMOVE,
-                                                    add_pmd_index=False):
+                                                    add_pmd_index=False, pmd_file=consts.PMD_FILE):
     patients_dict = {}
     for patient in all_files_dict:
         patients_dict[patient] = {}
@@ -181,10 +181,10 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
 
             try:
                 chromosome = str(chromosome)
-                covariance_pmd_df = get_pmd_df(dff, chromosome, add_pmd_index)
+                covariance_pmd_df = get_pmd_df(dff, chromosome, add_pmd_index, pmd_file=pmd_file)
             except:
                 chromosome = int(chromosome)
-                covariance_pmd_df = get_pmd_df(dff, chromosome, add_pmd_index)
+                covariance_pmd_df = get_pmd_df(dff, chromosome, add_pmd_index, pmd_file=pmd_file)
 
             prev_mask = None
             for pmd_tuple in windows_data:
@@ -196,7 +196,8 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
                                                          sublineage_cells=[],
                                                          sublineage_name=covariance_to_bedgraph.ALL_CANCER)
 
-            df = remove_low_high_coverage(df, top_low_level_to_remove)
+            if top_low_level_to_remove != 0:
+                df = remove_low_high_coverage(df, top_low_level_to_remove)
 
             patients_dict[patient][chromosome] = df
 

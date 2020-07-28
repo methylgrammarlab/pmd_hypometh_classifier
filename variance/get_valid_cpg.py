@@ -111,9 +111,12 @@ def main():
             all_files_dict_2[k] = all_files_dict[k]
 
     all_files_dict = all_files_dict_2
+
+    # No need to remove cpg with coverage here because we want to do it after using the cells
     patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
                                                                                 global_windows_data,
-                                                                                )
+                                                                                top_low_level_to_remove=0,
+                                                                                pmd_file=consts.PMD_FILE_LOCAL_DROR)
 
     data_file = open("summary_info.csv", "w")
     data_file.write("patient, chromosome, total_cpg, low_filter, high_filter, both_filter\n")
@@ -129,6 +132,7 @@ def main():
             total_cells.extend(high_cells)
 
             filtered_df = df.loc[total_cells]
+            filtered_df = handle_pmds.remove_low_high_coverage(filtered_df)
 
             try:
                 cpg_coverage_low = np.sum(~pd.isnull(filtered_df.loc[low_cells]), axis=0)
@@ -141,8 +145,9 @@ def main():
 
             data_file.write("%s,%s,%s,%s,%s,%s\n" %
                             (
-                            patient, chromosome, low_filter.shape[0], np.sum(low_filter), np.sum(high_filter),
-                            np.sum(both_filter)))
+                                patient, chromosome, low_filter.shape[0], np.sum(low_filter),
+                                np.sum(high_filter),
+                                np.sum(both_filter)))
 
             filtered_df = filtered_df.loc[:, both_filter]  # we only want cpg with at least 5 points
             if chromosome not in cov_dict:

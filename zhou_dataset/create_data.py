@@ -112,8 +112,8 @@ def flat_pd_v3(df, patients):
 
 
 def label_based_on_extreme_v3(df):
-    df.loc[np.logical_and(df["meth"] >= 0.75, df["var"] <= 0.06), "label"] = 0  # Group 0 - partial loss
-    df.loc[np.logical_and(df["meth"] <= 0.55, df["var"] >= 0.1), "label"] = 1  # Group 1 - comp loss
+    df.loc[np.logical_and(df["meth"] >= 0.75, df["var"] <= 0.055), "label"] = 0  # Group 0 - partial loss
+    df.loc[np.logical_and(df["meth"] <= 0.55, df["var"] >= 0.11), "label"] = 1  # Group 1 - comp loss
 
     filtered_df = df[~pd.isnull(df["label"])]
     return filtered_df
@@ -170,10 +170,10 @@ def plot_data(df):
 
 def main():
     df = create_data()
-    pass
+
     # plot_data(df)
-    # df["label"].hist()
-    # plt.show()
+    df["label"].hist()
+    plt.show()
 
 
 if __name__ == '__main__':
