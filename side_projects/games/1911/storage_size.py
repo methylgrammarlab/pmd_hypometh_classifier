@@ -1,12 +1,13 @@
 import csv
 import glob
+import os
 import pickle
 import re
 import sys
-import h5py
-import os
-import numpy as np
 import zlib
+
+import h5py
+import numpy as np
 
 REGEX = re.compile(".+(CRC\d+)_(\w+)_(\d+).singleC.cpg")
 SUFFIX = "*.singleC.cpg.txt"
