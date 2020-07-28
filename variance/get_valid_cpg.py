@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 import pyfaidx
 
+import commons.data_tools
+
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
@@ -132,7 +134,7 @@ def main():
             total_cells.extend(high_cells)
 
             filtered_df = df.loc[total_cells]
-            filtered_df = handle_pmds.remove_low_high_coverage(filtered_df)
+            filtered_df = commons.data_tools.remove_extreme_cpgs_by_coverage(filtered_df)
 
             try:
                 cpg_coverage_low = np.sum(~pd.isnull(filtered_df.loc[low_cells]), axis=0)

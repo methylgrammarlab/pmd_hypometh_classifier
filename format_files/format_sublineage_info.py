@@ -1,17 +1,27 @@
+"""
+Convert a sublineage files to a dictionary we know how to work with
+The input file format should be:
+
+Patient_ID	Sample	Sublineage
+CRC01	CRC01_LN1_172	A0
+"""
+
 import os
-import pickle
 import sys
 
+sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from commons import consts
+from commons import files_tools
+
+OUTPUT_FILE = "patient_sublineage_dict.pickle"
 
 
-def get_sublineage_info(file_path=consts.SUBLINEAGE_FILE_LOCAL_DROR):
-    with open(file_path, "rb") as f:
-        return pickle.load(f)
+def get_sublineage_info(file_path=consts.SUBLINEAGE_FILE):
+    return files_tools.load_pickle(file_path)
 
 
-def format_file(sublineage_file):
+def format_sublineage_file(sublineage_file):
     sublineage_dict = {}
     with open(sublineage_file, "rb") as sublineage:
         _ = sublineage.readline()
@@ -31,12 +41,11 @@ def format_file(sublineage_file):
 
             sublineage_dict[patient][lineage].append(sample)
 
-    with open("patient_sublineage_dict.pickle", "wb") as f:
-        pickle.dump(sublineage_dict, f)
+    files_tools.save_pickle(OUTPUT_FILE, sublineage_dict)
 
 
 def main():
-    format_file(sys.argv[1])
+    format_sublineage_file(sys.argv[1])
 
 
 if __name__ == '__main__':

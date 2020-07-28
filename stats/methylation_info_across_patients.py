@@ -102,10 +102,10 @@ def main():
             dff = pd.read_pickle(file_path)
             try:
                 chromosome = str(chromosome)
-                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
+                covariance_pmd_df = handle_pmds.filtered_out_non_pmd(dff, chromosome)
             except:
                 chromosome = int(chromosome)
-                covariance_pmd_df = handle_pmds.get_pmd_df(dff, chromosome)
+                covariance_pmd_df = handle_pmds.filtered_out_non_pmd(dff, chromosome)
 
             prev_mask = None
             for pmd_tuple in windows_data:

@@ -55,8 +55,8 @@ def format_args():
 
 
 def compare_samples_covariance(first_file, second_file, chromosome):
-    first_df = handle_pmds.get_covariance_pmd_df(first_file, chromosome)
-    second_df = handle_pmds.get_covariance_pmd_df(second_file, chromosome)
+    first_df = handle_pmds.convert_bedgraph_to_df_with_pmd_filter(first_file, chromosome)
+    second_df = handle_pmds.convert_bedgraph_to_df_with_pmd_filter(second_file, chromosome)
 
     first_df = first_df[first_df.coverage < 0.1]
     first_df = first_df[first_df.coverage > -0.03]

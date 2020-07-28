@@ -1,3 +1,29 @@
+import os
+import re
+
+# output/input file format
+BULK_FILE_FORMAT = "all_cpg_ratios_%s_hg19.dummy.pkl.zip"
+SCWGBS_FILE_FORMAT = "all_cpg_ratios_%s_%s.dummy.pkl.zip"
+FULL_CPG_CONTEXT_FILE_FORMAT = "full_cpg_seq_chr*.pickle.zlib"
+
+# regex
+DATA_FILE_SCWGBS_RE = re.compile(".+(CRC\d+)_(chr\d+)_hg19.dummy.pkl.zip")
+DATA_FILE_BULK_RE = re.compile(".+_(chr\d+)_hg19.dummy.pkl.zip")
+
+CHR_NUM_FROM_FULL_RE = re.compile("chr(\d+).*")
+CHR_FULL_NAME_RE = re.compile("(chr\d+)")
+
+# Regex for weak and strong context cpg
+WEAK_FORMAT_RE = re.compile("\w\w[AT]CG[AT]\w\w")
+STRONG_FORMAT_RE = re.compile("\w\w[CG]CG[CG]\w\w")
+
+# Mapping between nucleotide and number
+NUCLEOTIDE_TO_NUMBER = {"A": "1",
+                        "C": "2",
+                        "G": "3",
+                        "T": "4",
+                        "N": "5"}  # N means that this is unknown
+
 CENETROMERE_DICT = {
     "1": [121311574, 129523877],
     "2": [91278726, 97911435],
@@ -22,14 +48,16 @@ CENETROMERE_DICT = {
     "21": [10688588, 14563981],
     "22": [12326422, 17790024],
 }
-CONTEXT_MAP_FULL = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/full"
-CONTEXT_MAP_FILTERED_NO_BL_CPGI = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data/filtered_by_bl_and_cpgi"
-SUBLINEAGE_FILE = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror" \
-                  r"/genomic_data/orig/sublineage/patient_sublineage_dict.pickle"
-PMD_FILE = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/genomic_data" \
-           r"/orig/pmds/pmd_dict.pickle"
-GENOME_FILE = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror" \
-              r"/genomic_data/orig/seq_context/genome.fa"
+
+# IMPORTANT FILES
+MAIN_FOLDER = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/"
+CONTEXT_MAP_FULL = os.path.join(MAIN_FOLDER, r"genomic_data/full")
+CONTEXT_MAP_FILTERED_NO_BL_CPGI = os.path.join(MAIN_FOLDER, r"/genomic_data/filtered_by_bl_and_cpgi")
+SUBLINEAGE_FILE = os.path.join(MAIN_FOLDER, r"/genomic_data/orig/sublineage/patient_sublineage_dict.pickle")
+PMD_FILE = os.path.join(MAIN_FOLDER, r"genomic_data/orig/pmds/pmd_dict.pickle")
+GENOME_FILE = os.path.join(MAIN_FOLDER, "/genomic_data/orig/seq_context/genome.fa")
+
+
 
 # DROR local
 CONTEXT_MAP_FILTERED_LOCAL_DROR = r"H:\Study\university\Computational-Biology\Year 3\Projects\proj_scwgbs\resource\genomic_data\filtered_by_bl_and_cpgi"

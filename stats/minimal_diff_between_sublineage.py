@@ -106,7 +106,8 @@ def minimal_diff_in_sub_lineage_cov(covariance_dict, patient, chromosome):
         if sublineage == "NC":
             continue
 
-        covariance_pmd_df = handle_pmds.get_covariance_pmd_df(covariance_dict[sublineage], chromosome)
+        covariance_pmd_df = handle_pmds.convert_bedgraph_to_df_with_pmd_filter(covariance_dict[sublineage],
+                                                                               chromosome)
 
     accuracy = 0
     for couple in list(itertools.combinations(dfs, 2)):
@@ -126,7 +127,7 @@ def main():
         patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
 
         df = pd.read_pickle(file_path)
-        pmd_df = handle_pmds.get_pmd_df(df, chromosome)
+        pmd_df = handle_pmds.filtered_out_non_pmd(df, chromosome)
 
         # minimal_diff_in_sub_lineage_meth_levels(pmd_df, patient, chromosome)
         minimal_diff_in_sub_lineage_cov(covariance_dict, patient, chromosome)

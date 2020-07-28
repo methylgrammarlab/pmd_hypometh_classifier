@@ -1,33 +1,40 @@
-import glob
+"""
+Functions to handle PMD data
+"""
+
 import os
-import pickle
-import re
 import sys
 
 import numpy as np
 import pandas as pd
 
-CHR_NAME = re.compile("(chr\d+)")
-PMD_LABEL = "commonPMD"
-pmd_dict_mu = {}
-
+sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from commons import consts
-from commons import files_tools
+from commons import files_tools, data_tools
 from covariance import covariance_to_bedgraph
 
 TOP_LOW_PERCENTAGE_TO_REMOVE = 5
+PMD_LABEL = "commonPMD"
+
+pmd_dict_mu = {}
 
 
-def create_pmd_dict(bed_file, output_path):
-    all_data = pd.read_csv(bed_file, sep="\t")._values
+def create_pmd_dict(bedgraph_path, output_path):
+    """
+    Convert PMD_coordinates_hg19 bedgraph file to a dictionary
+    :param bedgraph_path: The bedgraph file to convert
+    :param output_path: The output path for the dictionary
+    :return:
+    """
+    all_data = pd.read_csv(bedgraph_path, sep="\t")._values
     chr_dict = {}
 
-    chromose = np.unique(all_data[:, 0])
-    for chro in chromose:
-        chr_lines = all_data[all_data[:, 0] == chro]
+    chromosomes = np.unique(all_data[:, 0])
+    for chromosome in chromosomes:
+        chr_lines = all_data[all_data[:, 0] == chromosome]
         pmd_lines = chr_lines[chr_lines[:, -1] == PMD_LABEL]
-        chr_dict[chro] = []
+        chr_dict[chromosome] = []
 
         global_start = 100000
         global_end = 199999
@@ -45,49 +52,37 @@ def create_pmd_dict(bed_file, output_path):
                 global_end = end
                 continue
             else:
-                chr_dict[chro].append((global_start, global_end))
+                chr_dict[chromosome].append((global_start, global_end))
                 start_new = True
 
-    with open(os.path.join(output_path, "pmd_dict.pickle"), "wb") as pmd_dict_file:
-        pickle.dump(chr_dict, pmd_dict_file)
+    files_tools.save_pickle(os.path.join(output_path), "pmd_dict.pickle", chr_dict)
 
 
-def split_files(input_path, output_path, dict_path, patients):
-    with open(dict_path, "rb") as pmd_dict_f:
-        pmd_dict = pickle.load(pmd_dict_f)
-
-    for patient in patients:
-        files = glob.glob(os.path.join(input_path, patients, "*_all_data.csv.gzip"))
-        for f in files:
-            chr_name = CHR_NAME.findall(f)[0]
-            csv_data = pd.read_csv(f, compression="gzip")
-            pmd_list = pmd_dict[chr_name]
-            for pmd_tuple in pmd_list:
-                start, end = pmd_tuple
-                pmd_mask = (csv_data['locations'] > start) & (csv_data['locations'] < end)
-                pmd = csv_data.loc[pmd_mask, :]
-                output_data = os.path.join(output_path, patient, "%s_pmd_%s_%s.csv.gzip" % (chr_name,
-                                                                                            start, end))
-                if not os.path.exists(os.path.dirname(output_data)):
-                    os.mkdir(os.path.dirname(output_data))
-
-                pmd.to_csv(output_data, compression="gzip")
-
-
-def read_pmd_dict(file_path=consts.PMD_FILE):
+def get_pmd_dict(pmd_file_path=consts.PMD_FILE):
+    """
+    Get the pmd dict
+    :param pmd_file_path: different path for the pmd dict
+    :return: A dictionary, each chromosome is the key and the values is a list of tuples each represent the
+    start and end of pmd
+    """
     if pmd_dict_mu != {}:
         return pmd_dict_mu
 
-    with open(file_path, "rb") as pmd_dict_f:
-        pmd_dict = pickle.load(pmd_dict_f)
-
-        return pmd_dict
+    pmd_dict = files_tools.load_pickle(pmd_file_path)
+    return pmd_dict
 
 
-def get_pmd_context_map():
+def get_pmd_context_map(context_map_file_path=consts.CONTEXT_MAP_FILTERED_LOCAL_DROR,
+                        pmd_file_path=consts.PMD_FILE):
+    """
+    Get the context map information only for PMDs
+    :param context_map_file_path: The path for the context map file
+    :param pmd_file_path: THe path for the pmd file
+    :return: The contaxt map information only for PMDs
+    """
     pmd_context_map = {}
-    cpg_context_map = files_tools.get_cpg_context_map(load_with_path=consts.CONTEXT_MAP_FILTERED_LOCAL_DROR)
-    pmd_dict = read_pmd_dict(consts.PMD_FILE_LOCAL_DROR)
+    cpg_context_map = files_tools.get_cpg_context_map(load_with_path=context_map_file_path)
+    pmd_dict = get_pmd_dict(pmd_file_path=pmd_file_path)
 
     for chromosome in cpg_context_map:
         chr_context_map = cpg_context_map[chromosome]
@@ -103,9 +98,18 @@ def get_pmd_context_map():
     return pmd_context_map
 
 
-def get_pmd_df(df, chromosome, add_pmd_index=False, pmd_file=consts.PMD_FILE):
-    pmd_dict = read_pmd_dict(pmd_file)
+def filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE, add_pmd_index=False):
+    """
+    Filter out CpG which doesn't include in a PMD
+    :param df: The df to work with
+    :param chromosome: The chromosome of this df
+    :param add_pmd_index: Should we add a pmd index to each cpg
+    :param pmd_file: The pmd file
+    :return: Same df but filtered based on the PMD
+    """
+    pmd_dict = get_pmd_dict(pmd_file)
 
+    # Try getting the chromosome from the pmd dict, support chr16 or just 16
     if chromosome in pmd_dict:
         pmd_list = pmd_dict[chromosome]
     elif "chr%s" % chromosome in pmd_dict:
@@ -113,9 +117,14 @@ def get_pmd_df(df, chromosome, add_pmd_index=False, pmd_file=consts.PMD_FILE):
     else:
         raise Exception("Chromosome name is invalid ")
 
+    if add_pmd_index:
+        df["pmd_index"] = np.nan
+
     prev_mask = None
     i = 0
 
+    # Trying to support two ways of working with df - one is where the columns is the CpG and the other is
+    # that the index is the CpG location
     for pmd_tuple in pmd_list:
         i += 1
         start, end = pmd_tuple
@@ -126,6 +135,9 @@ def get_pmd_df(df, chromosome, add_pmd_index=False, pmd_file=consts.PMD_FILE):
 
         prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
 
+        if add_pmd_index:
+            df.loc[pmd_mask, "pmd_index"] = i
+
     try:
         data = df.loc[:, prev_mask]
     except Exception:
@@ -134,37 +146,25 @@ def get_pmd_df(df, chromosome, add_pmd_index=False, pmd_file=consts.PMD_FILE):
     return data
 
 
-def get_covariance_pmd_df(bedgraph_path, chromosome, add_pmd_index=False, pmd_file=consts.PMD_FILE):
-    covariance_df = files_tools.load_badgraph_to_df(bedgraph_path)
-    pmd_dict = read_pmd_dict(pmd_file)
-
-    if chromosome in pmd_dict:
-        pmd_list = pmd_dict[chromosome]
-    elif "chr%s" % chromosome in pmd_dict:
-        pmd_list = pmd_dict["chr%s" % chromosome]
-    else:
-        raise Exception("Chromosome name is invalid ")
-
-    if add_pmd_index:
-        covariance_df["pmd_index"] = np.nan
-
-    prev_mask = None
-    i = 0
-    for pmd_tuple in pmd_list:
-        i += 1
-        start, end = pmd_tuple
-        pmd_mask = np.logical_and(covariance_df.index >= start, covariance_df.index <= end)
-        prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-        if add_pmd_index:
-            covariance_df.loc[pmd_mask, "pmd_index"] = i
-
-    return covariance_df.loc[prev_mask, :]
+def convert_bedgraph_to_df_with_pmd_filter(bedgraph_path, chromosome, add_pmd_index=False,
+                                           pmd_file=consts.PMD_FILE):
+    """
+    Convert bedgraph to df with a pmd filter
+    :param bedgraph_path: The bedgraph file path
+    :param chromosome: The chromosome of this bedgraph
+    :param add_pmd_index: Should we add a pmd index to each cpg
+    :param pmd_file: The path for the pmd file dictionary
+    :return: A df of the bedgraph
+    """
+    covariance_df = files_tools.load_bedgraph(bedgraph_path)
+    return filtered_out_non_pmd(df=covariance_df, chromosome=chromosome, pmd_file=pmd_file,
+                                add_pmd_index=add_pmd_index)
 
 
 def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windows_data,
                                                     top_low_level_to_remove=TOP_LOW_PERCENTAGE_TO_REMOVE,
                                                     add_pmd_index=False, pmd_file=consts.PMD_FILE):
+    # TODO: need to doc this and maybe split , this is really messy
     patients_dict = {}
     for patient in all_files_dict:
         patients_dict[patient] = {}
@@ -181,10 +181,12 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
 
             try:
                 chromosome = str(chromosome)
-                covariance_pmd_df = get_pmd_df(dff, chromosome, add_pmd_index, pmd_file=pmd_file)
+                covariance_pmd_df = filtered_out_non_pmd(dff, chromosome, add_pmd_index=add_pmd_index,
+                                                         pmd_file=pmd_file)
             except:
                 chromosome = int(chromosome)
-                covariance_pmd_df = get_pmd_df(dff, chromosome, add_pmd_index, pmd_file=pmd_file)
+                covariance_pmd_df = filtered_out_non_pmd(dff, chromosome, add_pmd_index=add_pmd_index,
+                                                         pmd_file=pmd_file)
 
             prev_mask = None
             for pmd_tuple in windows_data:
@@ -197,24 +199,20 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
                                                          sublineage_name=covariance_to_bedgraph.ALL_CANCER)
 
             if top_low_level_to_remove != 0:
-                df = remove_low_high_coverage(df, top_low_level_to_remove)
+                df = data_tools.remove_extreme_cpgs_by_coverage(df, top_low_level_to_remove)
 
             patients_dict[patient][chromosome] = df
 
     return patients_dict
 
 
-def remove_low_high_coverage(df, top_low_level_to_remove=5):
-    cpg_coverage = np.sum(~pd.isnull(df), axis=0)
-    cpg_coverage = cpg_coverage.sort_values()
-    cpg_s = cpg_coverage.shape[0]
-    n_to_remove = int(cpg_s * top_low_level_to_remove / 100)
-
-    cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
-    return df[cpg_to_keep]  # this remove the top_low_level_to_remove lower and top
-
-
-def get_pmd_index_based_on_tuples_list(df, tuple_list):
+def add_pmd_index_to_df(df, tuple_list):
+    """
+    Get a pmd index based on the start and end in the tuple
+    :param df: A df
+    :param tuple_list: A tuple list
+    :return: The df with the pmd index
+    """
     df["pmd_index"] = np.nan
     i = 0
     for pmd_tuple in tuple_list:
@@ -226,12 +224,19 @@ def get_pmd_index_based_on_tuples_list(df, tuple_list):
     return df
 
 
-def get_pmd_index(df, chromosome, global_windows_data):
+def get_pmd_index(df, chromosome, pmd_indexes_dict):
+    """
+    Get the pmd indexes of each cpg in a data frame
+    :param df: The dataframe
+    :param chromosome: The chromosome
+    :param pmd_indexes_dict: A dictionary with with chr as keys and list of tuples representing pmd as values
+    :return: The indexes of each cpg in the df
+    """
     try:
         chromosome = str(chromosome)
-        windows_data = global_windows_data[chromosome]
+        windows_data = pmd_indexes_dict[chromosome]
     except Exception:
         chromosome = int(chromosome)
-        windows_data = global_windows_data[chromosome]
+        windows_data = pmd_indexes_dict[chromosome]
 
-    return get_pmd_index_based_on_tuples_list(df, windows_data)["pmd_index"]
+    return add_pmd_index_to_df(df, windows_data)["pmd_index"]

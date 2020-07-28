@@ -1,3 +1,5 @@
+# TODO: lior I have no idea what is happening here
+
 import argparse
 import copy
 import glob
@@ -12,7 +14,7 @@ sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from commons import files_tools
 
-CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_chr%d.dummy.pkl.zip"
+SCWGBS_FILE_FORMAT = "all_cpg_ratios_*_chr%d.dummy.pkl.zip"
 PATIENTS = ['CRC01', 'CRC13', 'CRC11']
 BEDGRAPH_FILE_FORMAT = "window_boundries.bedgraph"
 PICKLE_FILE_FORMAT = "window_boundries.dummy.pkl.zip"
@@ -54,8 +56,8 @@ def window_boundries(files):
         return []
     df = pd.read_pickle(files[0])
     num_of_cpg = df.shape[1]
-    window_size = 5000
     chr_windows = []
+    window_size = 5000
     index_advance_value = 50000
 
     for i in tqdm(range(0, num_of_cpg, index_advance_value)):
@@ -71,6 +73,7 @@ def save_windows(all_window_boundries, output_folder):
     index = []
     for key in all_window_boundries:
         index += [key for i in range(len(all_window_boundries[key]))]
+
     columns = ['start', 'end', 'val']
     df = pd.DataFrame(columns=columns, index=index)
     ind = 0
@@ -91,7 +94,7 @@ def main():
 
     for patient in PATIENTS:
         for chr in range(1, 23):
-            cpg_format_file_path = os.path.join(args.cpg_format_folder, patient, CPG_FORMAT_FILE_FORMAT % chr)
+            cpg_format_file_path = os.path.join(args.cpg_format_folder, patient, SCWGBS_FILE_FORMAT % chr)
             all_cpg_format_file_paths[chr] += glob.glob(cpg_format_file_path)
 
     all_window_boundries = {}

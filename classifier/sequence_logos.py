@@ -1,13 +1,13 @@
-from weblogo import *
-import seqlogo
-import logomaker as lm
 import argparse
 import os
 import sys
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
+
+import logomaker as lm
 import matplotlib.pyplot as plt
+import pandas as pd
+import seqlogo
+from tqdm import tqdm
+from weblogo import *
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
@@ -112,7 +112,7 @@ def plot_weblogo(seq_list):
 
 def main():
     args = parse_input()
-    sequences = files_tools.load_compressed_pickle_not_zlib(args.sequence_file)
+    sequences = files_tools.load_pickle(args.sequence_file)
 
     sequence_df = pd.DataFrame(columns=['PL_CL', 'minus_2', 'minus_1', 'plus_1', 'plus_2', 'sequence'],
                                index=range(sequences.shape[1]))

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from classifier import create_data
-from format_files.handle_pmds import get_pmd_df
+from format_files.handle_pmds import filtered_out_non_pmd
 
 plt.style.use('seaborn')
 
@@ -41,8 +41,8 @@ def crc11_vs_coad():
     crc11_data = crc11_data.to_frame(name="meth")
 
     # Only PMD
-    coad_data = get_pmd_df(coad_data, "1")
-    crc11_data = get_pmd_df(crc11_data, "1")
+    coad_data = filtered_out_non_pmd(coad_data, "1")
+    crc11_data = filtered_out_non_pmd(crc11_data, "1")
 
     coad_index = set(coad_data.index.values)
     crc11_index = set(crc11_data.index)
@@ -88,8 +88,8 @@ def crc1_vs_berman():
     crc1_data = crc1_data.to_frame(name="meth")
 
     # Only PMD
-    ben_data = get_pmd_df(ben_data, "1")
-    crc1_data = get_pmd_df(crc1_data, "1")
+    ben_data = filtered_out_non_pmd(ben_data, "1")
+    crc1_data = filtered_out_non_pmd(crc1_data, "1")
 
     ben_index = set(ben_data.index.values)
     crc1_index = set(crc1_data.index)

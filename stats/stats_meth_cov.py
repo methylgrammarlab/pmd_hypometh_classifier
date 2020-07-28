@@ -68,13 +68,14 @@ def plot_methylation_vs_covariance(input_files, covariance_dict, high_threshold=
 
     for file_path in tqdm(input_files):
         _, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
-        covariance_pmd_df = handle_pmds.get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
+        covariance_pmd_df = handle_pmds.convert_bedgraph_to_df_with_pmd_filter(covariance_dict[chromosome],
+                                                                               chromosome)
 
         covariance_pmd_df = covariance_pmd_df[covariance_pmd_df.coverage < high_threshold]
         covariance_pmd_df = covariance_pmd_df[covariance_pmd_df.coverage > low_threshold]
 
         df = pd.read_pickle(file_path)
-        pmd_df = handle_pmds.get_pmd_df(df, chromosome)
+        pmd_df = handle_pmds.filtered_out_non_pmd(df, chromosome)
         pmd_mean = pmd_df.mean(axis=0, skipna=True)
         mean_values = pmd_mean[covariance_pmd_df.index]._values
         covariance_values = covariance_pmd_df._values
@@ -98,13 +99,14 @@ def plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_thres
 
     for file_path in tqdm(input_files):
         _, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
-        covariance_pmd_df = handle_pmds.get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
+        covariance_pmd_df = handle_pmds.convert_bedgraph_to_df_with_pmd_filter(covariance_dict[chromosome],
+                                                                               chromosome)
 
         covariance_pmd_df = covariance_pmd_df[covariance_pmd_df.coverage < high_threshold]
         covariance_pmd_df = covariance_pmd_df[covariance_pmd_df.coverage > low_threshold]
 
         df = pd.read_pickle(file_path)
-        pmd_df = handle_pmds.get_pmd_df(df, chromosome)
+        pmd_df = handle_pmds.filtered_out_non_pmd(df, chromosome)
 
         nc_index = [cell_id for cell_id in pmd_df.index if cell_id.startswith('NC')]
         pt_index = [cell_id for cell_id in pmd_df.index if cell_id.startswith('PT')]
@@ -132,7 +134,8 @@ def plot_methylation_diff_vs_covariance(input_files, covariance_dict, high_thres
 def plot_covariance_hist(covariance_dict):
     covariance_list = []
     for chromosome in covariance_dict:
-        covariance_pmd_df = handle_pmds.get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
+        covariance_pmd_df = handle_pmds.convert_bedgraph_to_df_with_pmd_filter(covariance_dict[chromosome],
+                                                                               chromosome)
         covariance_list.append(covariance_pmd_df._values)
 
     data = np.concatenate(covariance_list)
@@ -150,10 +153,11 @@ def plot_cancer_covariance_vs_meth(input_files, covariance_dict, only_pmd=False)
         patient_df = pd.read_pickle(file_path)
 
         if only_pmd:
-            covariance_df = handle_pmds.get_covariance_pmd_df(covariance_dict[chromosome], chromosome)
-            patient_df = handle_pmds.get_pmd_df(patient_df, chromosome)
+            covariance_df = handle_pmds.convert_bedgraph_to_df_with_pmd_filter(covariance_dict[chromosome],
+                                                                               chromosome)
+            patient_df = handle_pmds.filtered_out_non_pmd(patient_df, chromosome)
         else:
-            covariance_df = files_tools.load_badgraph_to_df(covariance_dict[chromosome])
+            covariance_df = files_tools.load_bedgraph(covariance_dict[chromosome])
 
         cancer_samples_id = [cell_id for cell_id in patient_df.index if not cell_id.startswith('NC')]
         cancer_df = patient_df.loc[cancer_samples_id, :]

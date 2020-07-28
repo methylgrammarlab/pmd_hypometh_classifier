@@ -341,7 +341,7 @@ def main():
         weak['%d' % chr] = chr_info[chr_info[:, -2] == 1][:, 0]
         strong['%d' % chr] = chr_info[chr_info[:, -1] == 1][:, 0]
         context_info['%d' % chr] = pd.Series(chr_info[:, -3], index=chr_info[:, 0]).apply(
-            format_cpg_context_map.convert_context_int_to_chr)
+            format_cpg_context_map.convert_context_int_to_str)
         cpg75flank["%d" % chr] = chr_info[:, -7]  # todo: dror
 
     pa_cells = set([])

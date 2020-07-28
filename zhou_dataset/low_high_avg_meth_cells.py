@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import commons.data_tools
+
 plt.style.use('seaborn')
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -52,7 +54,7 @@ def get_pmd_df(chromosome_file):
     """
     chromosome = CPG_FORMAT_FILE_RE.findall(os.path.basename(chromosome_file))[0]
     df = pd.read_pickle(chromosome_file)
-    return chromosome, handle_pmds.get_pmd_df(df, chromosome)
+    return chromosome, handle_pmds.filtered_out_non_pmd(df, chromosome)
 
 
 def get_cpgs_orig_methylated(df, cells_to_use):
@@ -96,7 +98,7 @@ def main():
         df = pmd_df.filter(items=variance_cells, axis=0)
         df = df.loc[:, cpgs_methylated]  # Leave only methylated cells
 
-        df = handle_pmds.remove_low_high_coverage(df)  # remove the top and low 5 percentage
+        df = commons.data_tools.remove_extreme_cpgs_by_coverage(df)  # remove the top and low 5 percentage
 
         for row in df.index.values:
             if row not in rows_dict:

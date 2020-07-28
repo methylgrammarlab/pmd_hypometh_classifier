@@ -140,7 +140,8 @@ def main2():
         windows_data = global_windows_data[int(chromosome)]
         for file_path in all_files_dict[chromosome]:
             patient, _ = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
-            covariance_pmd_df = handle_pmds.get_covariance_pmd_df(file_path, chromosome, True)
+            covariance_pmd_df = handle_pmds.convert_bedgraph_to_df_with_pmd_filter(file_path, chromosome,
+                                                                                   True)
 
             prev_mask = None
             for pmd_tuple in windows_data:

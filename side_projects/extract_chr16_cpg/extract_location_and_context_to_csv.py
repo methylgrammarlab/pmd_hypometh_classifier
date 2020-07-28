@@ -1,3 +1,7 @@
+"""
+Extract information about chr16 for several patients for ben
+"""
+
 import pandas as pd
 
 crc01_path = r"H:\Study\university\Computational-Biology\Year " \

@@ -397,7 +397,7 @@ def main():
         patient, chromosome = CPG_FORMAT_FILE_RE.findall(file_path)[0]
 
         df = pd.read_pickle(file_path)
-        pmd_df = handle_pmds.get_pmd_df(df, chromosome)
+        pmd_df = handle_pmds.filtered_out_non_pmd(df, chromosome)
         # collect_data_global(pmd_df, pmd_context_map[chromosome], patient, chromosome)
         # collect_data_solo(pmd_df, pmd_context_map[chromosome], patient, chromosome)
         # collect_data_not_solo(pmd_df, pmd_context_map[chromosome], patient, chromosome)

@@ -1,17 +1,22 @@
+"""
+Some tools to run code on slurm and get good logging
+this is internal for our use
+"""
+
 import datetime
 import glob
 import os
-import re
 import sys
 
-CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
+sys.path.append(os.path.dirname(os.getcwd()))
+sys.path.append(os.getcwd())
+from commons import consts
 
 
 def init_slurm(func):
     """
     Some simple prints when running code in slurm
-    :param func:
-    :return:
+    :param func: The function to run
     """
     print("Run the script: %s" % " ".join(sys.argv))
     start_time = datetime.datetime.now()
@@ -28,6 +33,10 @@ def init_slurm(func):
 
 
 def create_sbatch():
+    """
+    Create sbatch code template, not sure it's still working
+    :return:
+    """
     code = """#!/bin/bash
     #SBATCH --output=/cs/usr/drordod/Desktop/project/proj_scwgbs/output/coverage_between_pairs_%s.out
     #SBATCH --error=/cs/usr/drordod/Desktop/project/proj_scwgbs/output/coverage_between_pairs_%s.err
@@ -45,7 +54,7 @@ def create_sbatch():
     names = []
 
     for cpg_format_file in all_files:
-        patient, chromosome = CPG_FORMAT_FILE_RE.findall(cpg_format_file)[0]
+        patient, chromosome = consts.DATA_FILE_SCWGBS_RE.findall(cpg_format_file)[0]
         label = "%s_%s" % (patient, chromosome)
         names.append("%s.sbatch" % label)
         output_f = os.path.join(output_path, "%s.sbatch" % (label))

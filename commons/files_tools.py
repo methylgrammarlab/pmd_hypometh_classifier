@@ -1,3 +1,7 @@
+"""
+A set of common useful functions to do data manipulations
+"""
+
 import glob
 import os
 import pickle
@@ -8,11 +12,10 @@ import zlib
 import pandas as pd
 
 sys.path.append(os.path.dirname(os.getcwd()))
-import commons.consts as consts
+sys.path.append(os.getcwd())
+from commons import consts
 
-COLUMNS = ["read_number", "counter"]
-
-chr_dict = {}
+context_map = {}
 
 
 def save_as_compressed_pickle(output_file, data):
@@ -42,38 +45,54 @@ def load_compressed_pickle(file_path):
         return formatted_data
 
 
-def load_compressed_pickle_not_zlib(file_path):
+def load_pickle(file_path):
     """
-    Load a file, decompress it and load the data as if it was pickled
-    The way to read data which was saved with the `save_as_compressed_pickle` function
+    Load a pickle file based on a path
     :param file_path: The path of the file to upload
     :type file_path: str
     :return: The data
     """
     with open(file_path, "rb") as data_file:
-        data = data_file.read()
-        formatted_data = pickle.loads(data)
+        return pickle.load(data_file)
 
-        return formatted_data
 
+def save_pickle(file_path, data):
+    """
+    Save pickle data
+    :param file_path: The path to save
+    :param data: The data to save
+    """
+    with open(file_path, "wb") as f:
+        pickle.dump(data, f)
 
 def get_cpg_context_map(only_locations=False, load_with_path=consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI):
     """
-    Get a dictionary of chr name (number) and a list of all the locations of CpG
-    @:param only_locations: If true only give the locations of cpg
+    Get a dictionary of chr name (chr16 style) and the indexs of all cpgs based on the context map file
+    If only_location=False we only get a np.array of the locations, if it's true we get the entire
+    informaiton we have about each location: CpGX density for several lengths, weak or strong,
+    context flanking
+    :param only_locations: If true only give the locations of cpg
+    :param load_with_path: The path to the context map file
+    :rtype: dict
     """
-    if chr_dict != {} and consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI == load_with_path:
-        return chr_dict
+    if context_map != {} and consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI == load_with_path:
+        return context_map
 
     all_files = glob.glob(os.path.join(load_with_path, "*.pickle.zlib"))
     for f in all_files:
         chr_name = re.findall("chr\d+", os.path.basename(f))[0]
         data = load_compressed_pickle(f)
-        chr_dict["%s" % chr_name] = data[:, 0] if only_locations else data
+        context_map["%s" % chr_name] = data[:, 0] if only_locations else data
 
-    return chr_dict
+    return context_map
 
 
-def load_badgraph_to_df(bedgraph_path):
+def load_bedgraph(bedgraph_path):
+    """
+    Load a bedgraph file to a data frame
+    :param bedgraph_path: The path for the bedgraph file
+    :return: A data frame of representing the bedgraph
+    :rtype: pd.DataFrame
+    """
     return pd.read_csv(bedgraph_path, sep="\t", names=["chr", "start", "end", "coverage"],
                        usecols=["start", "coverage"], index_col="start")

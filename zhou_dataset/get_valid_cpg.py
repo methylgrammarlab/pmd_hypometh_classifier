@@ -7,6 +7,8 @@ import sys
 
 import pandas as pd
 
+import commons.data_tools
+
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
@@ -78,7 +80,7 @@ def get_pmd_df(chromosome_file):
     """
     chromosome = CPG_FORMAT_FILE_RE.findall(os.path.basename(chromosome_file))[0]
     df = pd.read_pickle(chromosome_file)
-    return chromosome, handle_pmds.get_pmd_df(df, chromosome)
+    return chromosome, handle_pmds.filtered_out_non_pmd(df, chromosome)
 
 
 def get_cpgs_orig_methylated(df, cells_to_use):
@@ -114,7 +116,7 @@ def main():
     nc_cells = list(cells_info_data[cells_info_data[NC_CELLS_COLUMN] == 1][CELL_NAME_COLUMN])
     nc_cells = [i.strip() for i in nc_cells]
     variance_cells = get_variance_cells_to_use(args.cells_avg_meth)
-    pmd_data = handle_pmds.read_pmd_dict()
+    pmd_data = handle_pmds.get_pmd_dict()
 
     df_list = []
     for chromosome_file in tqdm.tqdm(all_files):
@@ -123,7 +125,7 @@ def main():
         df = pmd_df.filter(items=variance_cells, axis=0)
         df = df.loc[:, cpgs_methylated]  # Leave only methylated cells
 
-        df = handle_pmds.remove_low_high_coverage(df)  # remove the top and low 5 percentage
+        df = commons.data_tools.remove_extreme_cpgs_by_coverage(df)  # remove the top and low 5 percentage
         # Note: we didn't removed CpG with less then 5 samples in low or high like we did in the scWGBS but
         #  we checked that we don't have CpG like this
 
@@ -132,7 +134,7 @@ def main():
         chromosome_df["chromosome"] = chromosome
         chromosome_df = chromosome_df.set_index("location")
 
-        chromosome_df = handle_pmds.get_pmd_index_based_on_tuples_list(chromosome_df, pmd_data[chromosome])
+        chromosome_df = handle_pmds.add_pmd_index_to_df(chromosome_df, pmd_data[chromosome])
         chromosome_df["meth"] = df.mean()
         chromosome_df["var"] = df.var()
 

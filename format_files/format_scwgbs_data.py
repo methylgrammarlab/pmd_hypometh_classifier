@@ -1,27 +1,31 @@
+"""
+Format the scwgbs data (txt files) to a pandas data frames where each file contains one chromosome for one
+patient
+"""
+
 import argparse
 import glob
 import os
 import re
 import sys
 
-from tqdm import tqdm
-
-sys.path.append(os.path.dirname(os.getcwd()))
-
 import numpy as np
 import pandas
+from tqdm import tqdm
 
-import commons.files_tools as tools
+sys.path.append(os.getcwd())
+sys.path.append(os.path.dirname(os.getcwd()))
+from commons import files_tools as tools
 
-OUTPUT_FILE_FORMAT = "%s_%s_%s_%s.pickle.zlib"
+OUTPUT_FILE_FORMAT = "{patient}_{cell}_{num}_{chromosome}_hg19.pickle.zlib"
 
 # The format of the input files and the way to extract data from them
-FILE_SUFFIX = "*.singleC.cpg.txt"
-FILE_DETAILS_RE = re.compile(".+(CRC\d+)_(\w+)_(\d+).singleC.cpg")
+SCWGBS_FILE_RE = "*.singleC.cpg.txt"
+SCWGBS_FILENAME_DETAILS_RE = re.compile(".+(CRC\d+)_(\w+)_(\d+).singleC.cpg")
 
 # Indexes match the single cell columns in the file
 CHR_INDEX = 0
-POS_INDEX = 1
+START_INDEX = 1
 STRAND_INDEX = 3
 TOTAL_INDEX = 4
 MET_INDEX = 5
@@ -30,7 +34,8 @@ MET_INDEX = 5
 def format_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--raw', help='Path to raw files of scWGBS', required=True)
-    parser.add_argument('--output_folder', help='Path of the output folder', required=False)
+    parser.add_argument('--output_folder', help='Path of the output folder', required=False,
+                        default=os.path.dirname(sys.argv[0]))
     parser.add_argument('--patient', help='Name of the patient, all if not provided', required=False)
     parser.add_argument('--validate', help='Just validate the information', required=False,
                         action='store_true', default=False)
@@ -38,12 +43,9 @@ def format_args():
     args = parser.parse_args()
 
     output = args.output_folder
-    if not output:
-        output = os.path.dirname(sys.argv[0])
-
-    files_path = os.path.join(args.raw, FILE_SUFFIX)
+    files_path = os.path.join(args.raw, SCWGBS_FILE_RE)
     if args.patient:
-        files_path = os.path.join(args.raw, "*%s" % args.patient + FILE_SUFFIX)
+        files_path = os.path.join(args.raw, "*%s" % args.patient + SCWGBS_FILE_RE)
 
     return output, files_path, args.validate, args.sort
 
@@ -86,6 +88,7 @@ def extract_cols(file_path):
 def combine_strands(chr_dict):
     """
     Combine the information from the + strand with the information from the - strand
+    Note: this is really slow
     :param chr_dict: A dict where each key is chr and the value is a list where each value is a line in the
     file
     :type chr_dict: dict
@@ -118,7 +121,7 @@ def combine_strands(chr_dict):
 
 def get_patients_files_dict(files_path):
     """
-    Get all the files and save them by the patient
+    Get all the files and save them in a dictionary by the patient
     :param files_path: The path of the files to read
     :type files_path: str
     :return: A dict where each key is a patient and the values is a list of pathes
@@ -127,7 +130,7 @@ def get_patients_files_dict(files_path):
     all_file_paths = glob.glob(files_path)
     patient_dict = {}
     for file_path in all_file_paths:
-        name, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
+        name, cell, num = SCWGBS_FILENAME_DETAILS_RE.findall(file_path)[0]
         if name not in patient_dict:
             patient_dict[name] = []
 
@@ -136,29 +139,33 @@ def get_patients_files_dict(files_path):
     return patient_dict
 
 
-def validate_only(output, patient_dict):
-    log_file = open("log_file.txt", "w")
-    for patient in patient_dict:
-        for file_path in patient_dict[patient]:
-            patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
-            chr_dict = extract_cols(file_path)
-
-            for chr in chr_dict:
-                file_name = OUTPUT_FILE_FORMAT % (patient, cell, num, chr)
-                output_path = os.path.join(output, patient, file_name)
-                if not os.path.exists(output_path):
-                    log_file.write("%s,%s\n" % (patient, file_path))
-                    break
-
-    log_file.close()
-
-
-def re_sort_files(output):
+def validate_only(files_to_validate_folder, patient_dict):
     """
-    Needed this to resort the data, first version wasn't sort
-    :param output: The folder of all the files - expected to have the following tree; output\patient\all_files
+    Validate that we have all the files
+    :param files_to_validate_folder: path to the folder which should contain all the files
+    :param patient_dict: A dictionary with all the original files files
     """
-    all_files_path = os.path.join(output, "*", "*.pickle.zlib")
+    with open("log_file.txt", "w") as log_file:
+        for patient in patient_dict:
+            for file_path in patient_dict[patient]:
+                patient, cell, num = SCWGBS_FILENAME_DETAILS_RE.findall(file_path)[0]
+                chr_dict = extract_cols(file_path)
+
+                for chromosome in chr_dict:
+                    file_name = OUTPUT_FILE_FORMAT.format(**{"patient": patient, "cell": cell, "num": num,
+                                                             "chromosome": chromosome})
+                    output_path = os.path.join(files_to_validate_folder, patient, file_name)
+                    if not os.path.exists(output_path):
+                        log_file.write("%s,%s\n" % (patient, file_path))
+                        break
+
+
+def re_sort_files(output_files_folder):
+    """
+    Needed this to re-sort the data, first version wasn't sort
+    :param output_files_folder: The folder of all the files - expected to have the following tree; output\patient\all_files
+    """
+    all_files_path = os.path.join(output_files_folder, "*", "*.pickle.zlib")
     all_files = glob.glob(all_files_path)
     for file_path in all_files:
         data = tools.load_compressed_pickle(file_path)
@@ -182,18 +189,25 @@ def main():
             pbar.set_description("Patients")
             fbar = tqdm(patient_dict[patient])
             for file_path in patient_dict[patient]:
-                patient, cell, num = FILE_DETAILS_RE.findall(file_path)[0]
+                patient, cell, num = SCWGBS_FILENAME_DETAILS_RE.findall(file_path)[0]
                 fbar.set_description("Files")
 
-                # Check if one of the files exists, if yes more to parse other files
-                if os.path.exists(os.path.join(output, OUTPUT_FILE_FORMAT % (patient, cell, num, "chr16"))):
+                # Skip files already parsed
+                if os.path.exists(os.path.join(output, patient,
+                                               OUTPUT_FILE_FORMAT % (patient, cell, num, "chr16"))):
                     continue
 
                 chr_dict = format_scwgbs_file(file_path)
 
+                # Save a file for each chromosome
                 for chr in chr_dict:
                     file_name = OUTPUT_FILE_FORMAT % (patient, cell, num, chr)
-                    output_path = os.path.join(output, file_name)
+
+                    output_folder = os.path.join(output, patient)
+                    if not os.path.exists(output_folder):
+                        os.mkdir(output_folder)
+
+                    output_path = os.path.join(output_folder, file_name)
                     tools.save_as_compressed_pickle(output_path, chr_dict[chr])
 
 

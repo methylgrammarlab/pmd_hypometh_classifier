@@ -1,20 +1,25 @@
+"""
+Remove CpG from a dataframe which match some kind of blacklist of CpG island file
+We used blacklist file: hg19-blacklist.v2.bed
+We used CpG island file: Irizarry2009-model-based-cpg-islands-hg19.bed
+"""
+
 import argparse
 import glob
 import os
-import re
 import sys
 
 import pandas as pd
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
+sys.path.append(os.getcwd())
 import commons.files_tools as tools
+from commons import consts
 
 CPGI_CHR_INDEX = 0
 CPGI_START_INDEX = 1
 CPGI_END_INDEX = 2
-CPG_FORMAT_FILE_SC_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
-CPG_FORMAT_FILE_BULK_RE = re.compile(".+_(chr\d+)_hg19.dummy.pkl.zip")
 
 
 def format_args():
@@ -26,14 +31,7 @@ def format_args():
     args = parser.parse_args()
 
     input_files = args.files
-    if not os.path.exists(input_files):
-        print("Couldn't find the input path")
-        sys.exit(-1)
-
     output_folder = args.output_folder
-    if not os.path.exists(output_folder):
-        print("Couldn't find the output path")
-        sys.exit(-1)
 
     boundaries_paths = []
     blacklist_path = args.blacklist
@@ -54,14 +52,63 @@ def format_args():
     return input_files, output_folder, boundaries_paths
 
 
-def skim_cpg(files, boundaries_paths, output_folder, cpg_format_file_re=CPG_FORMAT_FILE_SC_RE):
+def skim_cpg(cpg_files_to_filter, boundaries_paths, output_folder, data_file_re):
+    """
+    Skim the cpg in all the files based on the boundaries paths
+    :param cpg_files_to_filter: The files to work on
+    :param boundaries_paths: list of boundaries files 
+    :param output_folder: The output folder 
+    :param data_file_re: The regex for the cpg files 
+    """
+    all_cpg_locations = tools.get_cpg_context_map(only_locations=True)
+
     # Get a mapping of chr and sites to remove
+    cpg_boundaries_dict = get_boundaries(boundaries_paths)
+    cpg_locations_mask = get_valid_location_per_chr(all_cpg_locations, cpg_boundaries_dict)
+
+    for cpg_format_file in tqdm(cpg_files_to_filter):
+        df = pd.read_pickle(cpg_format_file)
+
+        if data_file_re == consts.DATA_FILE_SCWGBS_RE:
+            patient, chromosome = data_file_re.findall(cpg_format_file)[0]
+            output_path = get_output_path_for_crc(cpg_format_file, output_folder)
+
+        else:
+            chromosome = data_file_re.findall(cpg_format_file)[0]
+            output_path = os.path.join(output_folder, os.path.basename(cpg_format_file))
+
+        mask = cpg_locations_mask[chromosome]
+        pd.to_pickle(df[mask], output_path)
+
+
+def get_valid_location_per_chr(all_cpg_locations, cpg_boundaries_dict):
+    """
+    Get valid location per chromosome
+    :param all_cpg_locations: All the cpg we want to look at
+    :param cpg_boundaries_dict: The CpG boundaries dict
+    :return: A dict of all valid locations after removing the boundaries
+    """
     cpg_locations_mask = {}
+    # Remove locations based on the boundaries
+    for chromosome in tqdm(all_cpg_locations):
+        chr_location = all_cpg_locations[chromosome]
+        for boundary in cpg_boundaries_dict[chromosome]:
+            chr_location = chr_location[(chr_location < boundary[0]) | (chr_location > boundary[1])]
+
+        cpg_locations_mask[chromosome] = chr_location
+    return cpg_locations_mask
+
+
+def get_boundaries(boundaries_file_paths):
+    """
+    Get the boundaries indexes from teh files
+    :param boundaries_file_paths: List with paths of the boundaries files
+    :return: The dict with information per chromsome about the boundaries
+    """
     cpgi_boundaries_dict = {}
-    for boundaries_path in boundaries_paths:
+    for boundaries_path in boundaries_file_paths:
         with open(boundaries_path, "r") as boundaries_file:
-            for line in tqdm(boundaries_file.readlines(),
-                             desc="CpGI file: %s" % os.path.basename(boundaries_path)):
+            for line in tqdm(boundaries_file.readlines()):
                 s_line = line.split()
                 chr = s_line[CPGI_CHR_INDEX]
                 start = int(s_line[CPGI_START_INDEX])
@@ -71,27 +118,7 @@ def skim_cpg(files, boundaries_paths, output_folder, cpg_format_file_re=CPG_FORM
                     cpgi_boundaries_dict[chr] = []
 
                 cpgi_boundaries_dict[chr].append((start, end))
-
-    all_cpg_locations = tools.get_cpg_context_map(only_locations=True)
-    for chromosome in tqdm(all_cpg_locations, desc="CpGI create chr mask"):
-        chr_location = all_cpg_locations[chromosome]
-        for boundary in cpgi_boundaries_dict[chromosome]:
-            chr_location = chr_location[(chr_location < boundary[0]) | (chr_location > boundary[1])]
-
-        cpg_locations_mask[chromosome] = chr_location
-
-    for cpg_format_file in tqdm(files, desc="CpGI convert"):
-        df = pd.read_pickle(cpg_format_file)
-
-        if cpg_format_file_re == CPG_FORMAT_FILE_SC_RE:
-            patient, chromosome = cpg_format_file_re.findall(cpg_format_file)[0]
-            output_path = get_output_path_for_crc(cpg_format_file, output_folder)
-        else:
-            chromosome = cpg_format_file_re.findall(cpg_format_file)[0]
-            output_path = os.path.join(output_folder, os.path.basename(cpg_format_file))
-
-        mask = cpg_locations_mask[chromosome]
-        pd.to_pickle(df[mask], output_path)
+    return cpgi_boundaries_dict
 
 
 def get_output_path_for_crc(cpg_format_file, output_folder):
@@ -106,7 +133,8 @@ def convert_sc_files():
     input_files, output_folder, boundaries_paths = format_args()
 
     all_cpg_format_file_paths = glob.glob(os.path.join(input_files, "CRC*", "*.dummy.pkl.zip"))
-    skim_cpg(all_cpg_format_file_paths, boundaries_paths, output_folder)
+    skim_cpg(all_cpg_format_file_paths, boundaries_paths, output_folder,
+             data_file_re=consts.DATA_FILE_SCWGBS_RE)
 
 
 def convert_bulk_files():
@@ -114,7 +142,7 @@ def convert_bulk_files():
 
     all_cpg_format_file_paths = glob.glob(os.path.join(input_files, "*.dummy.pkl.zip"))
     skim_cpg(all_cpg_format_file_paths, boundaries_paths, output_folder,
-             cpg_format_file_re=CPG_FORMAT_FILE_BULK_RE)
+             data_file_re=consts.DATA_FILE_BULK_RE)
 
 
 if __name__ == '__main__':
