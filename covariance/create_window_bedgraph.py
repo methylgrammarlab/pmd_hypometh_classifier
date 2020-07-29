@@ -1,12 +1,11 @@
 """
-Convert a covariance bedgraph file which contains information per position to a bedgraph with the same
-value per window
+Read a bedgraph file and with information per positions and a window based file and create 2 files:
+1. bedgraph file with the values normalized based on the values we have in this bedgraph
+2. bedgraph file with the median of each window for all positions in this window
 """
 
 import argparse
-import glob
 import os
-import re
 import sys
 
 import numpy as np
@@ -15,25 +14,11 @@ from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from commons import files_tools
-
-CSV_FILE = "common_cpg_in_cov_matrix_%s_chr_%s_region_%s.csv"
+from commons import files_tools, consts
 
 BEDGRPH_FILE_FORMAT = "*.bedgraph"
-BEDGRPAH_FORMAT_FILE_RE = re.compile(".*(CRC\d+)_chr_(\d+).*")
-OUTPUT_FILE_FORMAT = "smooth_%s_chr%s_window_%s.bedgraph"
-OUTPUT_FILE_FORMAT_NORM = "norm_smooth_%s_chr%s_window_%s.bedgraph"
-
-
-def get_files_to_work(files):
-    if os.path.isdir(files):
-        file_path = os.path.join(files, BEDGRPH_FILE_FORMAT)
-        all_file_paths = glob.glob(file_path)
-
-    else:
-        all_file_paths = [files]
-
-    return all_file_paths
+SMOOTH_OUTPUT = "smooth_%s_%s_window_%s.bedgraph"
+NORMED_OUTPUT = "norm_smooth_%s_%s_window_%s.bedgraph"
 
 
 def parse_input():
@@ -49,24 +34,25 @@ def parse_input():
     return args
 
 
-def create_window_bedgraph(file_path, output_folder, window_size, window_boundries_path):
-    patient, chromosome = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
-    output_path = os.path.join(output_folder, "smooth", OUTPUT_FILE_FORMAT % (patient, chromosome,
-                                                                              window_size))
-    output_path_norm = os.path.join(output_folder, "norm", OUTPUT_FILE_FORMAT_NORM % (patient, chromosome,
-                                                                                      window_size))
+def create_window_bedgraph(bedgraph_path, output_folder, window_size, window_boundaries_path):
+    """
+    Read a bedgraph file and with information per positions and a window based file and create 2 files:
+    1. bedgraph file with the values normalized based on the values we have in this bedgraph
+    2. bedgraph file with the median of each window for all positions in this window
+    :param bedgraph_path: The path for the bedgraph file
+    :param output_folder: The output folder path
+    :param window_size: The window size
+    :param window_boundaries_path: The boundaries of the windows
+    """
+    patient, chromosome = consts.PATIENT_CHR_NAME_RE.findall(bedgraph_path)[0]
 
-    if not os.path.exists(os.path.dirname(output_path)):
-        os.mkdir(os.path.dirname(output_path))
+    output_path = os.path.join(output_folder, "smooth", SMOOTH_OUTPUT % (patient, chromosome, window_size))
+    output_path_norm = os.path.join(output_folder, "norm", NORMED_OUTPUT % (patient, chromosome, window_size))
 
-    if not os.path.exists(os.path.dirname(output_path_norm)):
-        os.mkdir(os.path.dirname(output_path_norm))
+    input_file = pd.read_csv(bedgraph_path, sep="\t", header=None, names=["chr", "start", "end", "cov"])
+    window_boundaries = files_tools.load_compressed_pickle(window_boundaries_path)
 
-    input_file = pd.read_csv(file_path, sep="\t", header=None, names=["chr", "start", "end", "cov"])
-    number_of_lines = input_file.shape[0]
-    window_boundries = files_tools.load_compressed_pickle(window_boundries_path)
-
-    for tup in window_boundries[int(chromosome)]:
+    for tup in window_boundaries[chromosome]:
         indices = np.logical_and(tup[0] <= input_file.start, input_file.start <= tup[1])
         window = input_file[indices]
         window_value = window["cov"].median()
@@ -82,7 +68,14 @@ def create_window_bedgraph(file_path, output_folder, window_size, window_boundri
 def main():
     args = parse_input()
 
-    all_file_paths = get_files_to_work(args.input)
+    all_file_paths = files_tools.get_files_to_work(args.input, pattern=BEDGRPH_FILE_FORMAT)
+
+    smooth_path = os.path.join(args.output_folder, "smooth")
+    norm_path = os.path.join(args.output_folder, "norm")
+    if not os.path.exists(smooth_path):
+        os.mkdir(smooth_path)
+    if not os.path.exists(norm_path):
+        os.mkdir(norm_path)
 
     for file_path in tqdm(all_file_paths):
         create_window_bedgraph(file_path, args.output_folder, args.window_size, args.window_boundaries)

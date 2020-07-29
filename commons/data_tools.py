@@ -8,9 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
-
-
 
 def counter_to_csv(counter, output_path, columns=["read_number", "counter"]):
     """
@@ -125,10 +122,3 @@ def remove_extreme_cpgs_by_coverage(df, top_low_level_to_remove=5):
     return df[cpg_to_keep]  # this remove the top_low_level_to_remove lower and top
 
 
-def get_reverse_seq(sequences):
-    """
-    Return a list of reverse strand sequences
-    :param sequences: some kind of iter with the strands to reverse
-    :return: A list with the reverse strand
-    """
-    return [s.translate(TRANSLATION_TABLE)[::-1] for s in sequences]

@@ -13,13 +13,15 @@ import warnings
 import numpy as np
 import pandas as pd
 
+import commons.sequence_utils
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from commons import data_tools, files_tools
+from commons import files_tools
 
-# scWGBS 
+# scWGBS
 TRAIN_PATIENT = ["CRC01", "CRC11"]
 TEST_PATIENT = ["CRC10", "CRC13"]
 
@@ -106,7 +108,7 @@ def double_with_reverse_strand(df):
     :param df: The data frame
     :return: A new data frame with the reverse strand
     """
-    reversed_seq = data_tools.get_reverse_seq(df["sequence"])
+    reversed_seq = commons.sequence_utils.get_reverse_seq(df["sequence"])
     df_reverse = df.copy()
     df_reverse["sequence"] = reversed_seq
     df["data_type"] = "original"

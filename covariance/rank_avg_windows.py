@@ -1,7 +1,11 @@
+"""
+Take different bedgraph files which represent windows which were normalized ( so one value per window) and
+rank them across patient to see if they match
+"""
+
 import argparse
 import glob
 import os
-import re
 import sys
 
 import numpy as np
@@ -10,23 +14,9 @@ from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from commons import files_tools
-
-CSV_FILE = "common_cpg_in_cov_matrix_%s_chr_%s_region_%s.csv"
+from commons import files_tools, consts
 
 BEDGRPH_FILE_FORMAT = os.path.join("*", "norm", "*.bedgraph")
-BEDGRPAH_FORMAT_FILE_RE = re.compile(".*(CRC\d+)_chr(\d+).*")
-
-
-def get_files_to_work(files):
-    if os.path.isdir(files):
-        file_path = os.path.join(files, BEDGRPH_FILE_FORMAT)
-        all_file_paths = glob.glob(file_path)
-
-    else:
-        all_file_paths = [files]
-
-    return all_file_paths
 
 
 def parse_input():
@@ -40,56 +30,67 @@ def parse_input():
     return args
 
 
-def get_files_in_dict(all_file_paths):
-    d = {}
-    for file_path in all_file_paths:
-        try:
-            patient, chromosome = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
-        except:
-            continue
+def get_bedgraph_files(input_path):
+    """
+    Get a list of all the bedgraph files to work on
+    :param input_path: A dir path or file path of bedgraph
+    :return: A list of all the paths to work on
+    """
+    if os.path.isdir(input_path):
+        file_path = os.path.join(input_path, BEDGRPH_FILE_FORMAT)
+        all_file_paths = glob.glob(file_path)
 
-        if chromosome not in d:
-            d[chromosome] = []
+    else:
+        all_file_paths = [input_path]
 
-        d[chromosome].append(file_path)
-
-    return d
+    return all_file_paths
 
 
-def rank_covariance_across_patients(files_paths, window_boundries):
+def rank_covariance_across_patients(files_paths, window_boundaries):
+    """
+    Get the covariance of a window and rank the different windows
+    We base this on the fact that this is the normed bedgraph, so each window has only one value or nan
+    :param files_paths: A list of paths to work on
+    :param window_boundaries: The boundaries for the chromosome
+    :return:
+    """
     patients_dict = {}
     for file_path in files_paths:
-        patient, chromosome = BEDGRPAH_FORMAT_FILE_RE.findall(file_path)[0]
+        patient, chromosome = consts.PATIENT_CHR_NAME_RE.findall(file_path)[0]
         input_file = pd.read_csv(file_path, sep="\t", header=None, names=["chr", "start", "end", "cov"])
         values = []
-        for i in window_boundries:
+
+        for i in window_boundaries:
             try:
                 value = float(input_file[input_file.start == i[0]]["cov"])
-            except TypeError:  # Will happened if we had nans in this window
+            except TypeError:  # Will happened if we have all nans nans in this window
                 value = -1
+
             values.append(value)
 
         patients_dict[patient] = pd.Series(values).rank(method="min")
 
+    # Chose the first patient to be the baseline
     baseline_patient_name = list(patients_dict.keys())[0]
     baselines_p = np.copy(patients_dict[baseline_patient_name])
 
     for patient in patients_dict:
         patients_dict[patient] = [x for _, x in sorted(zip(baselines_p, patients_dict[patient]))]
 
-    df = pd.DataFrame(patients_dict)
-    df.to_csv("ch%s.csv" % chromosome)
+    return pd.DataFrame(patients_dict)
+
 
 
 def main():
     args = parse_input()
 
-    all_file_paths = get_files_to_work(args.input)
-    all_files_dict = get_files_in_dict(all_file_paths)
-    window_boundries = files_tools.load_compressed_pickle(args.window_boundaries)
+    all_file_paths = get_bedgraph_files(args.input)
+    all_files_dict = files_tools.convert_paths_list_to_chromosome_based_dict(all_file_paths)
+    window_boundaries = files_tools.load_compressed_pickle(args.window_boundaries)
 
-    for ch in tqdm(all_files_dict):
-        rank_covariance_across_patients(all_files_dict[ch], window_boundries[int(ch)])
+    for chromosome in tqdm(all_files_dict):
+        df = rank_covariance_across_patients(all_files_dict[chromosome], window_boundaries[int(chromosome)])
+        df.to_csv(os.path.join(args.output_folder, "covariance_rank_ch%s.csv" % chromosome))
 
 
 if __name__ == '__main__':

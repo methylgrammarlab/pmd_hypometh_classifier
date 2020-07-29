@@ -109,25 +109,30 @@ def filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE, add_pmd_index
     """
     pmd_dict = get_pmd_dict(pmd_file)
 
-    # Try getting the chromosome from the pmd dict, support chr16 or just 16
-    if chromosome in pmd_dict:
-        pmd_list = pmd_dict[chromosome]
-    elif "chr%s" % chromosome in pmd_dict:
-        pmd_list = pmd_dict["chr%s" % chromosome]
-    else:
-        raise Exception("Chromosome name is invalid ")
+    pmd_list = pmd_dict[chromosome]
+    return filter_df_based_on_tuple_list(df=df, boundaries_list=pmd_list, add_index=add_pmd_index)
 
-    if add_pmd_index:
-        df["pmd_index"] = np.nan
 
+def filter_df_based_on_tuple_list(df, boundaries_list, add_index=False, add_index_name="pmd_index"):
+    """
+    Filter out a df to only contains indexes which included in the tuple list
+    :param df: The df to work with
+    :param boundaries_list: A tuple list with boundaries, each tuple is (start,end)
+    :param add_index: should we add index of each tuple
+    :param add_index_name: The name of the index column we should add
+    :return: The df filtered out and maybe with index
+    """
     prev_mask = None
     i = 0
 
+    if add_index:
+        df[add_index_name] = np.nan
+
     # Trying to support two ways of working with df - one is where the columns is the CpG and the other is
     # that the index is the CpG location
-    for pmd_tuple in pmd_list:
+    for boundary in boundaries_list:
         i += 1
-        start, end = pmd_tuple
+        start, end = boundary
         try:
             pmd_mask = (df.columns >= start) & (df.columns <= end)
         except Exception:
@@ -135,15 +140,36 @@ def filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE, add_pmd_index
 
         prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
 
-        if add_pmd_index:
-            df.loc[pmd_mask, "pmd_index"] = i
+        if add_index:
+            df.loc[pmd_mask, add_index_name] = i
 
     try:
-        data = df.loc[:, prev_mask]
+        filtered_df = df.loc[:, prev_mask]
     except Exception:
-        data = df.loc[prev_mask, :]
+        filtered_df = df.loc[prev_mask, :]
 
-    return data
+    return filtered_df
+
+
+def get_pmd_index(df, chromosome, pmd_indexes_dict):
+    """
+    Get the pmd indexes of each cpg in a data frame
+    :param df: The dataframe
+    :param chromosome: The chromosome
+    :param pmd_indexes_dict: A dictionary with with chr as keys and list of tuples representing pmd as values
+    :return: The indexes of each cpg in the df
+    """
+    # TODO: do we even need it ?
+    try:
+        chromosome = str(chromosome)
+        windows_data = pmd_indexes_dict[chromosome]
+    except Exception:
+        chromosome = int(chromosome)
+        windows_data = pmd_indexes_dict[chromosome]
+
+    return filter_df_based_on_tuple_list(df, windows_data, add_index=True)["pmd_index"]
+
+
 
 
 def convert_bedgraph_to_df_with_pmd_filter(bedgraph_path, chromosome, add_pmd_index=False,
@@ -205,38 +231,3 @@ def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windo
 
     return patients_dict
 
-
-def add_pmd_index_to_df(df, tuple_list):
-    """
-    Get a pmd index based on the start and end in the tuple
-    :param df: A df
-    :param tuple_list: A tuple list
-    :return: The df with the pmd index
-    """
-    df["pmd_index"] = np.nan
-    i = 0
-    for pmd_tuple in tuple_list:
-        i += 1
-        start, end = pmd_tuple
-        pmd_mask = (df.index >= start) & (df.index <= end)
-        df.loc[pmd_mask, "pmd_index"] = i
-
-    return df
-
-
-def get_pmd_index(df, chromosome, pmd_indexes_dict):
-    """
-    Get the pmd indexes of each cpg in a data frame
-    :param df: The dataframe
-    :param chromosome: The chromosome
-    :param pmd_indexes_dict: A dictionary with with chr as keys and list of tuples representing pmd as values
-    :return: The indexes of each cpg in the df
-    """
-    try:
-        chromosome = str(chromosome)
-        windows_data = pmd_indexes_dict[chromosome]
-    except Exception:
-        chromosome = int(chromosome)
-        windows_data = pmd_indexes_dict[chromosome]
-
-    return add_pmd_index_to_df(df, windows_data)["pmd_index"]

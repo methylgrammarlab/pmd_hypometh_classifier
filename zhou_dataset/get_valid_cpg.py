@@ -133,7 +133,8 @@ def main():
         chromosome_df["chromosome"] = chromosome
         chromosome_df = chromosome_df.set_index("location")
 
-        chromosome_df = handle_pmds.add_pmd_index_to_df(chromosome_df, pmd_data[chromosome])
+        chromosome_df = handle_pmds.filter_df_based_on_tuple_list(chromosome_df, pmd_data[chromosome],
+                                                                  add_index=True)
         chromosome_df["meth"] = df.mean()
         chromosome_df["var"] = df.var()
         chromosome_df["orig_meth"] = orig_meth_values[chromosome_df.index]

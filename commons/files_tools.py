@@ -65,6 +65,7 @@ def save_pickle(file_path, data):
     with open(file_path, "wb") as f:
         pickle.dump(data, f)
 
+
 def get_cpg_context_map(only_locations=False, load_with_path=consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI):
     """
     Get a dictionary of chr name (chr16 style) and the indexs of all cpgs based on the context map file
@@ -96,3 +97,44 @@ def load_bedgraph(bedgraph_path):
     """
     return pd.read_csv(bedgraph_path, sep="\t", names=["chr", "start", "end", "coverage"],
                        usecols=["start", "coverage"], index_col="start")
+
+
+def convert_paths_list_to_chromosome_based_dict(files):
+    """
+    Convert a lis of paths for files to a dictionary were key is the chromosome and the value is a list of
+    files matching this chromosome
+    :param files: Files list
+    :return: A dictionary
+    :rtype: dict
+    """
+    files_dict = {}
+    for file_path in files:
+        try:
+            patient, chromosome = consts.PATIENT_CHR_NAME_RE.findall(file_path)[0]
+            if chromosome not in files_dict:
+                files_dict[chromosome] = []
+
+            files_dict[chromosome].append(file_path)
+
+        except:
+            print("Error: can't use file %s because it doesn't match the format" % file_path)
+
+    return files_dict
+
+
+def get_files_to_work(folder_file_path, pattern):
+    """
+    Get a list of files matching the required pattern
+    :param folder_file_path: The path for the file or folder
+    :param pattern: A suffix for folders, will be used for the glob
+    :return: A list with all the paths matching this format
+    :rtype: list{str}
+    """
+    if os.path.isdir(folder_file_path):
+        file_path = os.path.join(folder_file_path, pattern)
+        all_file_paths = glob.glob(file_path)
+
+    else:
+        all_file_paths = [folder_file_path]
+
+    return all_file_paths
