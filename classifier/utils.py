@@ -62,9 +62,19 @@ def load_train_validate_test_data(path_to_data, input_len, only_test=False, vali
     return X_train_seq, y_train, X_valid_seq, y_valid, X_test_seq, y_test
 
 
+
 ########################
 ### custume metrics ####
 ########################
+def accuracy(y_true, y_pred):
+    y_true = tf.convert_to_tensor(y_true, np.float32)
+    y_pred = tf.convert_to_tensor(y_pred, np.float32)
+
+    diff = y_true - y_pred
+    tptn = np.sum(diff == 0)
+    return tptn / y_true.shape[0]
+
+
 
 def precision(y_true, y_pred):
     y_true = tf.convert_to_tensor(y_true, np.float32)
@@ -202,37 +212,3 @@ def vecs2dna(seq_vecs):
         seqs.append(''.join(seq_list))
 
     return seqs
-
-
-def vecs2motif(seq_vecs):
-    """
-    Used to convert vecs to DNA nucleotide only if the score of integrated gradients was positive,
-    this will help find sequences which are motif
-    :param seq_vecs: np.array of sequences as one hot encoded
-    :return: List of sequences
-    """
-    seqs = []
-
-    for i in range(seq_vecs.shape[0]):
-        seq_list = [''] * seq_vecs.shape[1]
-        for j in range(seq_vecs.shape[1]):
-            if seq_vecs[i, j, 0] > 0:
-                seq_list[j] = 'A'
-            elif seq_vecs[i, j, 1] > 0:
-                seq_list[j] = 'C'
-            elif seq_vecs[i, j, 2] > 0:
-                seq_list[j] = 'G'
-            elif seq_vecs[i, j, 3] > 0:
-                seq_list[j] = 'T'
-            else:
-                seq_list[j] = "_"
-
-        seqs.append(''.join(seq_list))
-
-    return seqs
-
-
-def accuracy(y_true, y_pred):
-    diff = y_true - y_pred
-    tptn = np.sum(diff == 0)
-    return tptn / y_true.shape[0]

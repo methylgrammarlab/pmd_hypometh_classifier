@@ -1,4 +1,4 @@
-# TODO:lior, is this ours or adapted from deppripe?
+# TODO: lior, is this ours or adapted from deepripe and do we need it?
 
 import argparse
 
@@ -12,9 +12,7 @@ from weblogo import *
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from commons import files_tools
-
-PL = 0
-CL = 1
+from classifier import create_data
 
 
 def parse_input():
@@ -29,7 +27,7 @@ def parse_input():
 
 def get_data(score, sequence):
     ind = sequence.find('CG')
-    pl_cl = PL if float(score) < 0.5 else CL
+    pl_cl = create_data.LABEL_PARTIAL_LOST if float(score) < 0.5 else create_data.LABEL_COMPLETELY_LOST
     minus_2 = sequence[ind - 1]
     minus_1 = sequence[ind - 1]
     plus_1 = sequence[ind + 2]
@@ -71,22 +69,19 @@ def plot_logomaker(seq_list):
     plt.title('counts')
     plt.show()
 
-    info_mat = lm.transform_matrix(counts_mat,
-                                   from_type='counts',
-                                   to_type='information')
-    logo = lm.Logo(info_mat,
-                   stack_order='small_on_top')
+    info_mat = lm.transform_matrix(counts_mat, from_type='counts', to_type='information')
+    logo = lm.Logo(info_mat, stack_order='small_on_top')
+
     # highlight middle CG
     logo.highlight_position_range(74, 75, alpha=0.5, color='lightgray')
+
     # highlight flanking
     # logo.highlight_position(73, alpha=0.3, color='lightblue', edgecolor='black')
     # logo.highlight_position(76,alpha=0.3, color='lightblue', edgecolor='black')
     plt.title('bits')
     plt.show()
 
-    prob_mat = lm.transform_matrix(counts_mat,
-                                   from_type='counts',
-                                   to_type='probability')
+    prob_mat = lm.transform_matrix(counts_mat, from_type='counts', to_type='probability')
     lm.Logo(prob_mat)
     plt.title('probability')
     plt.show()
@@ -119,7 +114,8 @@ def main():
     for i in tqdm(range(sequences.shape[1])):
         sequence_df.iloc[i, :] = get_data(sequences[0, i], sequences[1, i])
 
-    instances = get_instances(sequence_df, PL, minus_1_op=('C', 'G'), plus_1_op=('C', 'G'))
+    instances = get_instances(sequence_df, create_data.LABEL_PARTIAL_LOST, minus_1_op=('C', 'G'),
+                              plus_1_op=('C', 'G'))
 
     seq_list = list(instances)
     plot_logomaker(seq_list)

@@ -17,8 +17,6 @@ from commons import files_tools
 sns.set()
 sns.set_style('whitegrid')
 
-NCOL = 2
-
 
 def parse_input():
     parser = argparse.ArgumentParser()

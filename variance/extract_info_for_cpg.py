@@ -284,3 +284,10 @@ def split_wcgw_scgw_based_on_label(df, name):
     plt.legend(loc="upper right")
     plt.savefig("hist_%s_abs.png" % name)
     plt.close()
+
+
+def plot_data(df):
+    plt.subplots_adjust(top=0.9)
+    sns.scatterplot(x=df["meth"], y=df["var"], hue=df["label"])
+
+    plt.show()
