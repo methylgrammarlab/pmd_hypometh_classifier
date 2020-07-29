@@ -7,12 +7,10 @@ import sys
 
 import pandas as pd
 
-import commons.data_tools
-
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-from commons import consts
+from commons import consts, data_tools
 from format_files import handle_pmds
 import tqdm
 
@@ -93,7 +91,7 @@ def get_cpgs_orig_methylated(df, cells_to_use):
     """
     df_orig = df.filter(items=cells_to_use, axis=0)
     mean_values = df_orig.mean()
-    return mean_values >= 0.6
+    return mean_values
 
 
 def get_variance_cells_to_use(file_path):
@@ -121,11 +119,12 @@ def main():
     df_list = []
     for chromosome_file in tqdm.tqdm(all_files):
         chromosome, pmd_df = get_pmd_df(chromosome_file)
-        cpgs_methylated = get_cpgs_orig_methylated(pmd_df, nc_cells)
+        orig_meth_values = get_cpgs_orig_methylated(pmd_df, nc_cells)
+        cpgs_methylated = orig_meth_values >= 0.6
         df = pmd_df.filter(items=variance_cells, axis=0)
         df = df.loc[:, cpgs_methylated]  # Leave only methylated cells
 
-        df = commons.data_tools.remove_extreme_cpgs_by_coverage(df)  # remove the top and low 5 percentage
+        df = data_tools.remove_extreme_cpgs_by_coverage(df)  # remove the top and low 5 percentage
         # Note: we didn't removed CpG with less then 5 samples in low or high like we did in the scWGBS but
         #  we checked that we don't have CpG like this
 
@@ -137,6 +136,7 @@ def main():
         chromosome_df = handle_pmds.add_pmd_index_to_df(chromosome_df, pmd_data[chromosome])
         chromosome_df["meth"] = df.mean()
         chromosome_df["var"] = df.var()
+        chromosome_df["orig_meth"] = orig_meth_values[chromosome_df.index]
 
         if PYFAIDX:
             chromosome_df["sequence"] = get_seq_info(df.columns, str(chromosome))

@@ -1,6 +1,6 @@
+# TODO:lior, is this ours or adapted from deppripe?
+
 import argparse
-import os
-import sys
 
 import logomaker as lm
 import matplotlib.pyplot as plt

@@ -28,6 +28,9 @@ TEST_EXTREME = 1 / 4
 COV = 0
 VAR = 1
 
+LABEL_PARTIAL_LOST = 0  # Group 0 - partial loss
+LABEL_COMPLETELY_LOST = 1  # Group 1 - comp loss
+
 
 def parse_input():
     parser = argparse.ArgumentParser()

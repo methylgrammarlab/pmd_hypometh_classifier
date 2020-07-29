@@ -1,5 +1,8 @@
-#######################################################################################
-### Code adoped from  https://github.com/c/concise (c) 2016, Žiga Avsec Gagneur lab ### #######################################################################################
+"""
+Code adopted from  https://github.com/c/concise (c) 2016, Žiga Avsec Gagneur lab
+Code adopted from  https://github.com/ohlerlab/DeepRiPe
+"""
+
 
 import math
 import re

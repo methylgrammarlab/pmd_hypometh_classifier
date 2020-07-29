@@ -1,22 +1,41 @@
+"""
+Utils functions for the NN handling
+Code adopted from  https://github.com/ohlerlab/DeepRiPe
+"""
+
 import pickle
 import re
 import sys
 
 import keras.backend as K
 import numpy as np
-from sklearn.model_selection import KFold, train_test_split
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
 
 SMALL_SEQ = "seq10"
 BIG_SEQ = "sequence"
 
-NO_KFOLD = 1
-
 MOTIF_RE = re.compile("_*")
 
 
-def load_data_merged(path_to_data, input_len, only_test=False, kfold=NO_KFOLD):
+def get_train_test_data(path_to_data):
     """
-    load the data
+    Get the test and train data from the pickle file, this function was created to allow other people to
+    work with different data files
+    :param path_to_data: The path for the data
+    :return: the train and test dataset, each one is df
+    """
+    with open(path_to_data, "rb") as path_to_data_h:
+        data = pickle.load(path_to_data_h)
+
+    train_data, test_data = data["train"], data["test"]
+
+    return train_data, test_data
+
+
+def load_train_validate_test_data(path_to_data, input_len, only_test=False, validate_perc=0.2):
+    """
+    Load the train validate and test data and split it as we want
     :param path_to_data: path to file (consist of train, valid and test data)
     """
     if input_len == 150:
@@ -24,12 +43,9 @@ def load_data_merged(path_to_data, input_len, only_test=False, kfold=NO_KFOLD):
     elif input_len == 10:
         seq_label = SMALL_SEQ
     else:
-        raise ("Unknown label to use")
+        raise NotImplemented("Unknown label to use")
 
-    with open(path_to_data, "rb") as path_to_data_h:
-        data = pickle.load(path_to_data_h)
-
-    train_data, test_data = data["train"], data["test"]
+    train_data, test_data = get_train_test_data(path_to_data)
 
     X_test_seq = np.array([seq_to_mat(seq) for seq in test_data[seq_label]])
     y_test = test_data["label"].values
@@ -40,30 +56,10 @@ def load_data_merged(path_to_data, input_len, only_test=False, kfold=NO_KFOLD):
     X_train_seq = np.array([seq_to_mat(seq) for seq in train_data[seq_label]])
     y_train = train_data["label"].values
 
-    x_train_list = []
-    y_train_list = []
-    x_validate_list = []
-    y_validate_list = []
+    X_train_seq, X_valid_seq, y_train, y_valid = train_test_split(X_train_seq, y_train,
+                                                                  test_size=validate_perc, random_state=42)
 
-    if kfold == NO_KFOLD:
-        X_train_seq, X_valid_seq, y_train, y_valid = train_test_split(X_train_seq, y_train, test_size=0.2,
-                                                                      random_state=42)
-        x_train_list.append(X_train_seq)
-        y_train_list.append(y_train)
-        x_validate_list.append(X_valid_seq)
-        y_validate_list.append(y_valid)
-
-    else:
-        kf = KFold(n_splits=kfold, random_state=42, shuffle=True)
-        for train_index, validation_index in kf.split(X_train_seq):
-            X_train_fold, X_valid_fold = X_train_seq[train_index], X_train_seq[validation_index]
-            y_train_fold, y_valid_fold = y_train[train_index], y_train[validation_index]
-            x_train_list.append(X_train_fold)
-            y_train_list.append(y_train_fold)
-            x_validate_list.append(X_valid_fold)
-            y_validate_list.append(y_valid_fold)
-
-    return x_train_list, y_train_list, x_validate_list, y_validate_list, X_test_seq, y_test
+    return X_train_seq, y_train, X_valid_seq, y_valid, X_test_seq, y_test
 
 
 ########################
@@ -71,7 +67,9 @@ def load_data_merged(path_to_data, input_len, only_test=False, kfold=NO_KFOLD):
 ########################
 
 def precision(y_true, y_pred):
-    # true_positives = np.sum(np.round(np.clip(y_true * y_pred, 0, 1)))
+    y_true = tf.convert_to_tensor(y_true, np.float32)
+    y_pred = tf.convert_to_tensor(y_pred, np.float32)
+
     TPs = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
     precision = TPs / (predicted_positives + K.epsilon())
@@ -79,6 +77,8 @@ def precision(y_true, y_pred):
 
 
 def precision_N(y_true, y_pred):
+    y_true = tf.convert_to_tensor(y_true, np.float32)
+    y_pred = tf.convert_to_tensor(y_pred, np.float32)
     y_true, y_pred = 1 - y_true, 1 - y_pred
     TNs = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     predicted_n = K.sum(K.round(K.clip(y_pred, 0, 1)))
@@ -87,7 +87,8 @@ def precision_N(y_true, y_pred):
 
 
 def recall_TP(y_true, y_pred):
-    # true_positives = np.sum(np.round(np.clip(y_true * y_pred, 0, 1)))
+    y_true = tf.convert_to_tensor(y_true, np.float32)
+    y_pred = tf.convert_to_tensor(y_pred, np.float32)
     TPs = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
     recall = TPs / (possible_positives + K.epsilon())
@@ -96,7 +97,8 @@ def recall_TP(y_true, y_pred):
 
 def recall_TN(y_true, y_pred):
     y_true, y_pred = 1 - y_true, 1 - y_pred
-    # true_positives = np.sum(np.round(np.clip(y_true * y_pred, 0, 1)))
+    y_true = tf.convert_to_tensor(y_true, np.float32)
+    y_pred = tf.convert_to_tensor(y_pred, np.float32)
     TNs = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
     recall = TNs / (possible_positives + K.epsilon())
@@ -167,10 +169,17 @@ def getkmer(X, y, pred, RBP_index, k):
 ###############################################################################
 
 def vecs2dna(seq_vecs):
+    """
+    Convert a list of sequences vectors to a sequence
+    :param seq_vecs: np.array of sequences as one hot encoded
+    :return: A list of sequences
+    """
     seqs = []
 
+    # For only CG or AT
     if len(seq_vecs.shape) == 2:
         seq_vecs = np.reshape(seq_vecs, (seq_vecs.shape[0], 4, -1))
+    # For all genome
     elif len(seq_vecs.shape) == 4:
         seq_vecs = np.reshape(seq_vecs, (seq_vecs.shape[0], 4, -1))
 
@@ -196,8 +205,13 @@ def vecs2dna(seq_vecs):
 
 
 def vecs2motif(seq_vecs):
+    """
+    Used to convert vecs to DNA nucleotide only if the score of integrated gradients was positive,
+    this will help find sequences which are motif
+    :param seq_vecs: np.array of sequences as one hot encoded
+    :return: List of sequences
+    """
     seqs = []
-    # seq_vecs = np.reshape(seq_vecs, (seq_vecs.shape[0], 4, -1))
 
     for i in range(seq_vecs.shape[0]):
         seq_list = [''] * seq_vecs.shape[1]
@@ -216,3 +230,9 @@ def vecs2motif(seq_vecs):
         seqs.append(''.join(seq_list))
 
     return seqs
+
+
+def accuracy(y_true, y_pred):
+    diff = y_true - y_pred
+    tptn = np.sum(diff == 0)
+    return tptn / y_true.shape[0]

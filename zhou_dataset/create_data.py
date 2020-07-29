@@ -168,13 +168,43 @@ def plot_data(df):
     plt.show()
 
 
+def create_data2():
+    args = parse_input()
+
+    # Read and add features
+    df = pd.read_pickle(args.input_file)
+    df["start"] = df["location"]
+    df["ccpg"] = df["sequence"].str.count("CG")
+
+    # We start with solo which are methylated in NC
+    df = df[df["ccpg"] == 1]
+
+    # Split the data to train and test based on pmd
+    train, test = split_df_by_pmd(df)
+
+    # Leave only the extreme
+    train["meth_diff"] = train["orig_meth"] - train["meth"]
+    test["meth_diff"] = test["orig_meth"] - test["meth"]
+
+    # Add reverse strand
+    train = add_reverse_strand(train)
+    test = add_reverse_strand(test)
+
+    print_statistics(train, test)
+
+    output = {"train": train, "test": test}
+    with open(os.path.join(args.output_folder, OUTPUT_FILE), "wb") as output_file:
+        pickle.dump(output, output_file)
+
+
+
 def main():
-    df = create_data()
+    # df = create_data()
 
     # plot_data(df)
-    df["label"].hist()
-    plt.show()
-
+    # df["label"].hist()
+    # plt.show()
+    create_data2()
 
 if __name__ == '__main__':
     main()

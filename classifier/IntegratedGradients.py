@@ -1,6 +1,7 @@
-#######################################################
-### Adopted from Naozumi Hiranuma (hiranumn@uw.edu) ### 
-#######################################################
+"""
+Code adopted from Naozumi Hiranuma (hiranumn@uw.edu)
+Code adopted from https://github.com/ohlerlab/DeepRiPe
+"""
 
 import sys
 

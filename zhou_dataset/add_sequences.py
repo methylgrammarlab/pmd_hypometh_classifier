@@ -6,7 +6,6 @@ sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
 from zhou_dataset.get_valid_cpg import *
-import tqdm
 
 
 def parse_input():
@@ -16,7 +15,7 @@ def parse_input():
     return args
 
 
-def get_seq_info(df, ):
+def get_seq_info(df):
     sequences = []
 
     for i in tqdm.trange(df.shape[0]):
