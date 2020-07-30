@@ -1,7 +1,9 @@
+# Trying to compare servral databases to see if they act the same
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from classifier import create_data
+from classifier import convert_sc_dataset_to_nn
 from format_files.handle_pmds import filtered_out_non_pmd
 
 plt.style.use('seaborn')
@@ -23,7 +25,7 @@ our_combine_path = None
 def get_seq_info(ind, chromosome):
     seq = []
     for i in ind:
-        seq.append(create_data.get_seq_for_cpg(chromosome, i, 150))
+        seq.append(convert_sc_dataset_to_nn.get_seq_for_cpg(chromosome, i, 150))
 
     return seq
 

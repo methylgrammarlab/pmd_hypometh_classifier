@@ -1,15 +1,16 @@
+# TODO: lior let's split to two files and talk about this
+
 import argparse
 import glob
 import os
 import re
 import sys
 import warnings
-from tqdm import tqdm
 from collections import Counter
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 plt.style.use('seaborn')
 
@@ -19,16 +20,8 @@ sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from format_files import handle_pmds
 from commons import files_tools
-from covariance import covariance_to_bedgraph
 
-CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
-
-BEDGRPH_FILE_FORMAT = os.path.join("*", "*.bedgraph")
 BEDGRPAH_FORMAT_FILE_RE = re.compile(".*(CRC\d+)_chr(\d+).*")
-
-METHYLATION_FILE_FORMAT = "all_cpg_ratios_%s_chr%s.dummy.pkl.zip"
-SEQ_SIZE = 150
-TOP_LOW_PERCENTAGE_TO_REMOVE = 5
 
 
 def parse_input():
@@ -38,17 +31,6 @@ def parse_input():
     parser.add_argument('--output_folder', help='Path of the output folder', required=False)
     args = parser.parse_args()
     return args
-
-
-def get_bedgraph_files(files):
-    if os.path.isdir(files):
-        file_path = os.path.join(files, BEDGRPH_FILE_FORMAT)
-        all_file_paths = glob.glob(file_path)
-
-    else:
-        all_file_paths = [files]
-
-    return all_file_paths
 
 
 def get_patient_dict(all_file_paths):
@@ -67,16 +49,6 @@ def get_patient_dict(all_file_paths):
     return d
 
 
-def get_cancer_methylation_of_patient(patient, chromosome, indexes, methylation_folder):
-    methylation_file_path = os.path.join(methylation_folder, patient,
-                                         METHYLATION_FILE_FORMAT % (patient, chromosome))
-    df = pd.read_pickle(methylation_file_path)
-    _, df = covariance_to_bedgraph.get_region_df(df, sublineage_cells=[],
-                                                 sublineage_name=covariance_to_bedgraph.ONLY_PT)
-    mdf = df.mean()
-    return mdf.loc[indexes].values
-
-
 def main():
     args = parse_input()
     coverage_graph = True
@@ -92,15 +64,15 @@ def main():
         [path for sublist in [glob.glob(path % patient) for patient in patients] for path in sublist])
     # all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
     global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
-    patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
-                                                                                global_windows_data)
+    patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_coverage_filter(all_files_dict,
+                                                                                     global_windows_data)
     bins_patients_dict = {}
     for patient in tqdm(patients_dict):
         all_means = []
         tot_num_of_cpg = []
         general_num_of_cpg = 0
-        for chr in patients_dict[patient]:
-            df = patients_dict[patient][chr]
+        for chromosome in patients_dict[patient]:
+            df = patients_dict[patient][chromosome]
             mean = df.mean(axis=1)
             num_of_cpg = (~df.isnull()).sum(axis=1)
             all_means.append(mean.mul(num_of_cpg, axis=0))
@@ -149,15 +121,21 @@ def chosen_cell_stats(path):
     # sublineage = files_tools.load_compressed_pickle(
     #     R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\convert_sublineage.pickle.zlib")
     region_high_counters = {
-        "CRC01": Counter(LN1=0, LN2=0, LN3=0, ML1=0, ML2=0, ML3=0, ML4=0, MP1=0, MP2=0, MP3=0, MP4=0, MP5=0, PT1=0,
-                         PT2=0, PT3=0, PT4=0), "CRC04": Counter(LN1=0, LN2=0, PT1=0, PT2=0, PT3=0, PT4=0, PT5=0),
-        "CRC10": Counter(LN1=0, LN3=0, PT1=0, PT2=0, PT3=0, PT4=0), "CRC11": Counter(LN1=0, PT1=0, PT2=0, PT3=0, PT4=0),
+        "CRC01": Counter(LN1=0, LN2=0, LN3=0, ML1=0, ML2=0, ML3=0, ML4=0, MP1=0, MP2=0, MP3=0, MP4=0, MP5=0,
+                         PT1=0,
+                         PT2=0, PT3=0, PT4=0),
+        "CRC04": Counter(LN1=0, LN2=0, PT1=0, PT2=0, PT3=0, PT4=0, PT5=0),
+        "CRC10": Counter(LN1=0, LN3=0, PT1=0, PT2=0, PT3=0, PT4=0),
+        "CRC11": Counter(LN1=0, PT1=0, PT2=0, PT3=0, PT4=0),
         "CRC13": Counter(LN1=0, LN2=0, LN3=0, PT1=0, PT2=0, PT3=0, PT4=0, PT5=0),
         "CRC14": Counter(LN1=0, LN2=0, PT1=0, PT3=0, PT4=0, PT5=0)}
     region_low_counters = {
-        "CRC01": Counter(LN1=0, LN2=0, LN3=0, ML1=0, ML2=0, ML3=0, ML4=0, MP1=0, MP2=0, MP3=0, MP4=0, MP5=0, PT1=0,
-                         PT2=0, PT3=0, PT4=0), "CRC04": Counter(LN1=0, LN2=0, PT1=0, PT2=0, PT3=0, PT4=0, PT5=0),
-        "CRC10": Counter(LN1=0, LN3=0, PT1=0, PT2=0, PT3=0, PT4=0), "CRC11": Counter(LN1=0, PT1=0, PT2=0, PT3=0, PT4=0),
+        "CRC01": Counter(LN1=0, LN2=0, LN3=0, ML1=0, ML2=0, ML3=0, ML4=0, MP1=0, MP2=0, MP3=0, MP4=0, MP5=0,
+                         PT1=0,
+                         PT2=0, PT3=0, PT4=0),
+        "CRC04": Counter(LN1=0, LN2=0, PT1=0, PT2=0, PT3=0, PT4=0, PT5=0),
+        "CRC10": Counter(LN1=0, LN3=0, PT1=0, PT2=0, PT3=0, PT4=0),
+        "CRC11": Counter(LN1=0, PT1=0, PT2=0, PT3=0, PT4=0),
         "CRC13": Counter(LN1=0, LN2=0, LN3=0, PT1=0, PT2=0, PT3=0, PT4=0, PT5=0),
         "CRC14": Counter(LN1=0, LN2=0, PT1=0, PT3=0, PT4=0, PT5=0)}
     all_dict = files_tools.load_compressed_pickle(path)
@@ -171,21 +149,24 @@ def chosen_cell_stats(path):
         region_high_counters[patient].update(high_sampling_region)
         region_low_counters[patient].update(low_sampling_region)
         df = pd.DataFrame.from_dict(region_high_counters[patient], orient='index', columns=["high"]).join(
-            pd.DataFrame.from_dict(region_low_counters[patient], orient='index', columns=["low"]), lsuffix='_caller',
+            pd.DataFrame.from_dict(region_low_counters[patient], orient='index', columns=["low"]),
+            lsuffix='_caller',
             rsuffix='_other')
         df.plot.bar()
         plt.title("%s cells sampling region (%d cells)" % (patient, num_of_cells))
         plt.savefig("top_bottom\sampling_region_%s_cells" % patient)
         plt.close()
 
-        high_sampling_region = [convert_sublineage(sublineage, patient, cell) for cell in all_dict[patient]["high"]]
-        low_sampling_region = [convert_sublineage(sublineage, patient, cell) for cell in all_dict[patient]["low"]]
+        high_sampling_region = [convert_sublineage(sublineage, patient, cell) for cell in
+                                all_dict[patient]["high"]]
+        low_sampling_region = [convert_sublineage(sublineage, patient, cell) for cell in
+                               all_dict[patient]["low"]]
         sublineage_high_counter = Counter(high_sampling_region)
         sublineage_low_counters = Counter(low_sampling_region)
         all_cells = set(sublineage_high_counter.keys()) | set(sublineage_low_counters.keys())
         df = pd.DataFrame(index=all_cells).sort_index()
         high_df = pd.DataFrame.from_dict(sublineage_high_counter, orient='index', columns=["high"])
-        low_df =pd.DataFrame.from_dict(sublineage_low_counters, orient='index', columns=["low"])
+        low_df = pd.DataFrame.from_dict(sublineage_low_counters, orient='index', columns=["low"])
         df.loc[high_df.index, "high"] = high_df.high
         df.loc[low_df.index, "low"] = low_df.low
         df.plot.bar()
@@ -201,4 +182,4 @@ if __name__ == '__main__':
     chosen_cell_stats(
         R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\stats\top_bottom\20perc_low_high_avg_methylation_cells.pickle.zlib")
 
-# To run -  python3 low_high_avg_meth_cells.py --methylation_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/cpg_format/filtered_by_bl_and_cpgi/ --windows_file /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/covariance/cancer/5000_with_750_minimum_pairs/boundries/window_boundries.dummy.pkl.zip --output_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/stats/low_high_avg_meth_cells
+# To run -  python3 bulk_extract_cell_information.py --methylation_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/cpg_format/filtered_by_bl_and_cpgi/ --windows_file /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/covariance/cancer/5000_with_750_minimum_pairs/boundries/window_boundries.dummy.pkl.zip --output_folder /vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/stats/low_high_avg_meth_cells

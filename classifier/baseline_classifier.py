@@ -14,7 +14,8 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from classifier import utils, create_data
+from classifier import utils
+from commons import consts
 
 SS_RE = re.compile("[CG]CG[CG]")
 WW_RE = re.compile("[AT]CG[AT]")
@@ -102,24 +103,24 @@ def test_based_on_wcgw_and_scgs(df):
     for i in x_test:
         if WW_RE.search(i) is not None:
             if CWCGWG_RE.search(i) is not None:
-                y_pred.append(create_data.LABEL_COMPLETELY_LOST)
+                y_pred.append(consts.LABEL_COMPLETELY_LOST)
 
             elif WWCGWW_RE.search(i) is not None:
-                y_pred.append(create_data.LABEL_PARTIAL_LOST)
+                y_pred.append(consts.LABEL_PARTIAL_LOST)
             else:
-                y_pred.append(create_data.LABEL_COMPLETELY_LOST)
+                y_pred.append(consts.LABEL_COMPLETELY_LOST)
 
         elif SS_RE.search(i) is not None:
             if SSCGSS_RE.search(i) is not None:
-                y_pred.append(create_data.LABEL_COMPLETELY_LOST)
+                y_pred.append(consts.LABEL_COMPLETELY_LOST)
             else:
-                y_pred.append(create_data.LABEL_PARTIAL_LOST)
+                y_pred.append(consts.LABEL_PARTIAL_LOST)
 
         elif SW_RE.search(i) is not None or WS_RE.search(i) is not None:
-            y_pred.append(create_data.LABEL_PARTIAL_LOST)
+            y_pred.append(consts.LABEL_PARTIAL_LOST)
 
         else:
-            y_pred.append(create_data.LABEL_PARTIAL_LOST)
+            y_pred.append(consts.LABEL_PARTIAL_LOST)
 
     y_pred = np.array(y_pred)
     print_results(test_name="Using WCGW\SCGW", y_test=y_test, y_pred=y_pred)

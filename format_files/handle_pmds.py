@@ -11,8 +11,7 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from commons import consts
-from commons import files_tools, data_tools
-from covariance import covariance_to_bedgraph
+from commons import files_tools, utils
 
 TOP_LOW_PERCENTAGE_TO_REMOVE = 5
 PMD_LABEL = "commonPMD"
@@ -55,7 +54,7 @@ def create_pmd_dict(bedgraph_path, output_path):
                 chr_dict[chromosome].append((global_start, global_end))
                 start_new = True
 
-    files_tools.save_pickle(os.path.join(output_path), "pmd_dict.pickle", chr_dict)
+    files_tools.save_pickle(os.path.join(output_path, "pmd_dict.pickle"), chr_dict)
 
 
 def get_pmd_dict(pmd_file_path=consts.PMD_FILE):
@@ -110,66 +109,8 @@ def filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE, add_pmd_index
     pmd_dict = get_pmd_dict(pmd_file)
 
     pmd_list = pmd_dict[chromosome]
-    return filter_df_based_on_tuple_list(df=df, boundaries_list=pmd_list, add_index=add_pmd_index)
-
-
-def filter_df_based_on_tuple_list(df, boundaries_list, add_index=False, add_index_name="pmd_index"):
-    """
-    Filter out a df to only contains indexes which included in the tuple list
-    :param df: The df to work with
-    :param boundaries_list: A tuple list with boundaries, each tuple is (start,end)
-    :param add_index: should we add index of each tuple
-    :param add_index_name: The name of the index column we should add
-    :return: The df filtered out and maybe with index
-    """
-    prev_mask = None
-    i = 0
-
-    if add_index:
-        df[add_index_name] = np.nan
-
-    # Trying to support two ways of working with df - one is where the columns is the CpG and the other is
-    # that the index is the CpG location
-    for boundary in boundaries_list:
-        i += 1
-        start, end = boundary
-        try:
-            pmd_mask = (df.columns >= start) & (df.columns <= end)
-        except Exception:
-            pmd_mask = (df.index >= start) & (df.index <= end)
-
-        prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-        if add_index:
-            df.loc[pmd_mask, add_index_name] = i
-
-    try:
-        filtered_df = df.loc[:, prev_mask]
-    except Exception:
-        filtered_df = df.loc[prev_mask, :]
-
-    return filtered_df
-
-
-def get_pmd_index(df, chromosome, pmd_indexes_dict):
-    """
-    Get the pmd indexes of each cpg in a data frame
-    :param df: The dataframe
-    :param chromosome: The chromosome
-    :param pmd_indexes_dict: A dictionary with with chr as keys and list of tuples representing pmd as values
-    :return: The indexes of each cpg in the df
-    """
-    # TODO: do we even need it ?
-    try:
-        chromosome = str(chromosome)
-        windows_data = pmd_indexes_dict[chromosome]
-    except Exception:
-        chromosome = int(chromosome)
-        windows_data = pmd_indexes_dict[chromosome]
-
-    return filter_df_based_on_tuple_list(df, windows_data, add_index=True)["pmd_index"]
-
-
+    return utils.filter_df_based_on_tuple_list(df=df, boundaries_list=pmd_list, add_index=add_pmd_index,
+                                               add_index_name="pmd_index")
 
 
 def convert_bedgraph_to_df_with_pmd_filter(bedgraph_path, chromosome, add_pmd_index=False,
@@ -185,49 +126,3 @@ def convert_bedgraph_to_df_with_pmd_filter(bedgraph_path, chromosome, add_pmd_in
     covariance_df = files_tools.load_bedgraph(bedgraph_path)
     return filtered_out_non_pmd(df=covariance_df, chromosome=chromosome, pmd_file=pmd_file,
                                 add_pmd_index=add_pmd_index)
-
-
-def get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict, global_windows_data,
-                                                    top_low_level_to_remove=TOP_LOW_PERCENTAGE_TO_REMOVE,
-                                                    add_pmd_index=False, pmd_file=consts.PMD_FILE):
-    # TODO: need to doc this and maybe split , this is really messy
-    patients_dict = {}
-    for patient in all_files_dict:
-        patients_dict[patient] = {}
-        for t in all_files_dict[patient]:
-            chromosome, file_path = t
-            dff = pd.read_pickle(file_path)
-
-            try:
-                chromosome = str(chromosome)
-                windows_data = global_windows_data[chromosome]
-            except Exception:
-                chromosome = int(chromosome)
-                windows_data = global_windows_data[chromosome]
-
-            try:
-                chromosome = str(chromosome)
-                covariance_pmd_df = filtered_out_non_pmd(dff, chromosome, add_pmd_index=add_pmd_index,
-                                                         pmd_file=pmd_file)
-            except:
-                chromosome = int(chromosome)
-                covariance_pmd_df = filtered_out_non_pmd(dff, chromosome, add_pmd_index=add_pmd_index,
-                                                         pmd_file=pmd_file)
-
-            prev_mask = None
-            for pmd_tuple in windows_data:
-                start, end = pmd_tuple
-                pmd_mask = (covariance_pmd_df.columns >= start) & (covariance_pmd_df.columns <= end)
-                prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-            _, df = covariance_to_bedgraph.get_region_df(covariance_pmd_df.loc[:, prev_mask],
-                                                         sublineage_cells=[],
-                                                         sublineage_name=covariance_to_bedgraph.ALL_CANCER)
-
-            if top_low_level_to_remove != 0:
-                df = data_tools.remove_extreme_cpgs_by_coverage(df, top_low_level_to_remove)
-
-            patients_dict[patient][chromosome] = df
-
-    return patients_dict
-

@@ -1,3 +1,4 @@
+# todo: lior
 import argparse
 import glob
 import os
@@ -12,7 +13,9 @@ import pandas as pd
 from matplotlib.lines import Line2D
 from tqdm import tqdm
 
-from variance.get_valid_cpg import get_nc_avg
+import commons.data_tools
+import commons.utils
+from variance.sc_get_valid_cpgs_dataset import get_nc_avg
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -20,7 +23,6 @@ sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 from format_files import handle_pmds
 from commons import files_tools
-from covariance import covariance_to_bedgraph
 from format_files import format_cpg_context_map
 import commons.consts as consts
 
@@ -118,8 +120,7 @@ def get_cancer_methylation_of_patient(patient, chromosome, indexes, methylation_
     methylation_file_path = os.path.join(methylation_folder, patient,
                                          METHYLATION_FILE_FORMAT % (patient, chromosome))
     df = pd.read_pickle(methylation_file_path)
-    _, df = covariance_to_bedgraph.get_region_df(df, sublineage_cells=[],
-                                                 sublineage_name=covariance_to_bedgraph.ONLY_PT)
+    df = commons.utils.filter_df_based_on_region_name(df, region_name=commons.utils.ONLY_PT)
     mdf = df.mean()
     return mdf.loc[indexes].values
 
@@ -304,6 +305,7 @@ def get_all_pattern_cells_from_df(df, context_info, pattern):
     pattern_cells = context_info[context_info.str.contains(pattern)]
     return np.mean(df.loc[:, df.columns & pattern_cells.index], axis=1)
 
+
 def main():
     args = parse_input()
 
@@ -324,11 +326,10 @@ def main():
         # all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "*", "*.pkl.zip")))
         all_files_dict = get_patient_dict(glob.glob(os.path.join(methylation_folder, "CRC01", "*.pkl.zip")))
         global_windows_data = files_tools.load_compressed_pickle(args.windows_file)
-        patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_cov_filter(all_files_dict,
-                                                                                    global_windows_data)
+        patients_dict = handle_pmds.get_cancer_pmd_df_with_windows_after_coverage_filter(all_files_dict,
+                                                                                         global_windows_data)
 
     sublineage = files_tools.load_compressed_pickle(consts.CONVERT_SUBLINEAGE_DROR)
-
 
     # # Collect global sequence information from the cpg dict
     cpg_dict = files_tools.get_cpg_context_map(load_with_path=consts.CONTEXT_MAP_FILTERED_LOCAL_DROR)

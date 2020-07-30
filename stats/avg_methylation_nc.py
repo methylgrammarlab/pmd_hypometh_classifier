@@ -1,4 +1,8 @@
-#!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
+# TODO: lior let's talk about this
+
+# !/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
+
+# !/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
 import argparse
 import collections
 import copy

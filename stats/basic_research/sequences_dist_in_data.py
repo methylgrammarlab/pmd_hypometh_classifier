@@ -1,3 +1,7 @@
+"""
+This was used to check which sequence tend more to CL and which to PL but there are better ways than this code
+"""
+
 import argparse
 import os
 import sys
@@ -15,7 +19,6 @@ import matplotlib.pyplot as plt
 
 TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 LETTER_DICT = {"N": 0, "A": 1, "C": 2, "G": 3, "T": 4}
-# CMAP = mpl.colors.ListedColormap(['blue', 'orange', 'red', 'green'])
 CMAP = mpl.colors.ListedColormap(['blue', 'orange', 'orange', 'blue'])
 
 

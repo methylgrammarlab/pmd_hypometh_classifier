@@ -1,3 +1,7 @@
+"""
+Was used to find how many pairs in the covariance matrix make sense for minimum number to make valid cpg
+"""
+
 import argparse
 import collections
 import glob
@@ -11,7 +15,7 @@ from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 from format_files import format_sublineage_info
-from commons import consts, data_tools
+from commons import data_tools
 
 CSV_FILE = "common_cpg_in_cov_matrix_%s_chr_%s_region_%s.csv"
 

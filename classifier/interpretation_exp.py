@@ -1,6 +1,6 @@
-# TODO: how to write it ? some of the code is from deepripe but some is ours
 """
-
+Code adapted from https://github.com/ohlerlab/DeepRiPe with changes
+Extract information and graphs from the Integrated gradients output
 """
 
 import argparse

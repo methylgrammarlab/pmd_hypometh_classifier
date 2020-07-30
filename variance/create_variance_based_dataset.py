@@ -1,9 +1,8 @@
 """
 Create dataset for the nn, adding labels, splitting to test and train in a way that will consider the pmd
 and add reverse strand.
-This code is only for the scWGBS
+This code work both for scwgbs and bulk
 """
-# TODO: can we combine with the zhou?
 
 import argparse
 import os
@@ -13,20 +12,19 @@ import warnings
 import numpy as np
 import pandas as pd
 
-import commons.sequence_utils
-
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from commons import files_tools
+from commons import files_tools, consts, sequence_tools
 
 # scWGBS
 TRAIN_PATIENT = ["CRC01", "CRC11"]
 TEST_PATIENT = ["CRC10", "CRC13"]
 
-LABEL_PARTIAL_LOST = 0  # Group 0 - partial loss
-LABEL_COMPLETELY_LOST = 1  # Group 1 - comp loss
+SCWGBS = "scwgbs"
+BULK = "bulk"
+PARSE_OPTIONS = [SCWGBS, BULK]
 
 
 def parse_input():
@@ -34,6 +32,8 @@ def parse_input():
     parser.add_argument('--output_folder', help='Path of the output folder', required=False,
                         default=os.path.dirname(sys.argv[0]))
     parser.add_argument('--input_file', help='path for the input file', required=True)
+    parser.add_argument('--parse_format', help='do we parse scwgb or bulk data', required=True, type=str,
+                        choices=PARSE_OPTIONS)
     parser.add_argument('--output_name', help='name of the output file', required=False,
                         default="nn_dataset.pkl")
 
@@ -108,7 +108,7 @@ def double_with_reverse_strand(df):
     :param df: The data frame
     :return: A new data frame with the reverse strand
     """
-    reversed_seq = commons.sequence_utils.get_reverse_seq(df["sequence"])
+    reversed_seq = sequence_tools.get_reverse_seq(df["sequence"])
     df_reverse = df.copy()
     df_reverse["sequence"] = reversed_seq
     df["data_type"] = "original"
@@ -132,9 +132,10 @@ def label_sc_based_on_meth_var_flat(df, cl_max_meth=0.2, cl_max_var=0.05, pl_min
     :param pl_min_var: The minimum var for pl
     :return: The new dataframe with labels, removing CpG which didn't include
     """
-    df.loc[np.logical_and(df["meth"] >= pl_min_meth, df["var"] >= pl_min_var), "label"] = LABEL_PARTIAL_LOST
+    df.loc[np.logical_and(df["meth"] >= pl_min_meth, df["var"] >= pl_min_var), "label"] = \
+        consts.LABEL_PARTIAL_LOST
     df.loc[np.logical_and(df["meth"] <= cl_max_meth, df["var"] <= cl_max_var), "label"] = \
-        LABEL_COMPLETELY_LOST
+        consts.LABEL_COMPLETELY_LOST
 
     return df[~pd.isnull(df["label"])]
 
@@ -168,10 +169,10 @@ def label_and_flat_sc_based_on_meth_var(df, patients, cl_max_meth=0.2, cl_max_va
         df.loc[df[meth_label].isnull(), label] = 2  # empty
 
         df.loc[np.logical_and(df[meth_label] <= cl_max_meth, df[var_label] <= cl_max_var), label] = \
-            LABEL_COMPLETELY_LOST
+            consts.LABEL_COMPLETELY_LOST
 
         df.loc[np.logical_and(df["meth"] >= pl_min_meth, df["var"] >= pl_min_var), label] = \
-            LABEL_PARTIAL_LOST
+            consts.LABEL_PARTIAL_LOST
 
     label1 = "label%s" % patients[0][-2:]
     label2 = "label%s" % patients[1][-2:]
@@ -186,6 +187,7 @@ def label_and_flat_sc_based_on_meth_var(df, patients, cl_max_meth=0.2, cl_max_va
     good_index = partial_partial | total_total | partial_empty | total_empty | empty_total | empty_partial
 
     matching_labels_cpg = df[good_index]
+    dropped_index = df.shape[0] - matching_labels_cpg.shape[0]
 
     df_list = []
 
@@ -209,11 +211,27 @@ def label_and_flat_sc_based_on_meth_var(df, patients, cl_max_meth=0.2, cl_max_va
 
     combined_df = pd.concat(df_list)
     good_index = np.logical_and(combined_df["label"] != 2, combined_df["label"] != 3)
-    return combined_df[good_index]
+    final_df = combined_df[good_index]
+    dropped_index += combined_df.shape[0] - final_df.shape[0]
+
+    print("During filtering we dropped %s CpG due to mismatch or invalid labels" % dropped_index)
+    return final_df
 
 
-def create_scwgbs_nn_dataset():
+def label_bulk_based_on_meth_var_flat(df, cl_max_meth=0.55, cl_min_var=0.11, pl_min_meth=0.75,
+                                      pl_max_var=0.055):
+    df.loc[np.logical_and(df["meth"] >= pl_min_meth,
+                          df["var"] <= pl_max_var), "label"] = consts.LABEL_PARTIAL_LOST
+    df.loc[np.logical_and(df["meth"] <= cl_max_meth,
+                          df["var"] >= cl_min_var), "label"] = consts.LABEL_COMPLETELY_LOST
+
+    filtered_df = df[~pd.isnull(df["label"])]
+    return filtered_df
+
+
+def create_nn_dataset():
     args = parse_input()
+    parse_format = args.parse_format
 
     # Read and add features
     df = pd.read_pickle(args.input_file)
@@ -221,14 +239,23 @@ def create_scwgbs_nn_dataset():
     # We start with solo which are methylated in NC
     df["ccpg"] = df["sequence"].str.count("CG")
     df = df[df["ccpg"] == 1]
-    df = df[df["nc_avg"] >= 0.6]
+
+    if parse_format == SCWGBS:
+        df = df[df["nc_avg"] >= 0.6]
+    else:
+        df = df[df["orig_meth"] >= 0.6]
 
     # Split the data to train and test based on pmd
     train, test = split_df_by_pmd(df)
 
-    # Flat based on patients and add labels
-    train = label_and_flat_sc_based_on_meth_var(train, TRAIN_PATIENT)
-    test = label_and_flat_sc_based_on_meth_var(test, TEST_PATIENT)
+    if parse_format == SCWGBS:
+        # Flat based on patients and add labels
+        train = label_and_flat_sc_based_on_meth_var(train, TRAIN_PATIENT)
+        test = label_and_flat_sc_based_on_meth_var(test, TEST_PATIENT)
+    else:
+        # Label based on values
+        train = label_bulk_based_on_meth_var_flat(train)
+        test = label_bulk_based_on_meth_var_flat(test)
 
     # Add reverse strand
     train = double_with_reverse_strand(train)
@@ -240,9 +267,5 @@ def create_scwgbs_nn_dataset():
     print_statistics(train, test)
 
 
-def main():
-    create_scwgbs_nn_dataset()
-
-
 if __name__ == '__main__':
-    main()
+    create_nn_dataset()

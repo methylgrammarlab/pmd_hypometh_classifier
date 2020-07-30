@@ -38,11 +38,12 @@ def get_cpg_sequence(chr_num, cpg_index, seq_size=SEQ_SIZE):
     return chr_info[cpg_index - seq_size - 1:cpg_index + seq_size + 1]
 
 
-def get_sequences_for_cpgs(indexes_list, chromosome):
+def get_sequences_for_cpgs(indexes_list, chromosome, seq_size=SEQ_SIZE):
     """
     Get all the sequences for the required cpg
     :param indexes_list: An list of indexes for cpg
     :param chromosome: The chromosome for those cpg
+    :param seq_size: The sequence size
     :return: A list with all the sequences
     """
     if isinstance(chromosome, int):
@@ -53,6 +54,6 @@ def get_sequences_for_cpgs(indexes_list, chromosome):
 
     sequences = []
     for index in tqdm.tqdm(indexes_list):
-        sequences.append(get_cpg_sequence(chr_num=chromosome, cpg_index=index))
+        sequences.append(get_cpg_sequence(chr_num=chromosome, cpg_index=index, seq_size=seq_size))
 
     return sequences

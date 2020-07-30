@@ -1,3 +1,6 @@
+"""
+Print several csv with information about the ratio and count number in the different files
+"""
 import argparse
 import collections
 import glob

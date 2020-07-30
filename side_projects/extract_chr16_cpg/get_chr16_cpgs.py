@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
 from commons import files_tools, consts
-from variance import get_valid_cpg
+from variance import sc_get_valid_cpgs_dataset
 
 MEAN = 1
 VAR = 2
@@ -28,7 +28,7 @@ genome = pyfaidx.Fasta(consts.GENOME_FILE_LOCAL_DROR, sequence_always_upper=True
 def main():
     chr_data = files_tools.load_compressed_pickle(CHR_PATH)
     all_cpg = chr_data[:, 0]
-    sequences = get_valid_cpg.get_seq_info(all_cpg, '16')
+    sequences = sc_get_valid_cpgs_dataset.get_seq_info(all_cpg, '16')
 
     sum_df = pd.DataFrame(columns=["location"])
     sum_df["location"] = all_cpg

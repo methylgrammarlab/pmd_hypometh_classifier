@@ -9,7 +9,6 @@ import os
 import sys
 
 import numpy as np
-import pandas as pd
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
@@ -49,18 +48,18 @@ def create_window_bedgraph(bedgraph_path, output_folder, window_size, window_bou
     output_path = os.path.join(output_folder, "smooth", SMOOTH_OUTPUT % (patient, chromosome, window_size))
     output_path_norm = os.path.join(output_folder, "norm", NORMED_OUTPUT % (patient, chromosome, window_size))
 
-    input_file = pd.read_csv(bedgraph_path, sep="\t", header=None, names=["chr", "start", "end", "cov"])
+    input_file = files_tools.load_bedgraph(bedgraph_path)
     window_boundaries = files_tools.load_compressed_pickle(window_boundaries_path)
 
     for tup in window_boundaries[chromosome]:
         indices = np.logical_and(tup[0] <= input_file.start, input_file.start <= tup[1])
         window = input_file[indices]
-        window_value = window["cov"].median()
-        input_file.loc[indices, "cov"] = window_value
+        window_value = window["coverage"].median()
+        input_file.loc[indices, "coverage"] = window_value
 
     input_file.to_csv(output_path, sep="\t", header=None, index=False)
 
-    input_file["cov"] = np.interp(input_file["cov"], (input_file["cov"].min(), input_file["cov"].max()),
+    input_file["cov"] = np.interp(input_file["coverage"], (input_file["cov"].min(), input_file["cov"].max()),
                                   (0, 1))
     input_file.to_csv(output_path_norm, sep="\t", header=None, index=False)
 

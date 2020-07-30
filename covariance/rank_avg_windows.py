@@ -57,12 +57,12 @@ def rank_covariance_across_patients(files_paths, window_boundaries):
     patients_dict = {}
     for file_path in files_paths:
         patient, chromosome = consts.PATIENT_CHR_NAME_RE.findall(file_path)[0]
-        input_file = pd.read_csv(file_path, sep="\t", header=None, names=["chr", "start", "end", "cov"])
+        input_file = files_tools.load_bedgraph(file_path)
         values = []
 
         for i in window_boundaries:
             try:
-                value = float(input_file[input_file.start == i[0]]["cov"])
+                value = float(input_file[input_file.start == i[0]]["coverage"])
             except TypeError:  # Will happened if we have all nans nans in this window
                 value = -1
 

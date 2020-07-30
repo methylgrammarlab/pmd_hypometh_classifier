@@ -1,3 +1,4 @@
+# TODO:lior
 #!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
 import argparse
 import glob
@@ -6,7 +7,6 @@ import pickle
 import re
 import sys
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -14,7 +14,6 @@ from tqdm import tqdm
 import commons.slurm_tools
 
 sys.path.append(os.path.dirname(os.getcwd()))
-from commons import files_tools
 
 CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
 CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
@@ -31,17 +30,6 @@ def parse_input():
     parser.add_argument('--chr', help='Chromosome, all if not provided. e.g. chr16', required=False)
     args = parser.parse_args()
     return args
-
-
-# should move to commons
-def create_histogram(series, patient, chromosome, num_of_bins, output):
-    series.plot.hist(bins=num_of_bins)
-    plt.xlabel('number of cells covering both location pairs')
-    plt.xticks(range(num_of_bins))
-    plt.title(HISTOGRAM_FORMAT % (patient, chromosome))
-    plt.savefig(os.path.join(output, HISTOGRAM_FORMAT % (patient, chromosome)))
-    # plt.show()
-    plt.close()
 
 
 def compare_matrix(matrix, index):

@@ -51,7 +51,7 @@ def get_chr_avg_cov_df(bedgraphs_paths, window_boundaries):
     patients_dict = {}
     for file_path in bedgraphs_paths:
         patient, chromosome = consts.PATIENT_CHR_NAME_RE.findall(file_path)[0]
-        input_file = pd.read_csv(file_path, sep="\t", header=None, names=["chr", "start", "end", "cov"])
+        input_file = files_tools.load_bedgraph(file_path)
         patients_dict[patient] = input_file
 
     values_across_patients = []
@@ -65,7 +65,7 @@ def get_chr_avg_cov_df(bedgraphs_paths, window_boundaries):
 
             try:
                 window_values = input_file[np.logical_and(input_file.start > start, input_file.end < end)][
-                    "cov"]
+                    "coverage"]
                 average_value = float(window_values.mean())
             except TypeError:  # Will happened if we only have nans in this window
                 average_value = np.nan

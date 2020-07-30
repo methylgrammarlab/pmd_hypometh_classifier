@@ -1,11 +1,9 @@
 """
 A set of common useful functions to do data manipulations
 """
-
 import statistics
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 
@@ -100,25 +98,5 @@ def dict_to_histogram(counter_or_dict, color='#0E74E3', xlabel=None, ylabel=None
         plt.show()
 
     plt.close()
-
-
-def remove_extreme_cpgs_by_coverage(df, top_low_level_to_remove=5):
-    """
-    Remove CpG from a data frame which are extreme in coverage
-    :param df: The data frame
-    :type df: pd.DataFrame
-    :param top_low_level_to_remove: The percentage of CpC to remove from top and bottom, keep in mind that
-    this is percentage and not value base, meaning if every value is 3 that we will only remove
-    top_low_level_to_remove*2 % of the values and not all
-    :type top_low_level_to_remove: int
-    :return: A new df with the cpg we want to keep
-    """
-    cpg_coverage = np.sum(~pd.isnull(df), axis=0)
-    cpg_coverage = cpg_coverage.sort_values()
-    cpg_s = cpg_coverage.shape[0]
-    n_to_remove = int(cpg_s * top_low_level_to_remove / 100)
-
-    cpg_to_keep = cpg_coverage.index[n_to_remove:-n_to_remove]
-    return df[cpg_to_keep]  # this remove the top_low_level_to_remove lower and top
 
 

@@ -11,8 +11,8 @@ from weblogo import *
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from commons import files_tools
-from classifier import create_data
+from commons import files_tools, consts
+
 
 
 def parse_input():
@@ -27,7 +27,7 @@ def parse_input():
 
 def get_data(score, sequence):
     ind = sequence.find('CG')
-    pl_cl = create_data.LABEL_PARTIAL_LOST if float(score) < 0.5 else create_data.LABEL_COMPLETELY_LOST
+    pl_cl = consts.LABEL_PARTIAL_LOST if float(score) < 0.5 else consts.LABEL_COMPLETELY_LOST
     minus_2 = sequence[ind - 1]
     minus_1 = sequence[ind - 1]
     plus_1 = sequence[ind + 2]
@@ -114,7 +114,7 @@ def main():
     for i in tqdm(range(sequences.shape[1])):
         sequence_df.iloc[i, :] = get_data(sequences[0, i], sequences[1, i])
 
-    instances = get_instances(sequence_df, create_data.LABEL_PARTIAL_LOST, minus_1_op=('C', 'G'),
+    instances = get_instances(sequence_df, consts.LABEL_PARTIAL_LOST, minus_1_op=('C', 'G'),
                               plus_1_op=('C', 'G'))
 
     seq_list = list(instances)

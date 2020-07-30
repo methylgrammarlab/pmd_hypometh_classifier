@@ -27,6 +27,11 @@ NUCLEOTIDE_TO_NUMBER = {"A": "1",
                         "T": "4",
                         "N": "5"}  # N means that this is unknown
 
+# NN labels
+LABEL_PARTIAL_LOST = 0  # Group 0 - partial loss
+LABEL_COMPLETELY_LOST = 1  # Group 1 - comp loss
+
+
 CENETROMERE_DICT = {
     "1": [121311574, 129523877],
     "2": [91278726, 97911435],

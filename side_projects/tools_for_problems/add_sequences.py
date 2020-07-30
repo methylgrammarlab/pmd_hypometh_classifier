@@ -1,11 +1,17 @@
-# This was added only because we don't have pyfaidx on the cluster
+"""
+Allow to append sequence to a dataframe if the sequence failed
+"""
+import argparse
 import os
 import sys
+
+import pandas as pd
+import tqdm
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-from zhou_dataset.get_valid_cpg import *
+from commons import sequence_tools
 
 
 def parse_input():
@@ -20,18 +26,11 @@ def get_seq_info(df):
 
     for i in tqdm.trange(df.shape[0]):
         row = df.iloc[i]
-        seq = get_seq_for_cpg(chr_num=row["chromosome"], i=row["location"], seq_size=SEQ_SIZE)
+        seq = sequence_tools.get_sequences_for_cpgs(indexes_list=row["location"],
+                                                    chromosome=row["chromosome"])
         sequences.append(seq)
 
     return sequences
-
-
-def add_chr_number(df):
-    df["chr_num"] = 0
-    for chromosome in pd.unique(df["chromosome"]):
-        df.loc[df["chromosome"] == chromosome, "chr_num"] = INT_RE.findall(chromosome)[0]
-
-    return df
 
 
 def main():
