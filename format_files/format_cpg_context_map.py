@@ -145,7 +145,7 @@ def main():
         cpg_matrix = np.hstack((cpg_matrix, is_strong_col))
 
         # Save the file
-        chr_number = consts.CHR_NUM_FROM_FULL_RE.findall(cpg_file)[0]
+        chr_number = consts.CHR_FULL_NAME_RE.findall(cpg_file)[0]
         output_path = os.path.join(output_folder, consts.FULL_CPG_CONTEXT_FILE_FORMAT % chr_number)
         tools.save_as_compressed_pickle(output_path, cpg_matrix)
 

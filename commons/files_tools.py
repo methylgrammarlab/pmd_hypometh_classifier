@@ -5,7 +5,6 @@ A set of common useful functions to do data manipulations
 import glob
 import os
 import pickle
-import re
 import sys
 import zlib
 
@@ -81,9 +80,9 @@ def get_cpg_context_map(only_locations=False, load_with_path=consts.CONTEXT_MAP_
 
     all_files = glob.glob(os.path.join(load_with_path, "*.pickle.zlib"))
     for f in all_files:
-        chr_name = re.findall("chr\d+", os.path.basename(f))[0]
+        chr_name = consts.CHR_FULL_NAME_RE.findall(os.path.basename(f))[0]
         data = load_compressed_pickle(f)
-        context_map["%s" % chr_name] = data[:, 0] if only_locations else data
+        context_map[chr_name] = data[:, 0] if only_locations else data
 
     return context_map
 

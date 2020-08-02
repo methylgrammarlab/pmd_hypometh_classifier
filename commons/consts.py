@@ -3,17 +3,15 @@ import re
 
 # output/input file format
 BULK_FILE_FORMAT = "all_cpg_ratios_%s_hg19.dummy.pkl.zip"
-SCWGBS_FILE_FORMAT = "all_cpg_ratios_%s_%s.dummy.pkl.zip"
-FULL_CPG_CONTEXT_FILE_FORMAT = "full_cpg_seq_chr*.pickle.zlib"
+SCWGBS_FILE_FORMAT = "all_cpg_ratios_%s_%s_hg19.dummy.pkl.zip"
+FULL_CPG_CONTEXT_FILE_FORMAT = "full_cpg_seq_chr*_hg19.pickle.zlib"
 
 # regex
 DATA_FILE_SCWGBS_RE = re.compile(".+(CRC\d+)_(chr\d+)_hg19.dummy.pkl.zip")
 DATA_FILE_BULK_RE = re.compile(".+_(chr\d+)_hg19.dummy.pkl.zip")
 
-PATIENT_CHR_NUM_RE = re.compile(".*(CRC\d+)_chr(\d+).*")
 PATIENT_CHR_NAME_RE = re.compile(".*(CRC\d+)_(chr\d+).*")
 
-CHR_NUM_FROM_FULL_RE = re.compile("chr(\d+).*")
 CHR_FULL_NAME_RE = re.compile("(chr\d+)")
 
 # Regex for weak and strong context cpg
