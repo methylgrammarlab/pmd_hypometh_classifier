@@ -104,7 +104,7 @@ def main():
     cells_to_use = files_tools.load_compressed_pickle(args.cells_to_use) if args.cells_to_use else None
     min_cells_threshold = args.min_cells_threshold
 
-    all_files = files_tools.get_files_to_work(os.path.join(args.methylation_folder, "*"), pattern="*.pkl.zip") # todo make sure this works
+    all_files = files_tools.get_files_to_work(os.path.join(args.methylation_folder, "*"), pattern="*.pkl.zip")  # todo dror: make sure this works
     boundaries_data = files_tools.load_compressed_pickle(args.windows_file)
 
     chromosome_df_dict = get_chromosome_df_dict(all_files, cells_to_use=cells_to_use)

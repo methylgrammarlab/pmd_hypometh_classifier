@@ -160,7 +160,7 @@ def filter_df_based_on_tuple_list(df, boundaries_list, add_index=False, add_inde
     i = 0
 
     if add_index:
-        df[add_index_name] = np.nan
+        df[add_index_name] = -1
 
     # Trying to support two ways of working with df - one is where the columns is the CpG and the other is
     # that the index is the CpG location
