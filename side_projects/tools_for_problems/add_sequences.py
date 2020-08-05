@@ -26,8 +26,7 @@ def get_seq_info(df):
 
     for i in tqdm.trange(df.shape[0]):
         row = df.iloc[i]
-        seq = sequence_tools.get_sequences_for_cpgs(indexes_list=row["location"],
-                                                    chromosome=row["chromosome"])
+        seq = sequence_tools.get_cpg_sequence(chr_num=row["chromosome"], cpg_index=row["location"])
         sequences.append(seq)
 
     return sequences

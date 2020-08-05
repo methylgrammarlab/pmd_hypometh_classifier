@@ -34,7 +34,7 @@ def plot_one_seq(seq, output, title, yl=None):
     plt.close()
 
 
-def plot_multi_seq(sequences_dict, number_of_seq, output_folder):
+def plot_multi_seq(sequences_dict, number_of_seq, output_folder=None):
     """
     Plot the multiple sequences in one figure
     :param sequences_dict: A dictionary with pl or cl as key and the integrated values results for each
@@ -48,12 +48,15 @@ def plot_multi_seq(sequences_dict, number_of_seq, output_folder):
                           figsize=(8, ex_seq.shape[0]), ncol=1, yl=0.1,
                           plot_name="seq for top %s of type %s" % (number_of_seq, k))
 
-        fig.savefig(os.path.join(output_folder, "seq_for_top_%s_of_type_%s" % (number_of_seq, k)))
+        if output_folder:
+            fig.savefig(os.path.join(output_folder, "seq_for_top_%s_of_type_%s" % (number_of_seq, k)))
+        else:
+            plt.show()
 
     plt.close()
 
 
-def plot_avg_sequence(sequences_dict, output_folder):
+def plot_avg_sequence(sequences_dict, output_folder=None):
     """
     Plot the average sequence across 30 letters and all the sequence
     :param sequences_dict: A dictionary with pl or cl as key and the integrated values results for each
@@ -71,7 +74,10 @@ def plot_avg_sequence(sequences_dict, output_folder):
         ax = fig.axes[0]
         ax.set_title("Average sequence for prediction %s" % name, fontsize=16)
 
-        fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s30.png" % k))
+        if output_folder:
+            fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s30.png" % k))
+        else:
+            plt.show()
         plt.close()
 
     for k in sequences_dict:
@@ -81,11 +87,14 @@ def plot_avg_sequence(sequences_dict, output_folder):
         fig = seqlogo_fig(mean_seq, vocab="DNA", figsize=(20, 4), ncol=1,
                           plot_name="Avg seq for %s" % k)
 
-        fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s.png" % k))
+        if output_folder:
+            fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s.png" % k))
+        else:
+            plt.show()
         plt.close()
 
 
-def plot_avg_sequence_sw(sequences_dict, output_folder):
+def plot_avg_sequence_sw(sequences_dict, output_folder=None):
     """
     plot the avg sequence using SW, flatten the AT to W and CG to S
     :param sequences_dict: A dictionary with pl or cl as key and the integrated values results for each
@@ -102,7 +111,10 @@ def plot_avg_sequence_sw(sequences_dict, output_folder):
 
         fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(20, 4), ncol=1, plot_name="Avg seq for %s" % k)
 
-        fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s_sw30.png" % k))
+        if output_folder:
+            fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s_sw30.png" % k))
+        else:
+            plt.show()
 
     for k in sequences_dict:
         ex_seq = sequences_dict[k]
@@ -114,12 +126,15 @@ def plot_avg_sequence_sw(sequences_dict, output_folder):
 
         fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(20, 4), ncol=1, plot_name="Avg seq for %s" % k)
 
-        fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s_sw.png" % k))
+        if output_folder:
+            fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s_sw.png" % k))
+        else:
+            plt.show()
 
     plt.close()
 
 
-def plot_avg_sequence_sw_flatten_values(sequences_dict, output_folder):
+def plot_avg_sequence_sw_flatten_values(sequences_dict, output_folder=None):
     """
     plot the avg sequence using SW, flatten the AT to W and CG to S and combining both options to get one
     number per sequence place
@@ -140,8 +155,10 @@ def plot_avg_sequence_sw_flatten_values(sequences_dict, output_folder):
 
         fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(8, 4), ncol=1, plot_name="Avg seq for %s" % k)
 
-        fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s_sw30_flatten.png" % k))
-        # fig.show()
+        if output_folder:
+            fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s_sw30_flatten.png" % k))
+        else:
+            fig.show()
 
     for k in sequences_dict:
         ex_seq = sequences_dict[k]
@@ -156,12 +173,15 @@ def plot_avg_sequence_sw_flatten_values(sequences_dict, output_folder):
 
         fig = seqlogo_fig(new_seq, vocab="DNAWS", figsize=(20, 4), ncol=1, plot_name="Avg seq for %s" % k)
 
-        fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s_sw_flatten.png" % k))
+        if output_folder:
+            fig.savefig(os.path.join(output_folder, "Avg_seq_for_%s_sw_flatten.png" % k))
+        else:
+            plt.show()
 
     plt.close()
 
 
-def plot_distance_weight_two_sides(sequences_dict, output_folder):
+def plot_distance_weight_two_sides(sequences_dict, output_folder=None):
     """
     Plot the integrated gradient value of each feature based on distance from center, two ways graph(-74->74)
     We wanted to see if there are indexes and some periodicity
@@ -191,12 +211,16 @@ def plot_distance_weight_two_sides(sequences_dict, output_folder):
         plt.ylabel("Attribute score", fontsize=12)
         plt.title("Attribute score base on distance from CpG site for %s" % class_type, fontsize=14)
 
-        plt.savefig(
-            os.path.join(output_folder, "distance_importance_of_flanking_letters_type_%s_two_way.png" % k))
+        if output_folder:
+            plt.savefig(
+                os.path.join(output_folder,
+                             "distance_importance_of_flanking_letters_type_%s_two_way.png" % k))
+        else:
+            plt.show()
         plt.close()
 
 
-def plot_distance_weight_one_side(sequences_dict, output_folder):
+def plot_distance_weight_one_side(sequences_dict, output_folder=None):
     """
     Plot the integrated gradient value of each feature based on distance from center, one way graph (0->74)
     We wanted to see if there are indexes and some periodicity
@@ -228,8 +252,11 @@ def plot_distance_weight_one_side(sequences_dict, output_folder):
         plt.ylabel("Importance shannon values")
         plt.title("Importance of flanking letters - %s" % (class_type))
 
-        plt.savefig(os.path.join(output_folder,
-                                 "distance_importance_of_flanking_letters_type_%s_one_way.png" % k))
+        if output_folder:
+            plt.savefig(os.path.join(output_folder,
+                                     "distance_importance_of_flanking_letters_type_%s_one_way.png" % k))
+        else:
+            plt.show()
         plt.close()
 
 
