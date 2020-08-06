@@ -44,6 +44,12 @@ def parse_input():
 
 
 def get_sublineage(cell, sublineage_info, patient):
+    """
+    :param cell: The cell name
+    :param sublineage_info: Dictionary of cell names -> sublineage
+    :param patient: Patient name
+    :return: The cells sublineage if there is, undefined otherwise
+    """
     try:
         return sublineage_info[patient + '_' + cell]
     except:
@@ -51,13 +57,24 @@ def get_sublineage(cell, sublineage_info, patient):
 
 
 def get_region(cell):
+    """
+    :param cell: The cell name
+    :return: The cells region
+    """
     return cell.split('_')[0]
 
 
-def get_all_pattern_cells_from_df(df, context_info, pattern):
+def get_all_pattern_cells_from_df(patient_chromosome_df, context_info, pattern):
+    """
+    For every cell in the DF, calculates the mean of the cels that match the given pattern
+    :param patient_chromosome_df: Patients methylation df (for chromosome)
+    :param context_info: df with context information
+    :param pattern: The pattern to look for
+    :return: df with the mean for every cell of the CpGs that fit the pattern
+    """
     pattern_cells = set([])
     pattern_cells |= set(context_info[context_info.str.contains(pattern)].index)
-    return np.mean(df.loc[:, df.columns & pattern_cells], axis=1)
+    return np.mean(patient_chromosome_df.loc[:, patient_chromosome_df.columns & pattern_cells], axis=1)
 
 
 def get_patient_df_dict(all_file_paths):
@@ -131,7 +148,8 @@ def create_methylation_info_dfs(cpg_context_dict, nc_files, patients_dict, subli
     :param sublineage: Dictionary mapping cell names to their sublineage
     :return: Lists of all the patients mean and median methylation DFs
     """
-    context_info, cpg75flank, nc_meth, strong, weak = find_cpg_indices_for_feature(cpg_context_dict, nc_files)
+    context_info, cpg75flank, nc_meth, strong_indices, weak_indices = find_cpg_indices_for_feature(cpg_context_dict,
+                                                                                                   nc_files)
 
     patient_cell_names = set([])
     all_patients_mean = []
@@ -140,12 +158,13 @@ def create_methylation_info_dfs(cpg_context_dict, nc_files, patients_dict, subli
         patient_cell_names = get_patient_cells(cpg75flank, nc_meth, patient, patient_cell_names, patients_dict)
 
         mean_methylation_df, pattern_mean_methylation_df_dict, strong_mean_methylation_df, weak_mean_methylation_df = \
-            get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients_dict, strong, weak)
+            get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients_dict, strong_indices,
+                                     weak_indices)
 
-        patient_df_mean, patient_df_median = create_mean_median_data(mean_methylation_df, patient,
+        patient_df_mean, patient_df_median = create_mean_median_data(mean_methylation_df,
                                                                      pattern_mean_methylation_df_dict,
-                                                                     strong_mean_methylation_df, sublineage,
-                                                                     weak_mean_methylation_df)
+                                                                     strong_mean_methylation_df,
+                                                                     weak_mean_methylation_df, patient, sublineage)
 
         all_patients_median.append(patient_df_median)
         all_patients_mean.append(patient_df_mean)
@@ -153,8 +172,20 @@ def create_methylation_info_dfs(cpg_context_dict, nc_files, patients_dict, subli
     return all_patients_mean, all_patients_median
 
 
-def create_mean_median_data(mean_methylation_df, patient, pattern_mean_methylation_df_dict, strong_mean_methylation_df,
-                            sublineage, weak_mean_methylation_df):
+def create_mean_median_data(mean_methylation_df, pattern_mean_methylation_df_dict, strong_mean_methylation_df,
+                            weak_mean_methylation_df, patient, sublineage):
+    """
+    From the DFs (all, pattern, strong, weak) containing the mean of each cell per chromosome create two DFs, one for
+    the mean and the other for the median for every cell across all chromosomes with the different features.
+    :param mean_methylation_df: df with the mean methylation for every cell and chromosome for all CpGs
+    :param pattern_mean_methylation_df_dict: df with the mean methylation for every cell and chromosome for CpGs that match patterns
+    :param strong_mean_methylation_df: df with the mean methylation for every cell and chromosome for all strong CpGs
+    :param weak_mean_methylation_df: df with the mean methylation for every cell and chromosome for all weak CpGs
+    :param patient: patient name
+    :param sublineage: Dictionary of cell names -> sublineage
+    :return: Two DFs, one for the mean and the other for the median for every cell across all chromosomes with the
+    different features.
+    """
     ### save median data ###
     patient_df_median = pd.DataFrame(index=mean_methylation_df.index)
     patient_df_median.loc[:, 'median'] = mean_methylation_df.median(axis=1)
@@ -187,7 +218,17 @@ def create_mean_median_data(mean_methylation_df, patient, pattern_mean_methylati
     return patient_df_mean, patient_df_median
 
 
-def get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients_dict, strong, weak):
+def get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients_dict, strong_indices, weak_indices):
+    """
+    Calculate the mean methyaltion for every cell and chromosome for CpGs fitting different features
+    :param context_info: Df holding context information
+    :param patient: Ptient name
+    :param patient_cell_names: List of the cell names
+    :param patients_dict: Dictionary with the methylation df for every patient, chromosome
+    :param strong_indices: Indices of strong CpGs
+    :param weak_indices: Indices of weak CpGs
+    :return: DFs (all, pattern, strong, weak) containing the mean of each cell per chromosome
+    """
     mean_methylation_df = pd.DataFrame(index=list(patient_cell_names))
     strong_mean_methylation_df = pd.DataFrame(index=list(patient_cell_names))
     weak_mean_methylation_df = pd.DataFrame(index=list(patient_cell_names))
@@ -198,9 +239,9 @@ def get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients
         patient_chromosome_df = patients_dict[patient][chromosome]
         mean_methylation_df.loc[patient_chromosome_df.index, chromosome] = np.mean(patient_chromosome_df, axis=1)
         strong_mean_methylation_df.loc[patient_chromosome_df.index, chromosome] = np.mean(
-            patient_chromosome_df.loc[:, patient_chromosome_df.columns & strong[chromosome]], axis=1)
+            patient_chromosome_df.loc[:, patient_chromosome_df.columns & strong_indices[chromosome]], axis=1)
         weak_mean_methylation_df.loc[patient_chromosome_df.index, chromosome] = np.mean(
-            patient_chromosome_df.loc[:, patient_chromosome_df.columns & weak[chromosome]], axis=1)
+            patient_chromosome_df.loc[:, patient_chromosome_df.columns & weak_indices[chromosome]], axis=1)
         for pattern in PATTERNS_TO_CALC:
             pattern_mean_methylation_df_dict[pattern].loc[
                 patient_chromosome_df.index, chromosome] = get_all_pattern_cells_from_df(patient_chromosome_df,
