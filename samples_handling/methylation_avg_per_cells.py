@@ -38,7 +38,8 @@ def parse_input():
     parser.add_argument('--windows_file', help='Path to files with windows we want to take', required=True)
     parser.add_argument('--patients_data', help='Path to files with the calculated data', required=False)
     parser.add_argument('--pmd_dicts', help='Path to location with the pre-calculated PMD dicts', required=False)
-    parser.add_argument('--output_folder', help='Path of the output folder', required=False)
+    parser.add_argument('--output_folder', help='Path of the output folder', required=False,
+                        default=os.path.dirname(sys.argv[0]))
     args = parser.parse_args()
     return args
 
@@ -293,22 +294,24 @@ def find_cpg_indices_for_feature(cpg_context_dict, nc_files):
     return context_info, cpg75flank, nc_meth, strong, weak
 
 
-def save_to_file(all_patients_mean, all_patients_median):
+def save_to_file(all_patients_mean, all_patients_median, output_folder):
     """
     Saves both the mean DF and the median df to a pickle and a csv
+    :param output_folder:
     :param all_patients_mean: List of all the patients mean methylation DFs
     :param all_patients_median: List of all the patients median methylation DFs
+    :param output_folder: Path of the output folder
     """
+    base_path = os.path.join(output_folder, "avg_data_all_NCGN_solo_nc_")
+    median_path = base_path + "median.pickle.zlib"
+    mean_path = base_path + "mean.pickle.zlib"
+
     all_patients_median_df = pd.concat(all_patients_median)
     all_patients_mean_df = pd.concat(all_patients_mean)
-    median_path = "avg_data_all_NNCGNN_solo_nc_median.pickle.zlib"
-    mean_path = "avg_data_all_NNCGNN_solo_nc_mean.pickle.zlib"
-    # median_path = "all_patients_avg_data_all_wwcgww_solo_nc_median.pickle.zlib"
-    # mean_path = "all_patients_avg_data_all_wwcgww_solo_nc_mean.pickle.zlib"
+
     all_patients_median_df.to_pickle(median_path)
     all_patients_mean_df.to_pickle(mean_path)
-    all_patients_median_df.to_csv("avg_data_all_NNCGNN_solo_nc_median.csv")
-    # create_graphs(median_path)
+    all_patients_median_df.to_csv(base_path + "median.csv")
 
 
 def main():
@@ -320,7 +323,7 @@ def main():
     patients_dict = get_filtered_patient_df_dict(args.methylation_folder, args.windows_file)
     all_patients_mean, all_patients_median = create_methylation_info_dfs(cpg_context_dict, consts.NC_LIOR,
                                                                          patients_dict, sublineage)
-    save_to_file(all_patients_mean, all_patients_median)
+    save_to_file(all_patients_mean, all_patients_median, args.output_folder)
 
 
 if __name__ == '__main__':
