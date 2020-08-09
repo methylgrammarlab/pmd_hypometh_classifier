@@ -1,5 +1,5 @@
 # TODO:lior
-#!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
+# !/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
 import argparse
 import glob
 import os
@@ -11,12 +11,10 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-import commons.slurm_tools
-
+# Needed for imports
 sys.path.append(os.path.dirname(os.getcwd()))
+from commons import files_tools, consts, data_tools, slurm_tools
 
-CPG_FORMAT_FILE_FORMAT = "all_cpg_ratios_*_%s.dummy.pkl.zip"
-CPG_FORMAT_FILE_RE = re.compile(".+(CRC\d+)_(chr\d+).dummy.pkl.zip")
 HISTOGRAM_FORMAT = "histogram_%s_%s.csv"
 PICKLE_FORMAT = "dict_%s_%s.pickle"
 NC_PICKLE_FORMAT = "NC_pairwise_coverage_%s_%s_numNC_%d_window_%d.dummy.pkl.zip"
@@ -26,7 +24,8 @@ WINDOWS_SIZE = 500
 def parse_input():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cpg_format_files', help='Path to folder or file of parsed scWGBS', required=True)
-    parser.add_argument('--output_folder', help='Path of the output folder', required=False)
+    parser.add_argument('--output_folder', help='Path of the output folder', required=False,
+                        default=os.path.dirname(sys.argv[0]))
     parser.add_argument('--chr', help='Chromosome, all if not provided. e.g. chr16', required=False)
     args = parser.parse_args()
     return args
@@ -56,7 +55,6 @@ def create_pairwise_coverage(cpg_format_file):
     :param cpg_format_file:
     :return:
     """
-    # tqdm.pandas()
     df = pd.read_pickle(cpg_format_file)
     converted_matrix = np.where(~np.isnan(df), 1, 0)
 
@@ -65,7 +63,6 @@ def create_pairwise_coverage(cpg_format_file):
     for i in range(amount_of_samples + 1):
         counter[i] = 0
 
-    # for col in trange(converted_matrix.shape[1], desc='location progress'):
     for col in range(converted_matrix.shape[1]):
         col_coverage = compare_matrix(converted_matrix, col)
         for i in range(amount_of_samples + 1):
@@ -75,6 +72,14 @@ def create_pairwise_coverage(cpg_format_file):
     return counter
 
 
+def write_output(chromosome, counter, output, patient):
+    output_path = os.path.join(output, patient, PICKLE_FORMAT % (patient, chromosome))
+    if not os.path.exists(os.path.dirname(output_path)):
+        os.mkdir(os.path.dirname(output_path))
+    with open(output_path, "wb") as of:
+        pickle.dump(counter, of)
+
+
 def nc_pairwise_coverage(cpg_format_file):
     df = pd.read_pickle(cpg_format_file)
     normal_cell_ids = [cell_id for cell_id in df.index if cell_id.startswith('NC')]
@@ -82,7 +87,6 @@ def nc_pairwise_coverage(cpg_format_file):
     converted_matrix = np.where(~np.isnan(normal_df), 1, 0)
 
     amount_of_samples = converted_matrix.shape[0]
-    # num_of_cpg = 3000
     num_of_cpg = converted_matrix.shape[1]
     counter_matrix = np.empty((num_of_cpg, amount_of_samples + 2))
     for window in tqdm(range(0, num_of_cpg, WINDOWS_SIZE)):
@@ -98,16 +102,9 @@ def nc_pairwise_coverage(cpg_format_file):
     return counter_df
 
 
-def write_output(chromosome, counter, output, patient):
-    output_path = os.path.join(output, patient, PICKLE_FORMAT % (patient, chromosome))
-    if not os.path.exists(os.path.dirname(output_path)):
-        os.mkdir(os.path.dirname(output_path))
-    with open(output_path, "wb") as of:
-        pickle.dump(counter, of)
-
-
 def write_nc_output(chromosome, counter, output, patient):
-    output_path = os.path.join(output, patient, NC_PICKLE_FORMAT % (patient, chromosome, counter.shape[1] - 2, WINDOWS_SIZE))
+    output_path = os.path.join(output, patient,
+                               NC_PICKLE_FORMAT % (patient, chromosome, counter.shape[1] - 2, WINDOWS_SIZE))
     if not os.path.exists(os.path.dirname(output_path)):
         os.mkdir(os.path.dirname(output_path))
     column_names = list(counter.columns)
@@ -119,24 +116,17 @@ def write_nc_output(chromosome, counter, output, patient):
 def main():
     args = parse_input()
 
-    output = args.output_folder
-    if not output:
-        output = os.path.dirname(sys.argv[0])
+    input_folder, output, chromosome = args.cpg_format_files, args.output_folder, args.chr
 
-    chr = args.chr
-
-    if os.path.isdir(args.cpg_format_files):
-        cpg_format_file_path = os.path.join(args.cpg_format_files, CPG_FORMAT_FILE_FORMAT % '*')
-        if chr:
-            cpg_format_file_path = os.path.join(args.cpg_format_files, CPG_FORMAT_FILE_FORMAT % chr)
-
-        all_cpg_format_file_paths = glob.glob(cpg_format_file_path)
+    if chromosome:
+        formatted_pattern = consts.SCWGBS_FILE_FORMAT % ('*', chromosome)
     else:
-        all_cpg_format_file_paths = [args.cpg_format_files]
+        formatted_pattern = consts.SCWGBS_FILE_FORMAT % ('*', '*')
 
-    # for file in tqdm(all_cpg_format_file_paths, desc='files'):
+    all_cpg_format_file_paths = files_tools.get_files_to_work(input_folder, formatted_pattern)
+
     for file in all_cpg_format_file_paths:
-        patient, chromosome = CPG_FORMAT_FILE_RE.findall(file)[0]
+        patient, chromosome = consts.DATA_FILE_SCWGBS_RE.findall(file)[0]
         # counter = create_pairwise_coverage(file)
         # write_output(chromosome, counter, output, patient)
         counter = nc_pairwise_coverage(file)
@@ -144,4 +134,4 @@ def main():
 
 
 if __name__ == '__main__':
-    commons.slurm_tools.init_slurm(main)
+    slurm_tools.init_slurm(main)
