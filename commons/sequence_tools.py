@@ -1,7 +1,6 @@
 """
 Several functions related to sequence handling
 """
-import pyfaidx
 import tqdm
 
 from commons import consts
@@ -10,7 +9,9 @@ TRANSLATION_TABLE = {84: 65, 65: 84, 67: 71, 71: 67}
 SEQ_SIZE = 150
 
 try:
-    genome = pyfaidx.Fasta(filename=consts.GENOME_FILE, sequence_always_upper=True, as_raw=True)
+    import pyfaidx
+
+    genome = pyfaidx.Fasta(filename=consts.GENOME_FILE_LOCAL_DROR, sequence_always_upper=True, as_raw=True)
 except ImportError:
     print("Error: no pyfaidx install, somme code might fail")
 

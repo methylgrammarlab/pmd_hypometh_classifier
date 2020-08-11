@@ -45,8 +45,14 @@ def create_bedgraph(input_folder, output_folder):
     final_df = pd.concat(df_list)
     final_df["end"] = final_df["location"] + 1
     final_df.to_csv(path_or_buf=os.path.join(output_folder, "prediction.bedgraph"), header=False,
-                    index=False, columns=["chromosome", "location", "end",
-                                          "prediction"], sep=" ")
+                    index=False, columns=["chromosome", "location", "end", "prediction"], sep=" ")
+
+    final_df_gt09 = final_df[final_df["prediction"] >= 0.9]
+    final_df_lt01 = final_df[final_df["prediction"] <= 0.1]
+    final_df_lt01.to_csv(path_or_buf=os.path.join(output_folder, "prediction_lt01.bedgraph"), header=False,
+                         index=False, columns=["chromosome", "location", "end", "prediction"], sep=" ")
+    final_df_gt09.to_csv(path_or_buf=os.path.join(output_folder, "prediction_gt09.bedgraph"), header=False,
+                         index=False, columns=["chromosome", "location", "end", "prediction"], sep=" ")
 
 
 def main():

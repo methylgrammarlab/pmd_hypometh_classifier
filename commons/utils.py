@@ -180,6 +180,9 @@ def filter_df_based_on_tuple_list(df, boundaries_list, add_index=False, add_inde
     try:
         filtered_df = df.loc[:, prev_mask]
     except Exception:
-        filtered_df = df.loc[prev_mask, :]
+        try:
+            filtered_df = df.loc[prev_mask, :]
+        except Exception:
+            filtered_df = df.loc[prev_mask]
 
     return filtered_df
