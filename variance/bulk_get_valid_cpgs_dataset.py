@@ -102,7 +102,7 @@ def get_cells_to_calculate_variance(file_path, percentage_of_extreme_cells=15):
 def main():
     args = parse_input()
 
-    all_files = files_tools.get_files_to_work(args.methylation_folder, consts.BULK_FILE_FORMAT)
+    all_files = files_tools.get_files_to_work(args.methylation_folder, consts.BULK_FILE_FORMAT % "*")
     orig_meth_cells = get_cells_to_calculate_original_meth(args.orig_meth_cells)
     variance_cells = get_cells_to_calculate_variance(args.variance_meth_cells,
                                                      args.percentage_of_extreme_cells)

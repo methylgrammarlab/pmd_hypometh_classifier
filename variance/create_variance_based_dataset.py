@@ -22,10 +22,6 @@ from commons import files_tools, consts, sequence_tools
 TRAIN_PATIENT = ["CRC01", "CRC11"]
 TEST_PATIENT = ["CRC10", "CRC13"]
 
-SCWGBS = "scwgbs"
-BULK = "bulk"
-PARSE_OPTIONS = [SCWGBS, BULK]
-
 
 def parse_input():
     parser = argparse.ArgumentParser()
@@ -33,7 +29,7 @@ def parse_input():
                         default=os.path.dirname(sys.argv[0]))
     parser.add_argument('--input_file', help='path for the input file', required=True)
     parser.add_argument('--parse_format', help='do we parse scwgb or bulk data', required=True, type=str,
-                        choices=PARSE_OPTIONS)
+                        choices=consts.PARSE_FORMAT_OPTIONS)
     parser.add_argument('--output_name', help='name of the output file', required=False,
                         default="nn_dataset.pkl")
 
@@ -55,7 +51,7 @@ def print_statistics(train, test):
              test_size, test_size / total_size * 100))
 
 
-def split_df_by_pmd(df, size_wheel=1.8):
+def split_df_by_pmd(df, size_wheel=2.5):
     """
     Split data frame based on pmd, we assume we have a column which is called pmd_index
     We don't want to have CpG from the same PMD in test and train - we want to make it dependent + we want
@@ -171,7 +167,7 @@ def label_and_flat_sc_based_on_meth_var(df, patients, cl_max_meth=0.2, cl_max_va
         df.loc[np.logical_and(df[meth_label] <= cl_max_meth, df[var_label] <= cl_max_var), label] = \
             consts.LABEL_COMPLETELY_LOST
 
-        df.loc[np.logical_and(df["meth"] >= pl_min_meth, df["var"] >= pl_min_var), label] = \
+        df.loc[np.logical_and(df[meth_label] >= pl_min_meth, df[var_label] >= pl_min_var), label] = \
             consts.LABEL_PARTIAL_LOST
 
     label1 = "label%s" % patients[0][-2:]
@@ -238,17 +234,17 @@ def create_nn_dataset():
 
     # We start with solo which are methylated in NC
     df["ccpg"] = df["sequence"].str.count("CG")
-    df = df[df["ccpg"] == 1]
+    # df = df[df["ccpg"] == 1]
 
-    if parse_format == SCWGBS:
-        df = df[df["nc_avg"] >= 0.6]
+    if parse_format == consts.SCWGBS:
+        df = df[df["nc_avg"] >= 0.7]
     else:
-        df = df[df["orig_meth"] >= 0.6]
+        df = df[df["orig_meth"] >= 0.7]
 
     # Split the data to train and test based on pmd
     train, test = split_df_by_pmd(df)
 
-    if parse_format == SCWGBS:
+    if parse_format == consts.SCWGBS:
         # Flat based on patients and add labels
         train = label_and_flat_sc_based_on_meth_var(train, TRAIN_PATIENT)
         test = label_and_flat_sc_based_on_meth_var(test, TEST_PATIENT)
