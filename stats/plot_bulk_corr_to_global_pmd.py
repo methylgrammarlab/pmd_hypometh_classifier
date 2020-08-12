@@ -50,7 +50,6 @@ def main():
         chromosome, pmd_df = bulk_get_valid_cpgs_dataset.get_pmd_df(chromosome_file)
         orig_meth_values = bulk_get_valid_cpgs_dataset.get_cpgs_orig_methylated(pmd_df, orig_meth_cells)
         df = pmd_df.filter(items=variance_cells, axis=0).astype(np.float64)
-        # df = pmd_df.astype(np.float64)
 
         # Remove extreme cells and cells with not enough coverage
         df = utils.remove_extreme_cpgs_by_coverage(df, args.coverage_perc_cpgs_to_remove)
@@ -64,15 +63,16 @@ def main():
         chromosome_df = chromosome_df.set_index("location")
         # chromosome_df["pmd_index"] = df["pmd_index"]
         chromosome_df["meth"] = df.mean()
+        chromosome_df["var"] = df.var()
         chromosome_df["pearson_corr"] = df.corrwith(pmd_sample_mean)
+        covariance = [df.iloc[:, i].cov(pmd_sample_mean) for i in range(df.shape[1])]
+        chromosome_df["coveriance"] = covariance
         chromosome_df["orig_meth"] = orig_meth_values[chromosome_df.index]
         # chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(df.columns, str(chromosome))
         chromosomes_list.append(chromosome_df.reset_index())
 
     all_chromosome_df = pd.concat(chromosomes_list)
-    # all_chromosome_df.plot.scatter("meth", "pearson_corr")
-    # plt.show()
-    all_chromosome_df.to_pickle(os.path.join(args.output_folder, "valid_cpg_zhou_corr.pkl"))
+    all_chromosome_df.to_pickle(os.path.join(args.output_folder, "valid_cpg_zhou_all_samples.pkl"))
 
 
 if __name__ == '__main__':
