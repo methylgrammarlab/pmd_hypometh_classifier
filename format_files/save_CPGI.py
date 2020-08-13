@@ -143,6 +143,17 @@ def convert_sc_files():
     skim_cpg(all_cpg_format_file_paths, boundaries_paths, output_folder,
              data_file_re=consts.DATA_FILE_SCWGBS_RE)
 
+def save_test_bed():
+    df = pd.read_csv(R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\format_files\example_files\CRC01\CPGI_cpg_ratios_CRC01_chr21.txt", index_col=0, sep='\t')
+    df = df.mean(axis=0).dropna()
+    bed = pd.DataFrame(columns=['chromosome', 'start', 'end', 'value'], index=df.index)
+    bed.loc[:, 'start'] = df.index.values.astype(int)
+    bed.loc[:, 'end'] = df.index.values.astype(int) + 1
+    bed.loc[:, 'value'] = 1
+    bed.loc[:, 'chromosome'] = 'chr21'
+    bed.to_csv(R"C:\Users\liorf\OneDrive\Documents\University\year 3\Project\proj_scwgbs\format_files\example_files\CRC01\CPGI_cpg_ratio_chr21.bed", sep='\t', index=False)
+
+
 
 if __name__ == '__main__':
     convert_sc_files()
