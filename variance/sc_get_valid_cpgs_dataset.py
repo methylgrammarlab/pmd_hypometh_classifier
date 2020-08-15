@@ -17,13 +17,15 @@ import pandas as pd
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-from commons import files_tools, consts, sequence_tools, utils
+from commons import files_tools, consts, utils
 from format_files import handle_pmds
+
+PATIENTS = ["CRC01", "CRC11", "CRC13", "CRC10"]
 
 
 def parse_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cpg_format_files', help='Path to methylation files', required=True)
+    parser.add_argument('--methylation_folder', help='Path to methylation files', required=True)
     parser.add_argument('--windows_file', help='Path to files with windows we want to take',
                         required=False, default=None)
     parser.add_argument('--nc_files', help='Path to nc files', required=True)
@@ -42,13 +44,16 @@ def get_chromosome_df_dict(all_file_paths, cells_to_use=None):
     chromosome_df_dict = {}
     for file_path in all_file_paths:
         patient, chromosome = consts.DATA_FILE_SCWGBS_RE.findall(file_path)[0]
+        if patient not in PATIENTS:
+            continue
+
         if cells_to_use is not None and patient not in cells_to_use:
             continue
 
         elif chromosome not in chromosome_df_dict:
             chromosome_df_dict[chromosome] = []
 
-        df = files_tools.load_pickle(file_path)
+        df = pd.read_pickle(file_path)
 
         chromosome_df_dict[chromosome].append((patient, df))
 
@@ -104,7 +109,7 @@ def main():
     cells_to_use = files_tools.load_compressed_pickle(args.cells_to_use) if args.cells_to_use else None
     min_cells_threshold = args.min_cells_threshold
 
-    all_files = files_tools.get_files_to_work(os.path.join(args.methylation_folder, "*"), pattern="*.pkl.zip")  # todo dror: make sure this works
+    all_files = files_tools.get_files_to_work(os.path.join(args.methylation_folder, "*"), pattern="*.pkl.zip")
     boundaries_data = files_tools.load_compressed_pickle(args.windows_file)
 
     chromosome_df_dict = get_chromosome_df_dict(all_files, cells_to_use=cells_to_use)
@@ -120,7 +125,7 @@ def main():
         chromosome_df = pd.DataFrame(columns=["chromosome", "location"])
         chromosome_df["location"] = cpg_locations
         chromosome_df["chromosome"] = chromosome
-        chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(cpg_locations, chromosome)
+        # chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(cpg_locations, chromosome)
 
         chromosome_df = chromosome_df.set_index("location")
 
@@ -131,11 +136,15 @@ def main():
             patient, patient_df = df_tuple
             patient_num = patient[-2:]
             cpgs_indexes = patient_df.columns
+            pmd_sample_mean = patient_df.mean(axis=1)
 
             chromosome_df.loc[cpgs_indexes, "pmd_index"] = patient_df["pmd_index"]
 
             chromosome_df.loc[cpgs_indexes, "meth%s" % patient_num] = patient_df.mean()
             chromosome_df.loc[cpgs_indexes, "var%s" % patient_num] = patient_df.var()
+            chromosome_df["pearson_corr"] = patient_df.corrwith(pmd_sample_mean)
+            covariance = [patient_df.iloc[:, i].cov(pmd_sample_mean) for i in range(patient_df.shape[1])]
+            chromosome_df["coveriance"] = covariance
 
             original_meth = utils.cpg_meth_in_cells(patient, chromosome, cpgs_indexes,
                                                     args.methylation_folder,

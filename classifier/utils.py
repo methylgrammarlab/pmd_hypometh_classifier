@@ -3,13 +3,17 @@ Utils functions for the NN handling
 Code adopted from  https://github.com/ohlerlab/DeepRiPe
 """
 
+import glob
+import os
 import pickle
 import re
 
 import keras.backend as K
 import numpy as np
 import tensorflow as tf
+from sklearn.metrics import roc_curve, auc, recall_score
 from sklearn.model_selection import train_test_split, StratifiedKFold
+from tensorflow.python.keras.models import load_model
 
 SMALL_SEQ = "seq10"
 BIG_SEQ = "sequence"
@@ -33,7 +37,8 @@ def get_train_test_data(path_to_data):
     return train_data, test_data
 
 
-def load_train_validate_test_data(path_to_data, input_len=150, only_test=False, validate_perc=0.2, kfold=5):
+def load_train_validate_test_data(path_to_data, input_len=150, only_test=False, validate_perc=0.2,
+                                  kfold=5):
     """
     Load the train validate and test data and split it as requesetd using folds
     :param kfold: Number of folds to use
@@ -169,6 +174,35 @@ def seq_to_mat(seq):
     return np.transpose(seq_code)
 
 
+######################################################################################
+######### function to find the top k and bottom K frequent 6MERs functions############
+######################################################################################
+
+def getkmer(X, y, pred, RBP_index, k):
+    from rpy2.robjects.packages import importr
+    base = importr('base')
+    Biostrings = importr("Biostrings")
+
+    multi_ind_high = [i[0] for i in sorted(enumerate(pred[:, RBP_index]), key=lambda x: x[1], reverse=True) if
+                      y[i[0], RBP_index] == 1][0:k]
+    multi_ind_low = [i[0] for i in sorted(enumerate(pred[:, RBP_index]), key=lambda x: x[1]) if
+                     y[i[0], RBP_index] == 1][0:k]
+
+    multi_fastaseq_low = vecs2dna(np.transpose(X[multi_ind_low], axes=(0, 2, 1)))
+    multi_fastaseq_high = vecs2dna(np.transpose(X[multi_ind_high], axes=(0, 2, 1)))
+
+    multi_fastaseq_high = base.unlist(multi_fastaseq_high)
+    multi_fastaseq_low = base.unlist(multi_fastaseq_low)
+    kmer_freqs_low = base.rowSums(
+        base.sapply(Biostrings.DNAStringSet(multi_fastaseq_low),
+                    Biostrings.oligonucleotideFrequency, width=6, step=1))
+    kmer_freqs_high = base.rowSums(
+        base.sapply(Biostrings.DNAStringSet(multi_fastaseq_high),
+                    Biostrings.oligonucleotideFrequency, width=6, step=1))
+
+    return kmer_freqs_low, kmer_freqs_high
+
+
 ###############################################################################
 ######### function to convert one hot encoded sequence to sequence ############
 ###############################################################################
@@ -179,11 +213,77 @@ def vecs2dna(seq_vecs):
     :param seq_vecs: np.array of sequences as one hot encoded
     :return: A list of sequences
     """
-    seq_vecs = seq_vecs.astype(str)
-    seq_vecs[np.all(seq_vecs == np.array(["1.0", "0.0", "0.0", "0.0"]), axis=2)] = "A"
-    seq_vecs[np.all(seq_vecs == np.array(["0.0", "1.0", "0.0", "0.0"]), axis=2)] = "C"
-    seq_vecs[np.all(seq_vecs == np.array(["0.0", "0.0", "1.0", "0.0"]), axis=2)] = "G"
-    seq_vecs[np.all(seq_vecs == np.array(["0.0", "0.0", "0.0", "1.0"]), axis=2)] = "T"
-    seq_vecs[np.all(seq_vecs == np.array(["0.25", "0.25", "0.25", "0.25"]), axis=2)] = "N"
-    sequences = ["".join(i) for i in seq_vecs[:, :, 0]]
-    return sequences
+    trained_seq = []
+    for i in range(0, seq_vecs.shape[0], 10000):
+        temp = seq_vecs[i:i + 10000].astype(str)
+        temp[np.all(temp == np.array(["1.0", "0.0", "0.0", "0.0"]), axis=2)] = "A"
+        temp[np.all(temp == np.array(["0.0", "1.0", "0.0", "0.0"]), axis=2)] = "C"
+        temp[np.all(temp == np.array(["0.0", "0.0", "1.0", "0.0"]), axis=2)] = "G"
+        temp[np.all(temp == np.array(["0.0", "0.0", "0.0", "1.0"]), axis=2)] = "T"
+        temp[np.all(temp == np.array(["0.25", "0.25", "0.25", "0.25"]), axis=2)] = "N"
+        trained_seq.extend(["".join(i) for i in temp[:, :, 0]])
+
+    return trained_seq
+
+
+###########################################################
+### Function to load kfold model and get scores from it ###
+###########################################################
+def load_models(models_folder):
+    """
+    Load the different models from the folder
+    :param models_folder: path to the folder with models
+    """
+    models_paths = glob.glob(os.path.join(models_folder, "*.h5"))
+
+    models = [load_model(model_path, custom_objects={'recall_TP': recall_TP, 'recall_TN': recall_TN}) for
+              model_path in models_paths]
+    return models
+
+
+def get_scores(models, x_test, y_test):
+    """
+    Calculate and print the scores (accuracy and loss) for every model and the accuracy value
+    :param models: A list of loaded models
+    :param x_test: The dataset
+    :param y_test: The real labels
+    :return A list of accuracy scores and loss scores per fold
+    """
+    acc_per_fold = []
+    loss_per_fold = []
+
+    for model in models:
+        score = model.evaluate(x_test, y_test)
+        acc_per_fold.append(score[1] * 100)
+        loss_per_fold.append(score[0])
+
+    y_pred = predict(models, x_test)
+    fpr_keras, tpr_keras, _ = roc_curve(y_test, y_pred)
+    auc_keras = auc(fpr_keras, tpr_keras)
+    recall = recall_score(y_test, np.round(y_pred))
+
+    majority_vote_accuracy = np.sum((y_test - np.round(y_pred)) == 0) / y_test.shape[0]
+
+    print('Average scores for all folds:')
+    print(f'> Accuracy: {np.mean(acc_per_fold)} (+- {np.std(acc_per_fold)})')
+    print(f'> Loss: {np.mean(loss_per_fold)}')
+
+    print(f'>Truee accuracy using majority vote: {majority_vote_accuracy}')
+    print(f'> AUC: {auc_keras}')
+    print(f'> Recall: {recall}')
+
+
+def predict(models, x):
+    """
+    Predict the output of x using the different models that were provided
+    :param models: A list of loaded models
+    :param x: The dataset to predict on
+    :return the prediction for labels
+    """
+    y_pred = np.zeros(shape=(x.shape[0], len(models)))
+
+    for i in range(len(models)):
+        model_prediciton = models[i].predict(x)
+        y_pred[:, i] = model_prediciton.reshape(model_prediciton.shape[0])
+
+    return np.mean(y_pred, axis=1)

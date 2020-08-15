@@ -129,7 +129,7 @@ def get_files_to_work(folder_file_path, pattern):
     :return: A list with all the paths matching this format
     :rtype: list{str}
     """
-    if os.path.isdir(folder_file_path):
+    if os.path.isdir(folder_file_path) or "*" in folder_file_path:
         file_path = os.path.join(folder_file_path, pattern)
         all_file_paths = glob.glob(file_path)
 

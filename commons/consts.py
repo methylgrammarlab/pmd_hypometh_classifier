@@ -26,8 +26,8 @@ NUCLEOTIDE_TO_NUMBER = {"A": "1",
                         "N": "5"}  # N means that this is unknown
 
 # NN labels
-LABEL_PARTIAL_LOST = 0  # Group 0 - partial loss
-LABEL_COMPLETELY_LOST = 1  # Group 1 - comp loss
+LABEL_HYPO_RESISTANCE = 0  # Group 0 - partial loss
+LABEL_HYPO_PRONE = 1  # Group 1 - comp loss
 
 # Parsing options
 SCWGBS = "scwgbs"

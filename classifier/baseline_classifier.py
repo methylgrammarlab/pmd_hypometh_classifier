@@ -103,24 +103,24 @@ def test_based_on_wcgw_and_scgs(df):
     for i in x_test:
         if WW_RE.search(i) is not None:
             if CWCGWG_RE.search(i) is not None:
-                y_pred.append(consts.LABEL_COMPLETELY_LOST)
+                y_pred.append(consts.LABEL_HYPO_PRONE)
 
             elif WWCGWW_RE.search(i) is not None:
-                y_pred.append(consts.LABEL_PARTIAL_LOST)
+                y_pred.append(consts.LABEL_HYPO_RESISTANCE)
             else:
-                y_pred.append(consts.LABEL_COMPLETELY_LOST)
+                y_pred.append(consts.LABEL_HYPO_PRONE)
 
         elif SS_RE.search(i) is not None:
             if SSCGSS_RE.search(i) is not None:
-                y_pred.append(consts.LABEL_COMPLETELY_LOST)
+                y_pred.append(consts.LABEL_HYPO_PRONE)
             else:
-                y_pred.append(consts.LABEL_PARTIAL_LOST)
+                y_pred.append(consts.LABEL_HYPO_RESISTANCE)
 
         elif SW_RE.search(i) is not None or WS_RE.search(i) is not None:
-            y_pred.append(consts.LABEL_PARTIAL_LOST)
+            y_pred.append(consts.LABEL_HYPO_RESISTANCE)
 
         else:
-            y_pred.append(consts.LABEL_PARTIAL_LOST)
+            y_pred.append(consts.LABEL_HYPO_RESISTANCE)
 
     y_pred = np.array(y_pred)
     print_results(test_name="Using WCGW\SCGW", y_test=y_test, y_pred=y_pred)

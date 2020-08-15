@@ -16,7 +16,7 @@ from commons import sequence_tools
 
 def parse_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_file', help='Path foir input df', required=True)
+    parser.add_argument('--input_file', help='Path for input df', required=True)
     args = parser.parse_args()
     return args
 
@@ -26,7 +26,7 @@ def get_seq_info(df):
 
     for i in tqdm.trange(df.shape[0]):
         row = df.iloc[i]
-        seq = sequence_tools.get_cpg_sequence(chr_num=row["chromosome"], cpg_index=row["location"])
+        seq = sequence_tools.get_cpg_sequence(chr_num=row["chromosome"][3:], cpg_index=row["location"])
         sequences.append(seq)
 
     return sequences

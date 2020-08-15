@@ -129,9 +129,9 @@ def label_sc_based_on_meth_var_flat(df, cl_max_meth=0.2, cl_max_var=0.05, pl_min
     :return: The new dataframe with labels, removing CpG which didn't include
     """
     df.loc[np.logical_and(df["meth"] >= pl_min_meth, df["var"] >= pl_min_var), "label"] = \
-        consts.LABEL_PARTIAL_LOST
+        consts.LABEL_HYPO_RESISTANCE
     df.loc[np.logical_and(df["meth"] <= cl_max_meth, df["var"] <= cl_max_var), "label"] = \
-        consts.LABEL_COMPLETELY_LOST
+        consts.LABEL_HYPO_PRONE
 
     return df[~pd.isnull(df["label"])]
 
@@ -165,10 +165,10 @@ def label_and_flat_sc_based_on_meth_var(df, patients, cl_max_meth=0.2, cl_max_va
         df.loc[df[meth_label].isnull(), label] = 2  # empty
 
         df.loc[np.logical_and(df[meth_label] <= cl_max_meth, df[var_label] <= cl_max_var), label] = \
-            consts.LABEL_COMPLETELY_LOST
+            consts.LABEL_HYPO_PRONE
 
         df.loc[np.logical_and(df[meth_label] >= pl_min_meth, df[var_label] >= pl_min_var), label] = \
-            consts.LABEL_PARTIAL_LOST
+            consts.LABEL_HYPO_RESISTANCE
 
     label1 = "label%s" % patients[0][-2:]
     label2 = "label%s" % patients[1][-2:]
@@ -217,9 +217,20 @@ def label_and_flat_sc_based_on_meth_var(df, patients, cl_max_meth=0.2, cl_max_va
 def label_bulk_based_on_meth_var_flat(df, cl_max_meth=0.55, cl_min_var=0.11, pl_min_meth=0.75,
                                       pl_max_var=0.055):
     df.loc[np.logical_and(df["meth"] >= pl_min_meth,
-                          df["var"] <= pl_max_var), "label"] = consts.LABEL_PARTIAL_LOST
+                          df["var"] <= pl_max_var), "label"] = consts.LABEL_HYPO_RESISTANCE
     df.loc[np.logical_and(df["meth"] <= cl_max_meth,
-                          df["var"] >= cl_min_var), "label"] = consts.LABEL_COMPLETELY_LOST
+                          df["var"] >= cl_min_var), "label"] = consts.LABEL_HYPO_PRONE
+
+    filtered_df = df[~pd.isnull(df["label"])]
+    return filtered_df
+
+
+def label_bulk_based_on_meth_covariance_flat(df, prone_max_meth=0.73, prone_min_cov=0.019,
+                                             resistance_min_meth=0.82, resistance_max_cov=0.0172):
+    df.loc[np.logical_and(df["meth"] >= resistance_min_meth,
+                          df["coveriance"] <= resistance_max_cov), "label"] = consts.LABEL_HYPO_RESISTANCE
+    df.loc[np.logical_and(df["meth"] <= prone_max_meth,
+                          df["coveriance"] >= prone_min_cov), "label"] = consts.LABEL_HYPO_PRONE
 
     filtered_df = df[~pd.isnull(df["label"])]
     return filtered_df
@@ -234,7 +245,7 @@ def create_nn_dataset():
 
     # We start with solo which are methylated in NC
     df["ccpg"] = df["sequence"].str.count("CG")
-    # df = df[df["ccpg"] == 1]
+    df = df[df["ccpg"] < 4]
 
     if parse_format == consts.SCWGBS:
         df = df[df["nc_avg"] >= 0.7]
@@ -250,8 +261,10 @@ def create_nn_dataset():
         test = label_and_flat_sc_based_on_meth_var(test, TEST_PATIENT)
     else:
         # Label based on values
-        train = label_bulk_based_on_meth_var_flat(train)
-        test = label_bulk_based_on_meth_var_flat(test)
+        # train = label_bulk_based_on_meth_var_flat(train)
+        # test = label_bulk_based_on_meth_var_flat(test)
+        train = label_bulk_based_on_meth_covariance_flat(train)
+        test = label_bulk_based_on_meth_covariance_flat(test)
 
     # Add reverse strand
     train = double_with_reverse_strand(train)
