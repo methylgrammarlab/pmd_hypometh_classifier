@@ -42,6 +42,7 @@ CONTEXT_MAP_FILTERED_NO_BL_CPGI = os.path.join(MAIN_FOLDER, r"/genomic_data/filt
 SUBLINEAGE_FILE = os.path.join(MAIN_FOLDER, r"/genomic_data/orig/sublineage/patient_sublineage_dict.pickle")
 PMD_FILE = os.path.join(MAIN_FOLDER, r"genomic_data/orig/pmds/pmd_dict.pickle")
 GENOME_FILE = os.path.join(MAIN_FOLDER, "/genomic_data/orig/seq_context/genome.fa")
+NC_FILES = os.path.join(MAIN_FOLDER, "stats/average_nc_methylation/all")
 
 
 
