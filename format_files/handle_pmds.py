@@ -97,20 +97,18 @@ def get_pmd_context_map(context_map_file_path=consts.CONTEXT_MAP_FILTERED_LOCAL_
     return pmd_context_map
 
 
-def filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE, add_pmd_index=False):
+def filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE):
     """
     Filter out CpG which doesn't include in a PMD
     :param df: The df to work with
     :param chromosome: The chromosome of this df
-    :param add_pmd_index: Should we add a pmd index to each cpg
     :param pmd_file: The pmd file
     :return: Same df but filtered based on the PMD
     """
     pmd_dict = get_pmd_dict(pmd_file)
 
     pmd_list = pmd_dict[chromosome]
-    return utils.filter_df_based_on_tuple_list(df=df, boundaries_list=pmd_list, add_index=add_pmd_index,
-                                               add_index_name="pmd_index")
+    return utils.filter_df_based_on_tuple_list(df=df, boundaries_list=pmd_list)
 
 
 def convert_bedgraph_to_df_with_pmd_filter(bedgraph_path, chromosome, add_pmd_index=False,
@@ -124,5 +122,39 @@ def convert_bedgraph_to_df_with_pmd_filter(bedgraph_path, chromosome, add_pmd_in
     :return: A df of the bedgraph
     """
     covariance_df = files_tools.load_bedgraph(bedgraph_path)
-    return filtered_out_non_pmd(df=covariance_df, chromosome=chromosome, pmd_file=pmd_file,
-                                add_pmd_index=add_pmd_index)
+    pmd_covariance = filtered_out_non_pmd(df=covariance_df, chromosome=chromosome, pmd_file=pmd_file)
+
+    if add_pmd_index:
+        pmd_covariance["pmd_idnex"] = get_pmd_index(pmd_covariance, chromosome, pmd_file)
+    return pmd_covariance
+
+
+def get_pmd_index(df, chromosome, pmd_file=consts.PMD_FILE):
+    """
+    Get the index of the pmd of each CpG based on the pmd file, we guess that the df is already filtered
+    out of non-pmd cpg
+    :param df: The dataframe to work on
+    :param chromosome: the chromosome
+    :param pmd_file: The pmd file
+    :return: A list of all the indexes in order of the df
+    """
+    pmd_dict = get_pmd_dict(pmd_file)
+
+    pmd_list = pmd_dict[chromosome]
+    pmd_index = np.zeros(shape=(max(df.shape), 1))
+
+    i = 0
+
+    # Trying to support two ways of working with df - one is where the columns is the CpG and the other is
+    # that the index is the CpG location
+    for boundary in pmd_list:
+        i += 1
+        start, end = boundary
+        try:
+            pmd_mask = (df.columns >= start) & (df.columns <= end)
+        except Exception:
+            pmd_mask = (df.index >= start) & (df.index <= end)
+
+        pmd_index[pmd_mask] = [i]
+
+    return pmd_index

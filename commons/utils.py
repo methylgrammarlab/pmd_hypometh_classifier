@@ -66,7 +66,10 @@ def cpg_meth_in_cells(patient, chromosome, cpgs_indexes, meth_files_path, sublin
     df = pd.read_pickle(methylation_file_path)
     df = filter_df_based_on_region_name(df, region_name=sublineage_name)
 
-    return df.loc[cpgs_indexes]
+    try:
+        return df.filter(items=cpgs_indexes, axis=0)
+    except:
+        return df.filter(items=cpgs_indexes, axis=1)
 
 
 def get_all_indexes_from_patients_list(patients_information):
@@ -147,25 +150,18 @@ def filter_df_based_on_region_name(full_df, region_name):
     return region_df
 
 
-def filter_df_based_on_tuple_list(df, boundaries_list, add_index=False, add_index_name="pmd_index"):
+def filter_df_based_on_tuple_list(df, boundaries_list):
     """
     Filter out a df to only contains indexes which included in the tuple list
     :param df: The df to work with
     :param boundaries_list: A tuple list with boundaries, each tuple is (start,end)
-    :param add_index: should we add index of each tuple
-    :param add_index_name: The name of the index column we should add
     :return: The df filtered out and maybe with index
     """
     prev_mask = None
-    i = 0
-
-    if add_index:
-        df[add_index_name] = -1
 
     # Trying to support two ways of working with df - one is where the columns is the CpG and the other is
     # that the index is the CpG location
     for boundary in boundaries_list:
-        i += 1
         start, end = boundary
         try:
             pmd_mask = (df.columns >= start) & (df.columns <= end)
@@ -173,9 +169,6 @@ def filter_df_based_on_tuple_list(df, boundaries_list, add_index=False, add_inde
             pmd_mask = (df.index >= start) & (df.index <= end)
 
         prev_mask = np.logical_or(pmd_mask, prev_mask) if prev_mask is not None else pmd_mask
-
-        if add_index:
-            df.loc[pmd_mask, add_index_name] = i
 
     try:
         filtered_df = df.loc[:, prev_mask]

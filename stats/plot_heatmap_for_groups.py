@@ -97,7 +97,7 @@ def main():
 
     if add_perc:
         file_folder = os.path.dirname(input_path)
-        file_name = os.path.dirname(input_path).split(".")[0] + "with_perc" + ".pkl"
+        file_name = os.path.basename(input_path).split(".")[0] + "with_perc" + ".pkl"
         df.to_pickle(os.path.join(file_folder, file_name))
 
 

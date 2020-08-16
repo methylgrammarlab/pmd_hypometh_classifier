@@ -4,6 +4,7 @@ import re
 # output/input file format
 BULK_FILE_FORMAT = "all_cpg_ratios_%s_hg19.dummy.pkl.zip"
 SCWGBS_FILE_FORMAT = "all_cpg_ratios_%s_%s_hg19.dummy.pkl.zip"
+SCWGBS_FILE_FORMAT = "all_cpg_ratios_%s_%s.dummy.pkl.zip"  # TODO :use the previous one
 FULL_CPG_CONTEXT_FILE_FORMAT = "full_cpg_seq_chr*_hg19.pickle.zlib"
 
 # regex

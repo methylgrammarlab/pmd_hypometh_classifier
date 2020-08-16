@@ -51,9 +51,10 @@ def get_pmd_df(chromosome_file):
     """
     chromosome = consts.CHR_FULL_NAME_RE.findall(os.path.basename(chromosome_file))[0]
     df = pd.read_pickle(chromosome_file)
-    # TODO: the pmd index should be true but doesn't work
-    filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome, add_pmd_index=False,
-                                                   pmd_file=consts.PMD_FILE_LOCAL_DROR)
+
+    filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE_LOCAL_DROR)
+    filtered_df["pmd_index"] = handle_pmds.get_pmd_index(filtered_df, chromosome,
+                                                         pmd_file=consts.PMD_FILE_LOCAL_DROR)
     return chromosome, filtered_df
 
 
