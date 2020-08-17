@@ -66,10 +66,7 @@ def cpg_meth_in_cells(patient, chromosome, cpgs_indexes, meth_files_path, sublin
     df = pd.read_pickle(methylation_file_path)
     df = filter_df_based_on_region_name(df, region_name=sublineage_name)
 
-    try:
-        return df.filter(items=cpgs_indexes, axis=0)
-    except:
-        return df.filter(items=cpgs_indexes, axis=1)
+    return df.loc[:, cpgs_indexes]
 
 
 def get_all_indexes_from_patients_list(patients_information):

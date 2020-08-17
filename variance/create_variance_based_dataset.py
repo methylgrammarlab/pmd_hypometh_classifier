@@ -51,7 +51,7 @@ def print_statistics(train, test):
              test_size, test_size / total_size * 100))
 
 
-def split_df_by_pmd(df, size_wheel=2.5):
+def split_df_by_pmd(df, size_wheel=3.0):
     """
     Split data frame based on pmd, we assume we have a column which is called pmd_index
     We don't want to have CpG from the same PMD in test and train - we want to make it dependent + we want
@@ -225,12 +225,17 @@ def label_bulk_based_on_meth_var_flat(df, cl_max_meth=0.55, cl_min_var=0.11, pl_
     return filtered_df
 
 
-def label_bulk_based_on_meth_covariance_flat(df, prone_max_meth=0.73, prone_min_cov=0.019,
-                                             resistance_min_meth=0.82, resistance_max_cov=0.0172):
-    df.loc[np.logical_and(df["meth"] >= resistance_min_meth,
-                          df["coveriance"] <= resistance_max_cov), "label"] = consts.LABEL_HYPO_RESISTANCE
-    df.loc[np.logical_and(df["meth"] <= prone_max_meth,
-                          df["coveriance"] >= prone_min_cov), "label"] = consts.LABEL_HYPO_PRONE
+def label_bulk_based_on_meth_covariance_flat(df):
+    # this is hard coded to the line equation we choose
+    hypo_prone_index = df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
+    hypo_resistance_index = df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
+    df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
+
+    # df.loc[np.logical_and(df["meth"] >= resistance_min_meth,
+    #                       df["coveriance"] <= resistance_max_cov), "label"] = consts.LABEL_HYPO_RESISTANCE
+    # df.loc[np.logical_and(df["meth"] <= prone_max_meth,
+    #                       df["coveriance"] >= prone_min_cov), "label"] = consts.LABEL_HYPO_PRONE
 
     filtered_df = df[~pd.isnull(df["label"])]
     return filtered_df
@@ -248,7 +253,7 @@ def create_nn_dataset():
     df = df[df["ccpg"] < 4]
 
     if parse_format == consts.SCWGBS:
-        df = df[df["nc_avg"] >= 0.7]
+        df = df[df["orig_meth_avg"] >= 0.7]
     else:
         df = df[df["orig_meth"] >= 0.7]
 
@@ -276,5 +281,62 @@ def create_nn_dataset():
     print_statistics(train, test)
 
 
+def split_bulk_dataset(df, test_size=0.2):
+    lower_limit, upper_limit = df["pmd_index"].min() + 1, df["pmd_index"].max() - 1
+    total_cpg = df.shape[0]
+    current_test_cpg = np.sum(np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
+
+    while current_test_cpg / total_cpg < test_size:
+        lower_limit += 1
+        upper_limit -= 5
+        current_test_cpg = np.sum(
+            np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
+
+    while current_test_cpg / total_cpg > test_size:
+        lower_limit -= 1
+        current_test_cpg = np.sum(
+            np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
+
+    lower_limit += 1
+    while current_test_cpg / total_cpg > test_size:
+        upper_limit += 1
+        current_test_cpg = np.sum(
+            np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
+
+    upper_limit -= 1
+
+    print("Going to use all pmd index: %s-%s" % (lower_limit, upper_limit))
+
+    train_part = df[np.logical_and(df["pmd_index"] > lower_limit, df["pmd_index"] < upper_limit)]
+    test_part = df[np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit)]
+
+    return train_part, test_part
+
+
+def create_bulk_dataset():
+    args = parse_input()
+    parse_format = args.parse_format
+
+    # Read and add features
+    df = pd.read_pickle(args.input_file)
+
+    # We start with solo which are methylated in NC
+    df["ccpg"] = df["sequence"].str.count("CG")
+    df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth"] >= 0.7)]
+    df = label_bulk_based_on_meth_covariance_flat(df)
+
+    # Split the data to train and test based on pmd
+    train, test = split_bulk_dataset(df)
+
+    # Add reverse strand
+    train = double_with_reverse_strand(train)
+    test = double_with_reverse_strand(test)
+
+    nn_dataset = {"train": train, "test": test}
+    files_tools.save_pickle(file_path=os.path.join(args.output_folder, args.output_name), data=nn_dataset)
+
+    print_statistics(train, test)
+
+
 if __name__ == '__main__':
-    create_nn_dataset()
+    create_bulk_dataset()

@@ -119,14 +119,18 @@ def main():
         # Remove extreme cells and cells with not enough coverage
         df = utils.remove_extreme_cpgs_by_coverage(df, args.coverage_perc_cpgs_to_remove)
         df = df[np.sum(~pd.isnull(df), axis=0) >= args.min_cells_threshold]
+        pmd_sample_mean = df.mean(axis=1)  # Mean of each sample in pmd
 
         chromosome_df = pd.DataFrame(columns=["chromosome", "location"])
         chromosome_df["location"] = df.columns
         chromosome_df["chromosome"] = chromosome
         chromosome_df = chromosome_df.set_index("location")
-        chromosome_df["pmd_index"] = df["pmd_index"]
+        chromosome_df["pmd_index"] = handle_pmds.get_pmd_index(chromosome_df, chromosome)
         chromosome_df["meth"] = df.mean()
         chromosome_df["var"] = df.var()
+        chromosome_df["pearson_corr"] = df.corrwith(pmd_sample_mean)
+        covariance = [df.iloc[:, i].cov(pmd_sample_mean) for i in range(df.shape[1])]
+        chromosome_df["covariance"] = covariance
         chromosome_df["orig_meth"] = orig_meth_values[chromosome_df.index]
         chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(df.columns, str(chromosome))
         chromosomes_list.append(chromosome_df.reset_index())

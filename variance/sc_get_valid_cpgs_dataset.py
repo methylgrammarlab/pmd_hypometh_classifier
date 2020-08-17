@@ -18,7 +18,7 @@ import tqdm
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-from commons import files_tools, consts, utils, sequence_tools
+from commons import files_tools, consts, utils
 from format_files import handle_pmds
 
 PATIENTS = ["CRC01", "CRC11", "CRC13", "CRC10"]
@@ -70,7 +70,7 @@ def filter_chromosome_df(df, patient, chromosome, boundaries_data=None, min_cell
     :return: A new dictionary in the same format of the input but filtered by what is required
     """
     # This need to be true
-    filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE_LOCAL_DROR)
+    filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome)
     filtered_df = utils.filter_df_based_on_region_name(filtered_df, region_name=utils.NOT_NC)
 
     if boundaries_data:
@@ -122,9 +122,9 @@ def main():
         chromosome_df["patient"] = patient
         chromosome_df = chromosome_df.set_index("location")
 
-        chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(chromosome_df.index, chromosome)
-        chromosome_df["pmd_index"] = handle_pmds.get_pmd_index(chromosome_df, chromosome,
-                                                               pmd_file=consts.PMD_FILE_LOCAL_DROR)
+        # this doesn't work on the cluster
+        # chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(chromosome_df.index, chromosome)
+        chromosome_df["pmd_index"] = handle_pmds.get_pmd_index(chromosome_df, chromosome)
 
         original_meth = utils.cpg_meth_in_cells(patient, chromosome, chromosome_df.index,
                                                 args.methylation_folder, sublineage_name=utils.ONLY_NC)
@@ -132,14 +132,14 @@ def main():
 
         pmd_sample_mean = filtered_df.mean(axis=1)
 
-        nc_meth_avg = utils.get_nc_avg(chromosome, chromosome_df.index, args.nc_files)
+        nc_meth_avg = utils.get_nc_avg(chromosome[3:], chromosome_df.index, args.nc_files)
         chromosome_df.loc[nc_meth_avg.index, "orig_meth_avg"] = nc_meth_avg
 
         chromosome_df["meth"] = filtered_df.mean()
         chromosome_df["var"] = filtered_df.var()
-        chromosome_df["pearson_corr"] = filtered_df.corrwith(pmd_sample_mean)
-        covariance = [filtered_df.iloc[:, i].cov(pmd_sample_mean) for i in range(filtered_df.shape[1])]
-        chromosome_df["coveriance"] = covariance
+        # chromosome_df["pearson_corr"] = filtered_df.corrwith(pmd_sample_mean)
+        # covariance = [filtered_df.iloc[:, i].cov(pmd_sample_mean) for i in range(filtered_df.shape[1])]
+        # chromosome_df["covariance"] = covariance
 
         df_list.append(chromosome_df.reset_index())
 

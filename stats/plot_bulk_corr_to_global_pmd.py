@@ -66,7 +66,7 @@ def main():
         chromosome_df["var"] = df.var()
         chromosome_df["pearson_corr"] = df.corrwith(pmd_sample_mean)
         covariance = [df.iloc[:, i].cov(pmd_sample_mean) for i in range(df.shape[1])]
-        chromosome_df["coveriance"] = covariance
+        chromosome_df["covariance"] = covariance
         chromosome_df["orig_meth"] = orig_meth_values[chromosome_df.index]
         # chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(df.columns, str(chromosome))
         chromosomes_list.append(chromosome_df.reset_index())

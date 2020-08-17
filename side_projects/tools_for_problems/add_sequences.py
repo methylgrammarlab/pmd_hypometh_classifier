@@ -42,7 +42,11 @@ def main():
     output_file = os.path.basename(input_file) + "with_seq.pkl"
 
     df["sequence"] = get_seq_info(df)
-    df.to_pickle(os.path.join(output_folder, output_file))
+    try:
+        df.to_pickle(os.path.join(output_folder, output_file))
+    except Exception as ex:
+        import pdb;
+        pdb.set_trace()
 
 
 if __name__ == '__main__':
