@@ -16,7 +16,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from commons import files_tools, consts, sequence_tools
+from commons import consts, sequence_tools
 
 # scWGBS
 TRAIN_PATIENT = ["CRC01", "CRC11"]
@@ -49,54 +49,6 @@ def print_statistics(train, test):
     print("Total data: %s. train data: %s(%s%%). test data: %s(%s%%)"
           % (total_size, train_size, train_size / total_size * 100,
              test_size, test_size / total_size * 100))
-
-
-def split_df_by_pmd(df, size_wheel=3.0):
-    """
-    Split data frame based on pmd, we assume we have a column which is called pmd_index
-    We don't want to have CpG from the same PMD in test and train - we want to make it dependent + we want
-    to have PMD from all chromosome this mean we can't take only the first PMD (10% test data will cause
-    that chromosome 16-22 only on test) and can't take only the last PMD(10% test data will cause that
-    there is no chr16-22 in test) so we take some of the beginning and some from the end and try to make it
-    best depend on the size_wheel which help make sure that we have enough data
-    :param df: The dataframe with all the data
-    :param size_wheel: This is used to change the splitting method and getting the right percentage of the
-    data for test and train, due to the PMD and the fact that each PMD has a different size of CpG it's
-    hard to put a number and get it splited exactly so we use this with trail and error until getting the
-    right number
-    :return: train_part, test_part
-    """
-    total_cpg = df.shape[0] * size_wheel
-    max_pmd = df["pmd_index"].max()
-
-    upper_limit = int(max_pmd) - 1
-    lower_limit = 1
-    num_of_cpg = np.sum(np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
-
-    while num_of_cpg / total_cpg <= 0.1:
-        upper_limit -= 5
-        lower_limit += 1
-        num_of_cpg = np.sum(np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
-
-    while num_of_cpg / total_cpg > 0.1:
-        lower_limit -= 1
-        num_of_cpg = np.sum(np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
-
-    lower_limit += 1
-    while num_of_cpg / total_cpg > 0.2:
-        upper_limit += 1
-        num_of_cpg = np.sum(np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit))
-
-    # Fixing the bound due to multiple patients and different in methylations
-    lower_limit -= 2
-    upper_limit += 2
-    print("Going to use all pmd index: %s-%s" % (lower_limit, upper_limit))
-
-    train_part = df[np.logical_and(df["pmd_index"] > lower_limit, df["pmd_index"] < upper_limit)]
-    test_part = df[np.logical_or(df["pmd_index"] <= lower_limit, df["pmd_index"] >= upper_limit)]
-
-    return train_part, test_part
-
 
 def double_with_reverse_strand(df):
     """
@@ -232,53 +184,8 @@ def label_bulk_based_on_meth_covariance_flat(df):
     df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
     df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
 
-    # df.loc[np.logical_and(df["meth"] >= resistance_min_meth,
-    #                       df["coveriance"] <= resistance_max_cov), "label"] = consts.LABEL_HYPO_RESISTANCE
-    # df.loc[np.logical_and(df["meth"] <= prone_max_meth,
-    #                       df["coveriance"] >= prone_min_cov), "label"] = consts.LABEL_HYPO_PRONE
-
     filtered_df = df[~pd.isnull(df["label"])]
     return filtered_df
-
-
-def create_nn_dataset():
-    args = parse_input()
-    parse_format = args.parse_format
-
-    # Read and add features
-    df = pd.read_pickle(args.input_file)
-
-    # We start with solo which are methylated in NC
-    df["ccpg"] = df["sequence"].str.count("CG")
-    df = df[df["ccpg"] < 4]
-
-    if parse_format == consts.SCWGBS:
-        df = df[df["orig_meth_avg"] >= 0.7]
-    else:
-        df = df[df["orig_meth"] >= 0.7]
-
-    # Split the data to train and test based on pmd
-    train, test = split_df_by_pmd(df)
-
-    if parse_format == consts.SCWGBS:
-        # Flat based on patients and add labels
-        train = label_and_flat_sc_based_on_meth_var(train, TRAIN_PATIENT)
-        test = label_and_flat_sc_based_on_meth_var(test, TEST_PATIENT)
-    else:
-        # Label based on values
-        # train = label_bulk_based_on_meth_var_flat(train)
-        # test = label_bulk_based_on_meth_var_flat(test)
-        train = label_bulk_based_on_meth_covariance_flat(train)
-        test = label_bulk_based_on_meth_covariance_flat(test)
-
-    # Add reverse strand
-    train = double_with_reverse_strand(train)
-    test = double_with_reverse_strand(test)
-
-    nn_dataset = {"train": train, "test": test}
-    files_tools.save_pickle(file_path=os.path.join(args.output_folder, args.output_name), data=nn_dataset)
-
-    print_statistics(train, test)
 
 
 def split_bulk_dataset(df, test_size=0.2):
@@ -313,7 +220,99 @@ def split_bulk_dataset(df, test_size=0.2):
     return train_part, test_part
 
 
-def create_bulk_dataset():
+def split_single_cell_dataset(df, test_size=0.2):
+    lower_limit, upper_limit = df["pmd_index"].min() + 1, df["pmd_index"].max() - 1
+    train_df = df[np.logical_or(df["patient"] == TRAIN_PATIENT[0], df["patient"] == TRAIN_PATIENT[1])]
+    test_df = df[np.logical_or(df["patient"] == TEST_PATIENT[0], df["patient"] == TEST_PATIENT[1])]
+
+    current_test_cpg = np.sum(np.logical_or(test_df["pmd_index"] <= lower_limit,
+                                            test_df["pmd_index"] >= upper_limit))
+    current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] <= lower_limit,
+                                             train_df["pmd_index"] >= upper_limit))
+
+    while current_test_cpg / (current_test_cpg + current_train_cpg) < test_size:
+        lower_limit += 1
+        upper_limit -= 5
+        current_test_cpg = np.sum(np.logical_or(test_df["pmd_index"] <= lower_limit,
+                                                test_df["pmd_index"] >= upper_limit))
+        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] <= lower_limit,
+                                                 train_df["pmd_index"] >= upper_limit))
+
+    while current_test_cpg / (current_test_cpg + current_train_cpg) > test_size:
+        lower_limit -= 1
+        current_test_cpg = np.sum(np.logical_or(test_df["pmd_index"] <= lower_limit,
+                                                test_df["pmd_index"] >= upper_limit))
+        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] <= lower_limit,
+                                                 train_df["pmd_index"] >= upper_limit))
+
+    lower_limit += 1
+    while current_test_cpg / (current_test_cpg + current_train_cpg) > test_size:
+        upper_limit += 1
+        current_test_cpg = np.sum(np.logical_or(test_df["pmd_index"] <= lower_limit,
+                                                test_df["pmd_index"] >= upper_limit))
+        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] <= lower_limit,
+                                                 train_df["pmd_index"] >= upper_limit))
+
+    upper_limit -= 1
+
+    print("Going to use all pmd index: %s-%s" % (lower_limit, upper_limit))
+
+    train_part = train_df[np.logical_or(test_df["pmd_index"] <= lower_limit,
+                                        test_df["pmd_index"] >= upper_limit)]
+    test_part = test_df[np.logical_or(train_df["pmd_index"] <= lower_limit,
+                                      train_df["pmd_index"] >= upper_limit)]
+
+    return train_part, test_part
+
+
+def label_single_cell_based_on_meth_var_flat(df):
+    df_list = []
+
+    # CRC01
+    crc01_df = df[df["patient"] == "CRC01"]
+
+    hypo_prone_index = crc01_df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
+    hypo_resistance_index = crc01_df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    crc01_df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
+    crc01_df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
+    crc01_df = crc01_df[~pd.isnull(crc01_df["label"])]
+    df_list.append(crc01_df)
+
+    # CRC10
+    crc10_df = df[df["patient"] == "CRC10"]
+
+    hypo_prone_index = crc10_df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
+    hypo_resistance_index = crc10_df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    crc10_df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
+    crc10_df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
+    crc10_df = crc10_df[~pd.isnull(crc10_df["label"])]
+    df_list.append(crc10_df)
+
+    # CRC11
+    crc11_df = df[df["patient"] == "CRC11"]
+
+    hypo_prone_index = crc11_df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
+    hypo_resistance_index = crc11_df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    crc11_df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
+    crc11_df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
+    crc11_df = crc11_df[~pd.isnull(crc11_df["label"])]
+    df_list.append(crc11_df)
+
+    # CRC13
+    crc13_df = df[df["patient"] == "CRC13"]
+
+    hypo_prone_index = crc13_df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
+    hypo_resistance_index = crc13_df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    crc13_df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
+    crc13_df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
+    crc13_df = crc13_df[~pd.isnull(crc13_df["label"])]
+    df_list.append(crc13_df)
+
+    final_df = pd.concat(df_list).reset_index()
+    return final_df
+
+
+def create_dataset():
     args = parse_input()
     parse_format = args.parse_format
 
@@ -322,21 +321,24 @@ def create_bulk_dataset():
 
     # We start with solo which are methylated in NC
     df["ccpg"] = df["sequence"].str.count("CG")
-    df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth"] >= 0.7)]
-    df = label_bulk_based_on_meth_covariance_flat(df)
-
-    # Split the data to train and test based on pmd
-    train, test = split_bulk_dataset(df)
+    if parse_format == consts.SCWGBS:
+        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth_avg"] >= 0.7)]
+        df = label_single_cell_based_on_meth_var_flat(df)
+        train, test = split_single_cell_dataset(df)
+    else:
+        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth"] >= 0.7)]
+        df = label_bulk_based_on_meth_covariance_flat(df)
+        train, test = split_bulk_dataset(df)
 
     # Add reverse strand
     train = double_with_reverse_strand(train)
     test = double_with_reverse_strand(test)
 
     nn_dataset = {"train": train, "test": test}
-    files_tools.save_pickle(file_path=os.path.join(args.output_folder, args.output_name), data=nn_dataset)
+    # files_tools.save_pickle(file_path=os.path.join(args.output_folder, args.output_name), data=nn_dataset)
 
     print_statistics(train, test)
 
 
 if __name__ == '__main__':
-    create_bulk_dataset()
+    create_dataset()

@@ -18,7 +18,7 @@ import tqdm
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
 
-from commons import files_tools, consts, utils
+from commons import files_tools, consts, utils, sequence_tools
 from format_files import handle_pmds
 
 PATIENTS = ["CRC01", "CRC11", "CRC13", "CRC10"]
@@ -77,11 +77,12 @@ def filter_chromosome_df(df, patient, chromosome, boundaries_data=None, min_cell
         filtered_df = utils.filter_df_based_on_tuple_list(filtered_df, boundaries_data)
 
     if cells_to_use:
-        for cell_group in cells_to_use[patient]:
-            cells = cells_to_use[patient][cell_group]
+        cells = set(list(cells_to_use[patient].values())[0]) & set(filtered_df.index)
+        if len(cells) == 0:
+            return None
 
-            group_coverage = np.sum(~pd.isnull(filtered_df.loc[cells]), axis=0)
-            filtered_df = filtered_df[group_coverage >= min_cells_threshold]
+        group_coverage = np.sum(~pd.isnull(filtered_df.loc[cells]), axis=0)
+        filtered_df = filtered_df.loc[:, group_coverage >= min_cells_threshold]
 
     else:
         group_coverage = np.sum(~pd.isnull(filtered_df), axis=0)
@@ -115,6 +116,11 @@ def main():
                                            min_cells_threshold=min_cells_threshold,
                                            perc_of_cpg_to_remove_based_on_coverage=args.coverage_perc_cpgs_to_remove)
 
+        # No CpG after filtering
+        if filtered_df is None or filtered_df.shape[1] == 0:
+            print("Not using %s%s" % (patient, chromosome))
+            continue
+
         # Create df with location, chromosome and sequence
         chromosome_df = pd.DataFrame(columns=["chromosome", "location"])
         chromosome_df["location"] = filtered_df.columns
@@ -123,14 +129,14 @@ def main():
         chromosome_df = chromosome_df.set_index("location")
 
         # this doesn't work on the cluster
-        # chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(chromosome_df.index, chromosome)
+        chromosome_df["sequence"] = sequence_tools.get_sequences_for_cpgs(chromosome_df.index, chromosome)
         chromosome_df["pmd_index"] = handle_pmds.get_pmd_index(chromosome_df, chromosome)
 
         original_meth = utils.cpg_meth_in_cells(patient, chromosome, chromosome_df.index,
                                                 args.methylation_folder, sublineage_name=utils.ONLY_NC)
         chromosome_df["orig_meth"] = original_meth.mean()
 
-        pmd_sample_mean = filtered_df.mean(axis=1)
+        # pmd_sample_mean = filtered_df.mean(axis=1)
 
         nc_meth_avg = utils.get_nc_avg(chromosome[3:], chromosome_df.index, args.nc_files)
         chromosome_df.loc[nc_meth_avg.index, "orig_meth_avg"] = nc_meth_avg
@@ -144,7 +150,17 @@ def main():
         df_list.append(chromosome_df.reset_index())
 
     all_chromosome_df = pd.concat(df_list).reset_index()
-    all_chromosome_df.to_pickle(os.path.join(args.output_folder, "scwgbs_valid_cpg_df.pkl"))
+    try:
+        all_chromosome_df.to_pickle(os.path.join(args.output_folder, "scwgbs_valid_cpg_df.pkl"))
+        print(os.path.join(args.output_folder, "scwgbs_valid_cpg_df.pkl"))
+    except:
+        try:
+            all_chromosome_df.to_csv("scwgbs_valid_cpg_df.csv")
+        except:
+            import pdb;
+            pdb.set_trace()
+
+
 
 if __name__ == '__main__':
     main()

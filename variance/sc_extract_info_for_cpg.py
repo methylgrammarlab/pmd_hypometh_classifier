@@ -15,7 +15,7 @@ plt.style.use('seaborn')
 sns.set_style('whitegrid')
 
 # Change this when moving between different datasets
-SC_PATIENTS = ["01", "10", "11", "13"]
+SC_PATIENTS = ["CRC01", "CRC10", "CRC11", "CRC13"]
 BULK_PATIENTS = [""]
 
 PATIENTS = SC_PATIENTS
@@ -157,23 +157,23 @@ def plot_meth_density(df, output_folder):
         plt.close()
 
 
-def plot_meth_vs_var_jointplot(df, output_folder, i=""):
+def plot_meth_vs_var_jointplot(df, output_folder):
     """
     Plot methylation vs variance of all patients as a jointplot
     :param df: The df
     :param output_folder: path for output folder
     """
     for patient in PATIENTS:
-        var_label = "var%s" % patient
-        meth_label = "meth%s" % patient
+        patient_df = df[df["patient"] == patient]
+        var_label = "var"
+        meth_label = "meth"
 
         plt.subplots_adjust(top=0.9)
-        sns_plot = sns.jointplot(x=df[meth_label], y=df[var_label], kind="kde")
-        sns_plot.fig.suptitle("Methylation vs Variance in solo CpG for CRC%s" % patient, fontsize=20)
-        sns_plot.set_axis_labels("Methylation level", "Variance", fontsize=16)
+        sns_plot = sns.jointplot(x=patient_df[meth_label], y=patient_df[var_label], kind="kde")
+        sns_plot.fig.suptitle("Methylation vs Variance %s" % patient, fontsize=20)
+        sns_plot.set_axis_labels("Methylation", "Variance", fontsize=16)
 
-        sns_plot.savefig(os.path.join(output_folder, "dist_meth_vs_var_scatter_patient%s_%s.png" % (
-            patient, i)))
+        sns_plot.savefig(os.path.join(output_folder, "dist_meth_vs_var_%s.png" % (patient)))
         plt.close()
 
 
@@ -197,21 +197,22 @@ def remove_by_nc_methylation_info(df, nc_filter=0.6):
 
 def main():
     args = parse_input()
-    df = pd.read_pickle(args.cpg_file)
-    df["small_seq"] = df["sequence"].str[73:77]
+    df = pd.read_csv(args.cpg_file)
+    # df = pd.read_pickle(args.cpg_file)
 
     # Remove empty cpg
-    methylation_columns = df[["meth%s" % i for i in PATIENTS]]
-    df = df[~pd.isnull(methylation_columns.min(axis=1))]
-    df = df[df["nc_avg"] > 0.6]
+    # methylation_columns = df[["meth%s" % i for i in PATIENTS]]
+    # df = df[~pd.isnull(methylation_columns.min(axis=1))]
+    df = df[df["orig_meth_avg"] >= 0.7]
+    df["small_seq"] = df["sequence"].str[73:77]
 
     # keep only solo
-    solo_rows = df[df["sequence"].str.count("CG") == 1]
+    # solo_rows = df[df["sequence"].str.count("CG") == 1]
 
     # just solo
     # print_basic_information(df)
     # print_basic_information(solo_after_nc_rows)
-    # plot_meth_vs_var_jointplot(solo_after_nc_rows, args.output_folder)
+    plot_meth_vs_var_jointplot(df, args.output_folder)
     # plot_meth_density(df, args.output_folder)
 
 

@@ -10,8 +10,10 @@ import seaborn as sns
 plt.style.use('seaborn')
 sns.set_style('whitegrid')
 
-# PATIENTS = ["CRC01", "CRC11", "CRC13", "CRC10"]
-PATIENTS = ["CRC13"]
+PATIENTS = ["CRC01", "CRC11", "CRC13", "CRC10"]
+
+
+# PATIENTS = ["CRC13"]
 
 
 def parse_input():
@@ -92,9 +94,10 @@ def plot_heatmap_to_scwgbs():
     args = parse_input()
     input_path = args.input_file
 
-    full_df = pd.read_pickle(input_path)
+    full_df = pd.read_csv(input_path)
     full_df["ccpg"] = full_df["sequence"].str.count("CG")
     df = full_df[full_df["ccpg"] < 4]
+    del full_df
 
     df = df[df["orig_meth_avg"] >= 0.7]
     df["small_seq"] = df["sequence"].str[73:77]
@@ -109,8 +112,8 @@ def plot_heatmap_to_scwgbs():
         x_label = "meth"
         x_step = 0.01
 
-        y_label = "covariance"
-        y_step = 0.001
+        y_label = "var"
+        y_step = (df[y_label].max() - df[y_label].min()) / 100
 
         df_data_matrix, df_size_matrix, patient_df = create_heatmap_matrix(patient_df, x_label, y_label,
                                                                            x_step, y_step)
@@ -166,4 +169,5 @@ def plot_heatmap_to_bulk():
     df_size_matrix.to_pickle(os.path.join(args.output_folder, "%s_%s_size.pkl" % (x_label, y_label)))
 
 if __name__ == '__main__':
-    plot_heatmap_to_bulk()
+    # plot_heatmap_to_bulk()
+    plot_heatmap_to_scwgbs()

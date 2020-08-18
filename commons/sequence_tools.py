@@ -1,7 +1,6 @@
 """
 Several functions related to sequence handling
 """
-import tqdm
 
 from commons import consts
 
@@ -54,7 +53,7 @@ def get_sequences_for_cpgs(indexes_list, chromosome, seq_size=SEQ_SIZE):
             chromosome = chromosome[3:]
 
     sequences = []
-    for index in tqdm.tqdm(indexes_list):
+    for index in indexes_list:
         sequences.append(get_cpg_sequence(chr_num=chromosome, cpg_index=index, seq_size=seq_size))
 
     return sequences
