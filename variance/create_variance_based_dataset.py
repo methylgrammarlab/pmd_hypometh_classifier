@@ -16,11 +16,11 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from commons import consts, sequence_tools
+from commons import consts, sequence_tools, files_tools
 
 # scWGBS
-TRAIN_PATIENT = ["CRC01", "CRC11"]
-TEST_PATIENT = ["CRC10", "CRC13"]
+TRAIN_PATIENT = ["CRC01", "CRC13"]
+TEST_PATIENT = ["CRC10", "CRC11"]
 
 
 def parse_input():
@@ -227,31 +227,31 @@ def split_single_cell_dataset(df, test_size=0.2):
 
     current_test_cpg = np.sum(np.logical_or(test_df["pmd_index"] <= lower_limit,
                                             test_df["pmd_index"] >= upper_limit))
-    current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] <= lower_limit,
-                                             train_df["pmd_index"] >= upper_limit))
+    current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] >= lower_limit,
+                                             train_df["pmd_index"] <= upper_limit))
 
     while current_test_cpg / (current_test_cpg + current_train_cpg) < test_size:
         lower_limit += 1
         upper_limit -= 5
         current_test_cpg = np.sum(np.logical_or(test_df["pmd_index"] <= lower_limit,
                                                 test_df["pmd_index"] >= upper_limit))
-        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] <= lower_limit,
-                                                 train_df["pmd_index"] >= upper_limit))
+        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] >= lower_limit,
+                                                 train_df["pmd_index"] <= upper_limit))
 
     while current_test_cpg / (current_test_cpg + current_train_cpg) > test_size:
         lower_limit -= 1
         current_test_cpg = np.sum(np.logical_or(test_df["pmd_index"] <= lower_limit,
                                                 test_df["pmd_index"] >= upper_limit))
-        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] <= lower_limit,
-                                                 train_df["pmd_index"] >= upper_limit))
+        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] >= lower_limit,
+                                                 train_df["pmd_index"] <= upper_limit))
 
     lower_limit += 1
     while current_test_cpg / (current_test_cpg + current_train_cpg) > test_size:
         upper_limit += 1
         current_test_cpg = np.sum(np.logical_or(test_df["pmd_index"] <= lower_limit,
                                                 test_df["pmd_index"] >= upper_limit))
-        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] <= lower_limit,
-                                                 train_df["pmd_index"] >= upper_limit))
+        current_train_cpg = np.sum(np.logical_or(train_df["pmd_index"] >= lower_limit,
+                                                 train_df["pmd_index"] <= upper_limit))
 
     upper_limit -= 1
 
@@ -271,8 +271,8 @@ def label_single_cell_based_on_meth_var_flat(df):
     # CRC01
     crc01_df = df[df["patient"] == "CRC01"]
 
-    hypo_prone_index = crc01_df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
-    hypo_resistance_index = crc01_df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    hypo_prone_index = crc01_df["meth"] <= 0.15
+    hypo_resistance_index = crc01_df["meth"] >= 0.8
     crc01_df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
     crc01_df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
     crc01_df = crc01_df[~pd.isnull(crc01_df["label"])]
@@ -281,8 +281,8 @@ def label_single_cell_based_on_meth_var_flat(df):
     # CRC10
     crc10_df = df[df["patient"] == "CRC10"]
 
-    hypo_prone_index = crc10_df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
-    hypo_resistance_index = crc10_df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    hypo_prone_index = crc10_df["meth"] <= 0.15
+    hypo_resistance_index = crc10_df["meth"] >= 0.8
     crc10_df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
     crc10_df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
     crc10_df = crc10_df[~pd.isnull(crc10_df["label"])]
@@ -291,8 +291,8 @@ def label_single_cell_based_on_meth_var_flat(df):
     # CRC11
     crc11_df = df[df["patient"] == "CRC11"]
 
-    hypo_prone_index = crc11_df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
-    hypo_resistance_index = crc11_df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    hypo_prone_index = crc11_df["meth"] <= 0.1
+    hypo_resistance_index = crc11_df["meth"] >= 0.6
     crc11_df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
     crc11_df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
     crc11_df = crc11_df[~pd.isnull(crc11_df["label"])]
@@ -301,8 +301,8 @@ def label_single_cell_based_on_meth_var_flat(df):
     # CRC13
     crc13_df = df[df["patient"] == "CRC13"]
 
-    hypo_prone_index = crc13_df.apply(lambda x: x['coveriance'] > 0.05 * x['meth'] - 0.0113, axis=1)
-    hypo_resistance_index = crc13_df.apply(lambda x: x['coveriance'] < 0.05 * x['meth'] - 0.0263, axis=1)
+    hypo_prone_index = crc13_df["meth"] <= 0.1
+    hypo_resistance_index = crc13_df["meth"] >= 0.4
     crc13_df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
     crc13_df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
     crc13_df = crc13_df[~pd.isnull(crc13_df["label"])]
@@ -312,12 +312,24 @@ def label_single_cell_based_on_meth_var_flat(df):
     return final_df
 
 
+def label_single_cell_based_on_meth_crc01(df):
+    hypo_prone_index = df["meth"] <= 0.1
+    hypo_resistance_index = df["meth"] >= 0.8
+    df.loc[hypo_prone_index, "label"] = consts.LABEL_HYPO_PRONE
+    df.loc[hypo_resistance_index, "label"] = consts.LABEL_HYPO_RESISTANCE
+    df = df[~pd.isnull(df["label"])]
+    return df
+
+
 def create_dataset():
     args = parse_input()
     parse_format = args.parse_format
 
     # Read and add features
-    df = pd.read_pickle(args.input_file)
+    if parse_format == consts.SCWGBS:
+        df = pd.read_csv(args.input_file)
+    else:
+        df = pd.read_pickle(args.input_file)
 
     # We start with solo which are methylated in NC
     df["ccpg"] = df["sequence"].str.count("CG")
@@ -325,6 +337,12 @@ def create_dataset():
         df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth_avg"] >= 0.7)]
         df = label_single_cell_based_on_meth_var_flat(df)
         train, test = split_single_cell_dataset(df)
+
+    elif parse_format == consts.SCWGBS_CRC01:
+        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth_avg"] >= 0.7)]
+        df = label_single_cell_based_on_meth_crc01(df)
+        train, test = split_bulk_dataset(df)
+
     else:
         df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth"] >= 0.7)]
         df = label_bulk_based_on_meth_covariance_flat(df)
@@ -335,7 +353,7 @@ def create_dataset():
     test = double_with_reverse_strand(test)
 
     nn_dataset = {"train": train, "test": test}
-    # files_tools.save_pickle(file_path=os.path.join(args.output_folder, args.output_name), data=nn_dataset)
+    files_tools.save_pickle(file_path=os.path.join(args.output_folder, args.output_name), data=nn_dataset)
 
     print_statistics(train, test)
 

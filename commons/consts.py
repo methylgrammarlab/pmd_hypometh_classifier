@@ -32,8 +32,9 @@ LABEL_HYPO_PRONE = 1  # Group 1 - comp loss
 
 # Parsing options
 SCWGBS = "scwgbs"
+SCWGBS_CRC01 = "scwgbs_CRC01"
 BULK = "bulk"
-PARSE_FORMAT_OPTIONS = [SCWGBS, BULK]
+PARSE_FORMAT_OPTIONS = [SCWGBS, BULK,SCWGBS_CRC01]
 
 # IMPORTANT FILES
 MAIN_FOLDER = r"/vol/sci/bio/data/benjamin.berman/bermanb/projects/scTrio-seq-reanalysis/liordror/"
