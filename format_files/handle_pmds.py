@@ -77,7 +77,7 @@ def get_pmd_context_map(context_map_file_path=consts.CONTEXT_MAP_FILTERED_LOCAL_
     Get the context map information only for PMDs
     :param context_map_file_path: The path for the context map file
     :param pmd_file_path: THe path for the pmd file
-    :return: The contaxt map information only for PMDs
+    :return: The context map information only for PMDs
     """
     pmd_context_map = {}
     cpg_context_map = files_tools.get_cpg_context_map(load_with_path=context_map_file_path)
