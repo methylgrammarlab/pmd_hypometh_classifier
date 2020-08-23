@@ -74,6 +74,7 @@ def create_heatmap_matrix(df, x_label, y_label, x_step, y_step):
             perc_of_solo_wcgw = np.sum(temp_df["solo-WCGW"]) / num_of_cpg * 100 if num_of_cpg > 500 \
                 else np.nan
 
+            # df.loc[indexes, "soloWCGW_perc"] = perc_of_solo_wcgw
             data_matrix[row, column] = perc_of_solo_wcgw
             size_matrix[row, column] = num_of_cpg
             column += 1
@@ -81,11 +82,11 @@ def create_heatmap_matrix(df, x_label, y_label, x_step, y_step):
         row -= 1
     x = [float("%.2f" % i) for i in x]
     yr = [float("%.3f" % i) for i in y]
+
     yr.reverse()
     df_data_matrix = pd.DataFrame(data_matrix, index=yr, columns=x)
     df_size_matrix = pd.DataFrame(size_matrix, index=yr, columns=x)
     return df_data_matrix, df_size_matrix, df
-
 
 def plot_heatmap_to_scwgbs():
     """
@@ -142,16 +143,18 @@ def plot_heatmap_to_bulk():
     """
     args = parse_input()
     input_path = args.input_file
-    full_df = pd.read_csv(input_path)
+    full_df = pd.read_pickle(input_path)
 
     x_label = "meth"
     x_step = 0.01
 
-    y_label = "covariance"
+    y_label = "coveriance"
     y_step = 0.001
 
+    full_df["ccpg"] = full_df["sequence"].str.count("CG")
     df = full_df[full_df["ccpg"] < 4]
     df = df[df["orig_meth"] >= 0.7]
+    df["small_seq"] = df["sequence"].str[73:77]
     solo_wcgw = np.logical_and(df["ccpg"] == 1, df["small_seq"].str.contains("[AT]CG[AT]", regex=True))
     df["solo-WCGW"] = solo_wcgw
     df["meth_diff"] = df["orig_meth"] - df["meth"]
@@ -169,5 +172,5 @@ def plot_heatmap_to_bulk():
     df_size_matrix.to_pickle(os.path.join(args.output_folder, "%s_%s_size.pkl" % (x_label, y_label)))
 
 if __name__ == '__main__':
-    # plot_heatmap_to_bulk()
-    plot_heatmap_to_scwgbs()
+    plot_heatmap_to_bulk()
+    # plot_heatmap_to_scwgbs()
