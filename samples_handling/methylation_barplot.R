@@ -34,31 +34,47 @@ read.data <- function(methylation.path) {
 create.plot <- function(data, patient.name, color.by, my_colour, custom_labels) {
   patient <- data %>%
     filter(patient == patient.name) %>%
-    filter(!is.na(median)) %>%
     droplevels()
   
+  num.tumor = nrow(patient[patient$lesion != "NC", ])
+  perc = 20
+  
   # create plot
-  p <- ggplot(patient, aes(x = reorder(X, median), y = median, fill = !!as.symbol(color.by))) +
+  p <- ggplot(patient, aes(x = reorder(X, mean), y = mean, fill = !!as.symbol(color.by))) +
     geom_bar(stat = 'identity', width = 1) +
     annotate(
       "rect",
       xmin = 0,
-      xmax = (nrow(patient) / 100) * 15,
+      xmax = (num.tumor / 100) * perc,
       ymin = 0,
       ymax = 1,
-      color = 'red',
-      fill = NA,
+      color = 'black',
+      fill = 'grey',
+      alpha = 0.1,
       size = 1
     ) +
     annotate(
+      "text", 
+      x = ((num.tumor / 100) * perc) / 2, 
+      y = 0.97, 
+      label=paste0("low ", perc, "%")
+    ) +
+    annotate(
       "rect",
-      xmin = nrow(patient) - (nrow(patient) / 100) * 15,
-      xmax = nrow(patient),
+      xmin = num.tumor - (num.tumor / 100) * perc,
+      xmax = num.tumor,
       ymin = 0,
       ymax = 1,
-      color = 'red',
-      fill = NA,
+      color = 'black',
+      fill = 'grey',
+      alpha = 0.1,
       size = 1
+    ) +
+    annotate(
+      "text", 
+      x = (num.tumor - (num.tumor / 100) * perc) + (num.tumor - (num.tumor - (num.tumor / 100) * perc)) / 2, 
+      y = 0.97, 
+      label=paste0("high ", perc, "%")
     ) +
     theme_minimal() +
     theme(
@@ -68,8 +84,9 @@ create.plot <- function(data, patient.name, color.by, my_colour, custom_labels) 
     ) +
     scale_fill_manual(values = my_colour[[color.by]], labels = custom_labels) +
     ylim(0, 1) +
-    ylab("Median of chromosome average methyaltion") +
-    xlab("tumor cells (self sorted)")
+    ylab("mean methyaltion") +
+    xlab("tumor cells (self sorted)") +
+    ggtitle(patient.name)
   
   # save plot
   out.path = paste0(patient.name, '_cell_methylation_by_', color.by, '.png')
@@ -99,11 +116,10 @@ my_colour = list(
 custom_labels = c(NC = "NC: Normal Cell", PT = "PT: Primary Tumor", LN = "LN: Lymph Node Metastasis", MO = "MO: Omental Metastasis",
                   ML = "ML: Liver Metastasis", MP = "MP: Post-treatment Liver Metastasis")
 
-methylation.path <- "avg_data_all_NCGN_solo_nc_total_mean_CRC09.csv"
+methylation.path <- "avg_data_all_mean_coverage.csv"
 
 data <- read.data(methylation.path)
-create.plot(data, 'CRC01', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC13', 'sublineage', my_colour, custom_labels)
+
 
 print('done!')
-
-

@@ -146,5 +146,5 @@ def convert_bulk_files():
 
 
 if __name__ == '__main__':
-    # convert_sc_files()
-    convert_bulk_files()
+    convert_sc_files()
+    # convert_bulk_files()

@@ -129,7 +129,7 @@ def get_boundaries(boundaries_file_paths):
 
 
 def get_output_path_for_crc(cpg_format_file, output_folder, patient, chromosome):
-    file_name = "CPGI_cpg_ratios_%s_%s.txt" % (patient, chromosome)
+    file_name = "CPGI_cpg_ratios_%s_%s.hg19.txt" % (patient, chromosome)
     output_path = os.path.join(output_folder, os.path.basename(os.path.dirname(cpg_format_file)), file_name)
     if not os.path.exists(os.path.dirname(output_path)):
         os.mkdir(os.path.dirname(output_path))
