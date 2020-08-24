@@ -6,6 +6,8 @@ setwd(
 
 library(ggplot2)
 library(dplyr)
+library(reshape2)
+
 
 ####################################################################################################
 #                                         functions                                                #
@@ -13,15 +15,15 @@ library(dplyr)
 
 calculate.means <- function(seqs, scores, nuc) {
   masked.scores <-
-    replace(scores, which(seqs != nuc, arr.ind = T), NA)
-  
-  means <- colMeans(masked.scores, na.rm = T)
+    replace(scores, which(seqs != nuc, arr.ind = TRUE), NA)
+
+  means <- colMeans(masked.scores, na.rm = TRUE)
   return(means)
 }
 
 create.mean.df <- function(seq.path, score.path) {
-  seqs <- read.csv(seq.path)
-  scores <- read.csv(score.path)
+  seqs <- read.csv(seq.path, header = FALSE)
+  scores <- read.csv(score.path, header = FALSE)
   df <-
     data.frame(
       a = calculate.means(seqs, scores, 1),
@@ -33,21 +35,52 @@ create.mean.df <- function(seq.path, score.path) {
   return(df)
 }
 
+combine.mean.df <- function(prone.means.df, resistant.means.df) {
+  prone.means.df$type <- "prone"
+  resistant.means.df$type <- "resistant"
+  
+  means.df <- rbind(prone.means.df, resistant.means.df)
+  
+  means.df$dist <- sapply(means.df$ID, function(x) ifelse(x <= 75, x - 75, x - 76))
+  return(means.df)
+}
+
 plot.means <- function(means) {
   # create plot
-  p <- ggplot(means, aes(x = ID, y = c)) +
+  p <- ggplot(means, aes(x = dist, y = c, color = type)) +
     geom_line() +
-    geom_point() +
-    geom_smooth(method = "gam") +
     theme_minimal() +
-    theme(# panel.grid.major.x = element_blank(),
-      # axis.ticks.x = element_blank(),
-      axis.text.x = element_blank()) +
+    scale_x_continuous(n.breaks = 20) +
+    ylab("mean C attribution score") +
+    xlab("distance from CpG site")
+
+  # save plot
+  out.path = 'bian_nn_c_attribution.png'
+  ggsave(out.path)
+}
+
+plot.all.means <- function(means) {
+  # melt data
+  means.long <-
+    melt(
+      means,
+      id.vars = c("ID", "type", "dist"),
+      measure.vars = c("a", "c", "g", "t"),
+      variable.name = "nuc",
+      value.name = "attr"
+    )
+  
+  # create plot
+  p <- ggplot(means.long, aes(x = dist, y = attr, color = type)) +
+    geom_line() +
+    facet_grid(nuc ~ ., scales = "free_y") +
+  theme_minimal() +
+    scale_x_continuous(n.breaks = 20) +
     ylab("mean attribution score") +
-    xlab("position")
+    xlab("distance from CpG site")
   
   # save plot
-  out.path = 'nn_c_attribution.png'
+  out.path = 'bian_nn_attribution_free.png'
   ggsave(out.path)
 }
 
@@ -55,7 +88,17 @@ plot.means <- function(means) {
 #                                            main                                                  #
 ####################################################################################################
 
-seq.path <- "small_seq.csv"
-score.path <- "small_score.csv"
-means.df <- create.mean.df(seq.path, score.path)
-plot.means(means.df)
+prone.seq.path <- "attribute_data\\bian_prone_seq.csv"
+prone.score.path <- "attribute_data\\bian_prone_gradients.csv"
+prone.means.df <- create.mean.df(prone.seq.path, prone.score.path)
+
+resistant.seq.path <- "attribute_data\\bian_resistant_seq.csv"
+resistant.score.path <- "attribute_data\\bian_resist_gradients.csv"
+resistant.means.df <- create.mean.df(resistant.seq.path, resistant.score.path)
+
+mean.df <- combine.mean.df(prone.means.df, resistant.means.df)
+
+plot.means(mean.df)
+plot.all.means(mean.df)
+
+mean.df + 3
