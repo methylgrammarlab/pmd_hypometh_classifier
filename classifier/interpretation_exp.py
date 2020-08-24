@@ -45,7 +45,7 @@ def plot_multi_seq(sequences_dict, number_of_seq, output_folder=None):
     for k in sequences_dict:
         ex_seq = sequences_dict[k][:number_of_seq]
         fig = seqlogo_fig(np.transpose(ex_seq[:, :, :], axes=(1, 2, 0)), vocab="DNA",
-                          figsize=(8, ex_seq.shape[0]), ncol=1, yl=0.1,
+                          figsize=(8, 4), ncol=1, yl=0.1,
                           plot_name="seq for top %s of type %s" % (number_of_seq, k))
 
         if output_folder:
@@ -67,7 +67,7 @@ def plot_avg_sequence(sequences_dict, output_folder=None):
         ex_seq = sequences_dict[k]
         mean_seq = np.transpose(np.mean(ex_seq[:, 60:90, :], axis=0).reshape(1, 30, 4), axes=(1, 2, 0))
 
-        name = "Completely lost" if k == "cl" else "Partially lost"
+        name = k
         fig = seqlogo_fig(mean_seq, vocab="DNA", figsize=(20, 4), ncol=1,
                           plot_name="Average attribution score for prediction %s" % name)
 
@@ -190,7 +190,7 @@ def plot_distance_weight_two_sides(sequences_dict, output_folder=None):
     :param output_folder: Output folder
     """
     for k in sequences_dict:
-        class_type = "Completely lost" if k == "cl" else "Partially lost"
+        class_type = k
         ex_seq = np.abs(sequences_dict[k])
 
         mean_seq = np.transpose(np.mean(ex_seq[:, :, :], axis=0).reshape(1, 150, 4), axes=(1, 2, 0))
@@ -229,7 +229,7 @@ def plot_distance_weight_one_side(sequences_dict, output_folder=None):
     :param output_folder: Output folder
    """
     for k in sequences_dict:
-        class_type = "partial lost" if k == "pl" else "completely lost"
+        class_type = k
         ex_seq = np.abs(sequences_dict[k])
 
         mean_seq = np.transpose(np.mean(ex_seq[:, :, :], axis=0).reshape(1, 150, 4), axes=(1, 2, 0))

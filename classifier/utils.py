@@ -65,7 +65,7 @@ def load_train_validate_test_data(path_to_data, input_len=150, only_test=False, 
     y_test = test_data["label"].values
 
     if only_test:
-        return None, None, None, None, X_test_seq, y_test
+        return None, None, None, None, X_test_seq, y_test, None, None
 
     X_train_seq = np.array([seq_to_mat(seq) for seq in train_data[seq_label]])
     y_train = train_data["label"].values
@@ -82,15 +82,15 @@ def load_train_validate_test_data(path_to_data, input_len=150, only_test=False, 
     else:
         kf = StratifiedKFold(n_splits=kfold, random_state=42, shuffle=True)
         for train_index, validation_index in kf.split(X_train_seq, y_train):
-            X_train_fold, X_valid_fold = X_train_seq[train_index], X_train_seq[validation_index]
-            y_train_fold, y_valid_fold = y_train[train_index], y_train[validation_index]
+            # X_train_fold, X_valid_fold = X_train_seq[train_index], X_train_seq[validation_index]
+            # y_train_fold, y_valid_fold = y_train[train_index], y_train[validation_index]
 
-            x_train_list.append(X_train_fold)
-            y_train_list.append(y_train_fold)
-            x_validate_list.append(X_valid_fold)
-            y_validate_list.append(y_valid_fold)
+            x_train_list.append(train_index)
+            y_train_list.append(train_index)
+            x_validate_list.append(validation_index)
+            y_validate_list.append(validation_index)
 
-    return x_train_list, y_train_list, x_validate_list, y_validate_list, X_test_seq, y_test
+    return x_train_list, y_train_list, x_validate_list, y_validate_list, X_test_seq, y_test, X_train_seq, y_train
 
 
 ########################
@@ -162,10 +162,15 @@ def seq_to_mat(seq):
     seq = seq.replace('u', '3')
     seq = seq.replace('N', '4')  # some cases have N in sequence
     seq = seq.replace('n', '4')
+    seq = seq.replace('_', '5')
+    seq = seq.replace("M", '5')
     seq_code = np.zeros((4, seq_len), dtype='float16')
 
     for i in range(seq_len):
-        if int(seq[i]) != 4:
+        if int(seq[i]) == 5:
+            continue
+
+        elif int(seq[i]) != 4:
             seq_code[int(seq[i]), i] = 1
 
         else:
@@ -220,10 +225,13 @@ def vecs2dna(seq_vecs):
         temp[np.all(temp == np.array(["0.0", "1.0", "0.0", "0.0"]), axis=2)] = "C"
         temp[np.all(temp == np.array(["0.0", "0.0", "1.0", "0.0"]), axis=2)] = "G"
         temp[np.all(temp == np.array(["0.0", "0.0", "0.0", "1.0"]), axis=2)] = "T"
+        temp[np.all(temp == np.array(["0.0", "0.0", "0.0", "0.0"]), axis=2)] = "_"
         temp[np.all(temp == np.array(["0.25", "0.25", "0.25", "0.25"]), axis=2)] = "N"
         trained_seq.extend(["".join(i) for i in temp[:, :, 0]])
 
+
     return trained_seq
+
 
 
 ###########################################################
@@ -271,7 +279,6 @@ def get_scores(models, x_test, y_test):
     print(f'>Truee accuracy using majority vote: {majority_vote_accuracy}')
     print(f'> AUC: {auc_keras}')
     print(f'> Recall: {recall}')
-
 
 def predict(models, x):
     """
