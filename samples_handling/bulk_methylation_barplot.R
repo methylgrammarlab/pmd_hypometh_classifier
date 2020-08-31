@@ -24,7 +24,8 @@ create.plot <- function(data) {
     theme(
       panel.grid.major.x = element_blank(),
       axis.ticks.x = element_blank(),
-      axis.text.x = element_blank()
+      axis.text.x = element_blank(),
+      text = element_text(size=30)
     ) +
     scale_fill_manual(values = c(YES = "#F380A3", NO = "#6FBE44"), labels = c(YES = "tumor", NO = "normal cell")) +
     ylim(0, 1) +
@@ -32,7 +33,7 @@ create.plot <- function(data) {
     xlab("tumor cells (self sorted)")
   
   # save plot
-  out.path = paste0('bulk', '_cell_methylation_by_', 'subtype','.png')
+  out.path = paste0('my_files\\final_graphs\\bulk', '_cell_methylation_by_', 'subtype','.png')
   ggsave(out.path)
 }
 

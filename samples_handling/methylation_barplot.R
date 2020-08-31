@@ -42,45 +42,46 @@ create.plot <- function(data, patient.name, color.by, my_colour, custom_labels) 
   # create plot
   p <- ggplot(patient, aes(x = reorder(X, mean), y = mean, fill = !!as.symbol(color.by))) +
     geom_bar(stat = 'identity', width = 1) +
-    annotate(
-      "rect",
-      xmin = 0,
-      xmax = (num.tumor / 100) * perc,
-      ymin = 0,
-      ymax = 1,
-      color = 'black',
-      fill = 'grey',
-      alpha = 0.1,
-      size = 1
-    ) +
-    annotate(
-      "text", 
-      x = ((num.tumor / 100) * perc) / 2, 
-      y = 0.97, 
-      label=paste0("low ", perc, "%")
-    ) +
-    annotate(
-      "rect",
-      xmin = num.tumor - (num.tumor / 100) * perc,
-      xmax = num.tumor,
-      ymin = 0,
-      ymax = 1,
-      color = 'black',
-      fill = 'grey',
-      alpha = 0.1,
-      size = 1
-    ) +
-    annotate(
-      "text", 
-      x = (num.tumor - (num.tumor / 100) * perc) + (num.tumor - (num.tumor - (num.tumor / 100) * perc)) / 2, 
-      y = 0.97, 
-      label=paste0("high ", perc, "%")
-    ) +
+    # annotate(
+    #   "rect",
+    #   xmin = 0,
+    #   xmax = (num.tumor / 100) * perc,
+    #   ymin = 0,
+    #   ymax = 1,
+    #   color = 'black',
+    #   fill = 'grey',
+    #   alpha = 0.1,
+    #   size = 1
+    # ) +
+    # annotate(
+    #   "text", 
+    #   x = ((num.tumor / 100) * perc) / 2, 
+    #   y = 0.97, 
+    #   label=paste0("low ", perc, "%")
+    # ) +
+    # annotate(
+    #   "rect",
+    #   xmin = num.tumor - (num.tumor / 100) * perc,
+    #   xmax = num.tumor,
+    #   ymin = 0,
+    #   ymax = 1,
+    #   color = 'black',
+    #   fill = 'grey',
+    #   alpha = 0.1,
+    #   size = 1
+    # ) +
+    # annotate(
+    #   "text", 
+    #   x = (num.tumor - (num.tumor / 100) * perc) + (num.tumor - (num.tumor - (num.tumor / 100) * perc)) / 2, 
+    #   y = 0.97, 
+    #   label=paste0("high ", perc, "%")
+    # ) +
     theme_minimal() +
     theme(
       panel.grid.major.x = element_blank(),
       axis.ticks.x = element_blank(),
-      axis.text.x = element_blank()
+      axis.text.x = element_blank(),
+      text = element_text(size=30)
     ) +
     scale_fill_manual(values = my_colour[[color.by]], labels = custom_labels) +
     ylim(0, 1) +
@@ -89,8 +90,74 @@ create.plot <- function(data, patient.name, color.by, my_colour, custom_labels) 
     ggtitle(patient.name)
   
   # save plot
-  out.path = paste0(patient.name, '_cell_methylation_by_', color.by, '.png')
+  # p
+  out.path = paste0('my_files\\final_graphs\\', patient.name, '_cell_methylation_by_', color.by, '.png')
   ggsave(out.path)
+}
+
+create.SW.plot <- function(data, patient.name) {
+  # organise data
+  melted <- data %>%
+    filter(patient == patient.name) %>%
+    arrange(mean) %>%
+    mutate(mean.order = 1:n()) %>%
+    melt(id.vars = c("X", "lesion", "region", "sublineage", "mean.order"), measure.vars = c("strong", "weak"), value.name = "sw") 
+  
+  nc.min <- min(melted[melted$lesion == "NC", "mean.order"])
+  nc.max <- max(melted$mean.order)
+  
+  # create plot
+  p <- ggplot(melted, aes(x = mean.order, y = sw, color = variable)) +
+    geom_line() +
+    geom_area(aes(fill = variable, group = variable),
+              alpha = 0.3, position = 'identity') +
+    annotate(
+      "rect",
+      xmin = nc.min,
+      xmax = nc.max,
+      ymin = 0,
+      ymax = 1,
+      color = "#6FBE44",
+      fill = "grey",
+      alpha = 0.1,
+      size = 1
+    ) +
+    annotate(
+      "text",
+      x =  nc.min + (nc.max - nc.min) / 2,
+      y = 0.97,
+      label = "NC",
+      # color = "#6FBE44", 
+      size = 5
+    ) +
+    # annotate(
+    #   "label",
+    #   x = nc.min + (nc.max - nc.min) / 2,
+    #   y = 0.9,
+    #   label = "normal cells",
+    #   fill = "#6FBE44"
+    # ) +
+    theme_minimal() +
+    theme(
+      panel.grid.major.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      axis.text.x = element_blank(),
+      text = element_text(size=30),
+      legend.title=element_blank()
+    ) +
+    coord_cartesian(clip = "off") +
+    scale_fill_manual(values = c(strong = "#4872B7", weak = "#8254A2"), labels = c(strong = "SCGS", weak = "WCGW")) +
+    scale_color_manual(values = c(strong = "#4872B7", weak = "#8254A2"), labels = c(strong = "SCGS", weak = "WCGW")) +
+    ylim(0, 1) +
+    ylab("mean methyaltion") +
+    xlab("tumor cells (self sorted)") +
+    ggtitle(patient.name)
+  
+  
+  # save plot
+  # p
+  out.path = paste0('my_files\\final_graphs\\', patient.name, '_strong_weak_cell_methylation', '.png')
+  ggsave(out.path, width = 10)
 }
 
 ####################################################################################################
@@ -116,10 +183,17 @@ my_colour = list(
 custom_labels = c(NC = "NC: Normal Cell", PT = "PT: Primary Tumor", LN = "LN: Lymph Node Metastasis", MO = "MO: Omental Metastasis",
                   ML = "ML: Liver Metastasis", MP = "MP: Post-treatment Liver Metastasis")
 
-methylation.path <- "avg_data_all_mean_coverage.csv"
+methylation.path <- "cluster_avg_data_all_patients_mean_coverage.csv"
 
 data <- read.data(methylation.path)
-create.plot(data, 'CRC13', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC13', 'lesion', my_colour, custom_labels)
+# create.plot(data, 'CRC09', 'sublineage', my_colour, custom_labels)
+# create.plot(data, 'CRC12', 'sublineage', my_colour, custom_labels)
+# create.plot(data, 'CRC14', 'sublineage', my_colour, custom_labels)
+# create.plot(data, 'CRC15', 'sublineage', my_colour, custom_labels)
+
+# create.SW.plot(data, 'CRC01')
 
 
 print('done!')
+

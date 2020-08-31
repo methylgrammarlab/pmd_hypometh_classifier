@@ -46,17 +46,21 @@ combine.mean.df <- function(prone.means.df, resistant.means.df) {
 }
 
 plot.means <- function(means) {
+  means[which(((means$dist > -5) & (means$dist < 5))), "c"] = NaN
   # create plot
   p <- ggplot(means, aes(x = dist, y = c, color = type)) +
     geom_line() +
     theme_minimal() +
-    scale_x_continuous(n.breaks = 20) +
+    theme(text = element_text(size=20)) +
+    scale_x_continuous(
+      breaks = c(-70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70)) +
+    # scale_x_continuous(n.breaks = 20) +
     ylab("mean C attribution score") +
     xlab("distance from CpG site")
 
   # save plot
-  out.path = 'bian_nn_c_attribution.png'
-  ggsave(out.path)
+  out.path = 'zhou_nn_c_attribution.png'
+  ggsave(out.path, width = 8)
 }
 
 plot.all.means <- function(means) {
@@ -80,7 +84,7 @@ plot.all.means <- function(means) {
     xlab("distance from CpG site")
   
   # save plot
-  out.path = 'bian_nn_attribution_free.png'
+  out.path = 'zhou_nn_attribution_free.png'
   ggsave(out.path)
 }
 
@@ -88,17 +92,18 @@ plot.all.means <- function(means) {
 #                                            main                                                  #
 ####################################################################################################
 
-prone.seq.path <- "attribute_data\\bian_prone_seq.csv"
-prone.score.path <- "attribute_data\\bian_prone_gradients.csv"
+prone.seq.path <- "attribute_data\\zhou_prone_seq.csv"
+prone.score.path <- "attribute_data\\zhou_prone_gradients.csv"
 prone.means.df <- create.mean.df(prone.seq.path, prone.score.path)
 
-resistant.seq.path <- "attribute_data\\bian_resistant_seq.csv"
-resistant.score.path <- "attribute_data\\bian_resist_gradients.csv"
+
+resistant.seq.path <- "attribute_data\\zhou_resistant_seq.csv"
+resistant.score.path <- "attribute_data\\zhou_resist_gradients.csv"
 resistant.means.df <- create.mean.df(resistant.seq.path, resistant.score.path)
 
 mean.df <- combine.mean.df(prone.means.df, resistant.means.df)
 
 plot.means(mean.df)
-plot.all.means(mean.df)
+# plot.all.means(mean.df)
 
-mean.df + 3
+
