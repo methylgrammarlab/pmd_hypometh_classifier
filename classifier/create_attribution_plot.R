@@ -46,7 +46,7 @@ combine.mean.df <- function(prone.means.df, resistant.means.df) {
 }
 
 plot.means <- function(means) {
-  means[which(((means$dist > -5) & (means$dist < 5))), "c"] = NaN
+  # means[which(((means$dist > -5) & (means$dist < 5))), "c"] = NaN
   # create plot
   p <- ggplot(means, aes(x = dist, y = c, color = type)) +
     geom_line() +
@@ -59,8 +59,9 @@ plot.means <- function(means) {
     xlab("distance from CpG site")
 
   # save plot
-  out.path = 'zhou_nn_c_attribution.png'
-  ggsave(out.path, width = 8)
+  p
+  # out.path = 'zhou_nn_c_attribution.png'
+  # ggsave(out.path, width = 8)
 }
 
 plot.all.means <- function(means) {

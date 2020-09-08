@@ -85,14 +85,14 @@ create.plot <- function(data, patient.name, color.by, my_colour, custom_labels) 
     ) +
     scale_fill_manual(values = my_colour[[color.by]], labels = custom_labels) +
     ylim(0, 1) +
-    ylab("mean methyaltion") +
+    ylab("mean PMD methyaltion") +
     xlab("tumor cells (self sorted)") +
     ggtitle(patient.name)
   
   # save plot
   # p
   out.path = paste0('my_files\\final_graphs\\', patient.name, '_cell_methylation_by_', color.by, '.png')
-  ggsave(out.path)
+  ggsave(out.path, , width = 12.37, height = 7.5)
 }
 
 create.SW.plot <- function(data, patient.name) {
@@ -149,7 +149,7 @@ create.SW.plot <- function(data, patient.name) {
     scale_fill_manual(values = c(strong = "#4872B7", weak = "#8254A2"), labels = c(strong = "SCGS", weak = "WCGW")) +
     scale_color_manual(values = c(strong = "#4872B7", weak = "#8254A2"), labels = c(strong = "SCGS", weak = "WCGW")) +
     ylim(0, 1) +
-    ylab("mean methyaltion") +
+    ylab("mean PMD methyaltion") +
     xlab("tumor cells (self sorted)") +
     ggtitle(patient.name)
   
@@ -157,7 +157,7 @@ create.SW.plot <- function(data, patient.name) {
   # save plot
   # p
   out.path = paste0('my_files\\final_graphs\\', patient.name, '_strong_weak_cell_methylation', '.png')
-  ggsave(out.path, width = 10)
+  ggsave(out.path, width = 13.33, height = 7.36)
 }
 
 ####################################################################################################
@@ -186,13 +186,18 @@ custom_labels = c(NC = "NC: Normal Cell", PT = "PT: Primary Tumor", LN = "LN: Ly
 methylation.path <- "cluster_avg_data_all_patients_mean_coverage.csv"
 
 data <- read.data(methylation.path)
-create.plot(data, 'CRC13', 'lesion', my_colour, custom_labels)
-# create.plot(data, 'CRC09', 'sublineage', my_colour, custom_labels)
-# create.plot(data, 'CRC12', 'sublineage', my_colour, custom_labels)
-# create.plot(data, 'CRC14', 'sublineage', my_colour, custom_labels)
-# create.plot(data, 'CRC15', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC01', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC02', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC04', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC09', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC10', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC11', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC12', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC13', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC14', 'sublineage', my_colour, custom_labels)
+create.plot(data, 'CRC15', 'sublineage', my_colour, custom_labels)
 
-# create.SW.plot(data, 'CRC01')
+create.SW.plot(data, 'CRC01')
 
 
 print('done!')

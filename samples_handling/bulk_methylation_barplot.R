@@ -29,12 +29,12 @@ create.plot <- function(data) {
     ) +
     scale_fill_manual(values = c(YES = "#F380A3", NO = "#6FBE44"), labels = c(YES = "tumor", NO = "normal cell")) +
     ylim(0, 1) +
-    ylab("mean methyaltion") +
+    ylab("mean PMD methyaltion") +
     xlab("tumor cells (self sorted)")
   
   # save plot
   out.path = paste0('my_files\\final_graphs\\bulk', '_cell_methylation_by_', 'subtype','.png')
-  ggsave(out.path)
+  ggsave(out.path, width = 12.37, height = 7.5)
 }
 
 ####################################################################################################
