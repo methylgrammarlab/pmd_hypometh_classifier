@@ -45,7 +45,7 @@ def get_nc_avg(chromosome, cpg_indexes, nc_meth_files):
     :param nc_meth_files: The nc files path
     :return: The average methylation in those cells
     """
-    nc_file = glob.glob(os.path.join(nc_meth_files, "*chr%s.dummy*" % chromosome))[0] #todo this is wrong
+    nc_file = glob.glob(os.path.join(nc_meth_files, "*chr%s.dummy*" % chromosome))[0]
     df = pd.read_pickle(nc_file)
     mdf = df.mean(axis=1)
     return mdf.loc[cpg_indexes]

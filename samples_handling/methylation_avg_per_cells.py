@@ -65,8 +65,8 @@ def get_patient_df_dict(all_file_paths):
     patient_df_dict = {}
     for file_path in tqdm(all_file_paths):
         patient, chromosome = consts.DATA_FILE_SCWGBS_RE.findall(file_path)[0]
-        if patient not in ["CRC01", "CRC10", "CRC11", "CRC13"]:
-            continue
+        # if patient not in ["CRC01", "CRC10", "CRC11", "CRC13"]:
+        #     continue
         if patient not in patient_df_dict:
             patient_df_dict[patient] = {}
 
@@ -92,7 +92,7 @@ def filter_patient_df_dict(patient_df_dict, boundaries_data, perc_of_cpg_to_remo
     for patient in patient_df_dict:
         for chromosome in patient_df_dict[patient]:
             df = patient_df_dict[patient][chromosome]
-            # filter oyt non-PMDs
+            # filter out non-PMDs
             filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome, add_pmd_index=False,
                                                            pmd_file=consts.PMD_FILE_LOCAL_LIOR)
             # filter based on given boundaries
@@ -179,7 +179,7 @@ def get_patient_cells(cpg75flank, nc_meth, patient, patient_cell_names, patients
     """
     for chromosome in patients_dict[patient]:
         patient_chromosome_df = patients_dict[patient][chromosome]
-        if filter_solo_nc:
+        if filter_solo_nc:  # todo I think this is wrong
             solo_nc_patient_chromosome_df = patient_chromosome_df.loc[:,
                                             patient_chromosome_df.columns & cpg75flank[chromosome] & nc_meth[
                                                 chromosome]]
@@ -325,7 +325,7 @@ def save_to_file(output_folder, all_patients_total_mean, filter_solo_nc):
     :param filter_solo_nc: Boolean indicating if should filter to include only sites that were methylated in the normal
     cells and only solo sites.
     """
-    base_path = os.path.join(output_folder, "avg_data_all_")
+    base_path = os.path.join(output_folder, "new_avg_data_all_")
     if filter_solo_nc:
         base_path = os.path.join(output_folder, "avg_data_all_solo_nc_")
 
@@ -349,3 +349,6 @@ def main():
 if __name__ == '__main__':
     # slurm_tools.init_slurm(main)
     main()
+    # df = pd.read_csv("cluster_avg_data_all_patients_mean_coverage.csv")
+    # df.loc[df.loc[:, "lesion"] == 'NC', "sublineage"] = "NC"
+    # df.to_csv("cluster_avg_data_all_patients_mean_coverage.csv")
