@@ -137,7 +137,7 @@ def save_to_file(output_folder, all_patients_mean):
     Saves both the mean DF and the median df to a pickle and a csv
     """
     print("saving...")
-    path = os.path.join(output_folder, "prone_resistant_avg_meth.csv")
+    path = os.path.join(output_folder, "prone_resistant_avg_meth_coverage.csv")
     all_patients_mean.to_csv(path)
 
 
@@ -147,7 +147,7 @@ def main():
     sublineage = files_tools.load_compressed_pickle(consts.CONVERT_SUBLINEAGE_LIOR_AQUARIUM)
     predictions = pd.read_csv(args.prediction_file, index_col=0)
 
-    all_files = files_tools.get_files_to_work(args.methylation_folder, pattern=os.path.join("CRC09", "*.pkl.zip"))
+    all_files = files_tools.get_files_to_work(args.methylation_folder, pattern=os.path.join("*", "*.pkl.zip"))
     patients_dict = get_patient_df_dict(all_files)
     all_patients_mean = calculate_all_meth_mean_df(patients_dict, predictions, sublineage)
     save_to_file(args.output_folder, all_patients_mean)
