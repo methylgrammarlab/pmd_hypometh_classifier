@@ -60,9 +60,10 @@ def get_sublineage(cell, sublineage_info, patient):
         return "undefined"
 
 
-def add_meta(mean_series, sublineage, patient, hypo):
+def add_meta(mean_series, coverage_series, sublineage, patient, hypo):
     mean_df = pd.DataFrame(index=list(mean_series.index))
     mean_df.loc[:, "mean"] = mean_series
+    mean_df.loc[:, "coverage"] = coverage_series
     mean_df.loc[:, "hypo"] = hypo
     mean_df.loc[:, "patient"] = patient
     mean_df.loc[:, "sublineage"] = mean_df.index
@@ -74,9 +75,9 @@ def calculate_all_meth_mean_df(meth_df_dict, loc_df, sublineage):
     all_patients = []
     for patient in tqdm(meth_df_dict):
         patient_cell_names = get_patient_cells(meth_df_dict[patient])
-        prone_mean, resistant_mean = calculate_patient_meth_mean(meth_df_dict[patient], loc_df, patient_cell_names)
-        prone_mean = add_meta(prone_mean, sublineage, patient, "prone")
-        resistant_mean = add_meta(resistant_mean, sublineage, patient, "resistant")
+        prone_mean, resistant_mean, prone_coverage, resistant_coverage = calculate_patient_meth_mean(meth_df_dict[patient], loc_df, patient_cell_names)
+        prone_mean = add_meta(prone_mean, prone_coverage, sublineage, patient, "prone")
+        resistant_mean = add_meta(resistant_mean, resistant_coverage, sublineage, patient, "resistant")
         all_patients.append(prone_mean)
         all_patients.append(resistant_mean)
     return pd.concat(all_patients)
@@ -102,20 +103,23 @@ def calculate_patient_meth_mean(patient_meth_df_dict, loc_df, patient_cell_names
         chromosome_resistant = subset_df(patient_meth_df_dict, loc_df, chromosome, "resistant")
         patient_prone.append(chromosome_prone)
         patient_resistant.append(chromosome_resistant)
-    prone_mean = calculate_df_list_mean(patient_prone, patient_cell_names)
-    resistant_mean = calculate_df_list_mean(patient_resistant, patient_cell_names)
-    return prone_mean, resistant_mean
+    prone_mean, prone_coverage = calculate_df_list_mean(patient_prone, patient_cell_names)
+    resistant_mean, resistant_coverage = calculate_df_list_mean(patient_resistant, patient_cell_names)
+    return prone_mean, resistant_mean, prone_coverage, resistant_coverage
 
 
 def calculate_df_list_mean(patient_df_list, patient_cell_names):
     sum_methylation_df = pd.DataFrame(index=list(patient_cell_names))
     num_methylation_df = pd.DataFrame(index=list(patient_cell_names))
+    tot_methylation_df = pd.DataFrame(index=list(patient_cell_names))
     for i in range(len(patient_df_list)):
         chromosome_df = patient_df_list[i]
         sum_methylation_df.loc[chromosome_df.index, i] = np.sum(chromosome_df, axis=1)
         num_methylation_df.loc[chromosome_df.index, i] = np.sum(np.isfinite(chromosome_df), axis=1)
+        tot_methylation_df.loc[chromosome_df.index, i] = chromosome_df.shape[1]
     mean_df = np.sum(sum_methylation_df, axis=1) / np.sum(num_methylation_df, axis=1)
-    return mean_df
+    coverage_df = np.sum(num_methylation_df, axis=1) / np.sum(tot_methylation_df, axis=1)
+    return mean_df, coverage_df
 
 
 def subset_df(patient_meth_df_dict, loc_df, chromosome, hypo):
@@ -143,10 +147,11 @@ def main():
     sublineage = files_tools.load_compressed_pickle(consts.CONVERT_SUBLINEAGE_LIOR_AQUARIUM)
     predictions = pd.read_csv(args.prediction_file, index_col=0)
 
-    all_files = files_tools.get_files_to_work(args.methylation_folder, pattern=os.path.join("*", "*.pkl.zip"))
+    all_files = files_tools.get_files_to_work(args.methylation_folder, pattern=os.path.join("CRC09", "*.pkl.zip"))
     patients_dict = get_patient_df_dict(all_files)
     all_patients_mean = calculate_all_meth_mean_df(patients_dict, predictions, sublineage)
     save_to_file(args.output_folder, all_patients_mean)
+
 
 if __name__ == '__main__':
     t0 = time.time()
