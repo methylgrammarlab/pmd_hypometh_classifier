@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import time
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -34,7 +35,8 @@ def parse_input():
     parser.add_argument('--methylation_folder', help='Path to methylation files', required=True)
     parser.add_argument('--windows_file', help='Path to files with windows we want to take', required=True)
     parser.add_argument('--pmd_dicts', help='Path to location with the pre-calculated PMD dicts', required=False)
-    parser.add_argument('--solo_nc_filter', help='filter only solo nc cpg', required=False, type=bool, default=False)
+    parser.add_argument('--filter_nc', help='filter only nc cpg', required=False, type=bool, default=False)
+    parser.add_argument('--filter_solo', help='filter only solo cpg', required=False, type=bool, default=False)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False,
                         default=os.path.dirname(sys.argv[0]))
     args = parser.parse_args()
@@ -93,8 +95,7 @@ def filter_patient_df_dict(patient_df_dict, boundaries_data, perc_of_cpg_to_remo
         for chromosome in patient_df_dict[patient]:
             df = patient_df_dict[patient][chromosome]
             # filter out non-PMDs
-            filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome, add_pmd_index=False,
-                                                           pmd_file=consts.PMD_FILE_LOCAL_LIOR)
+            filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE)
             # filter based on given boundaries
             filtered_df = utils.filter_df_based_on_tuple_list(filtered_df,
                                                               boundaries_data[chromosome[
@@ -106,7 +107,7 @@ def filter_patient_df_dict(patient_df_dict, boundaries_data, perc_of_cpg_to_remo
     return filtered_dict
 
 
-def create_methylation_info_dfs(cpg_context_dict, nc_files, patients_dict, sublineage, filter_solo_nc):
+def create_methylation_info_dfs(cpg_context_dict, nc_files, patients_dict, sublineage, filter_solo, filter_nc):
     """
     Creates df of the mean and median methylation for all patients.
     :param cpg_context_dict: Dictionary, for each chromosome holds a df with context information
@@ -124,11 +125,11 @@ def create_methylation_info_dfs(cpg_context_dict, nc_files, patients_dict, subli
     all_patients_total_mean = []
     for patient in tqdm(patients_dict, desc="get data"):
         patient_cell_names = get_patient_cells(cpg75flank, nc_meth, patient, patient_cell_names, patients_dict,
-                                               filter_solo_nc)
+                                               filter_solo, filter_nc)
 
         pattern_mean_methylation_df_dict, total_mean, strong_mean, weak_mean, cpg_count, general_num_of_cpg = \
             get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients_dict, strong_indices,
-                                     weak_indices)
+                                     weak_indices, cpg75flank, nc_meth, filter_solo, filter_nc)
 
         patient_df_all_mean = create_mean_median_data(patient, sublineage,
                                                       total_mean, strong_mean,
@@ -165,7 +166,7 @@ def find_cpg_indices_for_feature(cpg_context_dict, nc_files):
     return context_info, cpg75flank, nc_meth, strong, weak
 
 
-def get_patient_cells(cpg75flank, nc_meth, patient, patient_cell_names, patients_dict, filter_solo_nc):
+def get_patient_cells(cpg75flank, nc_meth, patient, patient_cell_names, patients_dict, filter_solo, filter_nc):
     """
     Find cell names
     :param cpg75flank: solo indices
@@ -179,13 +180,14 @@ def get_patient_cells(cpg75flank, nc_meth, patient, patient_cell_names, patients
     """
     for chromosome in patients_dict[patient]:
         patient_chromosome_df = patients_dict[patient][chromosome]
-        if filter_solo_nc:  # todo I think this is wrong
-            solo_nc_patient_chromosome_df = patient_chromosome_df.loc[:,
-                                            patient_chromosome_df.columns & cpg75flank[chromosome] & nc_meth[
-                                                chromosome]]
-        else:
-            solo_nc_patient_chromosome_df = patient_chromosome_df.loc[:, patient_chromosome_df.columns]
-        patient_cell_names |= set(solo_nc_patient_chromosome_df.index)
+        filtered_patient_chromosome_df = patient_chromosome_df.loc[:, patient_chromosome_df.columns]
+        if filter_solo:
+            filtered_patient_chromosome_df = filtered_patient_chromosome_df.loc[:,
+                                             filtered_patient_chromosome_df.columns & cpg75flank[chromosome]]
+        if filter_nc:
+            filtered_patient_chromosome_df = filtered_patient_chromosome_df.loc[:,
+                                             filtered_patient_chromosome_df.columns & nc_meth[chromosome]]
+        patient_cell_names |= set(filtered_patient_chromosome_df.index)
     return patient_cell_names
 
 
@@ -202,7 +204,8 @@ def get_all_pattern_cells_from_df(patient_chromosome_df, context_info, pattern):
     return np.mean(patient_chromosome_df.loc[:, patient_chromosome_df.columns & pattern_cells], axis=1)
 
 
-def get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients_dict, strong_indices, weak_indices):
+def get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients_dict, strong_indices, weak_indices,
+                             cpg75flank, nc_meth, filter_solo, filter_nc):
     """
     Calculate the mean methylation for every cell based on all CpGs fitting different features
     :param context_info: Df holding context information
@@ -225,12 +228,19 @@ def get_mean_methylation_dfs(context_info, patient, patient_cell_names, patients
 
     pattern_mean_methylation_df_dict = {}
 
-    general_num_of_cpg = 0
-
     for pattern in PATTERNS_TO_CALC:
         pattern_mean_methylation_df_dict[pattern] = pd.DataFrame(index=list(patient_cell_names))
+
+    general_num_of_cpg = 0
+
     for chromosome in tqdm(patients_dict[patient], desc="chromosome data calc %s" % patient):
         patient_chromosome_df = patients_dict[patient][chromosome].astype(np.float64)
+        if filter_solo:
+            patient_chromosome_df = patient_chromosome_df.loc[:,
+                                    patient_chromosome_df.columns & cpg75flank[chromosome]]
+        if filter_nc:
+            patient_chromosome_df = patient_chromosome_df.loc[:,
+                                    patient_chromosome_df.columns & nc_meth[chromosome]]
 
         sum_methylation_df.loc[patient_chromosome_df.index, chromosome] = np.sum(patient_chromosome_df, axis=1)
         num_methylation_df.loc[patient_chromosome_df.index, chromosome] = np.sum(np.isfinite(patient_chromosome_df),
@@ -270,6 +280,8 @@ def get_sublineage(cell, sublineage_info, patient):
     try:
         return sublineage_info[patient + '_' + cell]
     except:
+        if cell.startswith("NC"):
+            return "NC"
         return "undefined"
 
 
@@ -316,7 +328,7 @@ def create_mean_median_data(patient, sublineage, total_mean, strong_mean, weak_m
     return patient_df_all_mean
 
 
-def save_to_file(output_folder, all_patients_total_mean, filter_solo_nc):
+def save_to_file(output_folder, all_patients_total_mean, filter_solo, filter_nc):
     """
     Saves both the mean DF and the median df to a pickle and a csv
     :param output_folder:
@@ -325,10 +337,12 @@ def save_to_file(output_folder, all_patients_total_mean, filter_solo_nc):
     :param filter_solo_nc: Boolean indicating if should filter to include only sites that were methylated in the normal
     cells and only solo sites.
     """
-    base_path = os.path.join(output_folder, "new_avg_data_all_")
-    if filter_solo_nc:
-        base_path = os.path.join(output_folder, "avg_data_all_solo_nc_")
-
+    print("saving...")
+    base_path = os.path.join(output_folder, "avg_data_all_")
+    if filter_solo:
+        base_path += "solo_"
+    if filter_nc:
+        base_path += "NC_"
     all_patients_total_mean_df = pd.concat(all_patients_total_mean).dropna(subset=['mean'])
 
     all_patients_total_mean_df.to_csv(base_path + "mean_coverage.csv")
@@ -337,18 +351,18 @@ def save_to_file(output_folder, all_patients_total_mean, filter_solo_nc):
 def main():
     args = parse_input()
 
-    sublineage = files_tools.load_compressed_pickle(consts.CONVERT_SUBLINEAGE_LIOR)
-    cpg_context_dict = files_tools.get_cpg_context_map(load_with_path=consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI_LIOR)
+    sublineage = files_tools.load_compressed_pickle(consts.CONVERT_SUBLINEAGE_LIOR_AQUARIUM)
+    cpg_context_dict = files_tools.get_cpg_context_map(load_with_path=consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI)
 
     patients_dict = get_filtered_patient_df_dict(args.methylation_folder, args.windows_file)
-    all_patients_total_mean = create_methylation_info_dfs(cpg_context_dict, consts.NC_LIOR, patients_dict, sublineage,
-                                                          args.solo_nc_filter)
-    save_to_file(args.output_folder, all_patients_total_mean, args.solo_nc_filter)
+    all_patients_total_mean = create_methylation_info_dfs(cpg_context_dict, consts.NC_FILES, patients_dict, sublineage,
+                                                          args.filter_solo, args.filter_nc)
+    save_to_file(args.output_folder, all_patients_total_mean, args.filter_solo, args.filter_nc)
 
 
 if __name__ == '__main__':
     # slurm_tools.init_slurm(main)
+    t0 = time.time()
     main()
-    # df = pd.read_csv("cluster_avg_data_all_patients_mean_coverage.csv")
-    # df.loc[df.loc[:, "lesion"] == 'NC', "sublineage"] = "NC"
-    # df.to_csv("cluster_avg_data_all_patients_mean_coverage.csv")
+    t1 = time.time()
+    print("total time:", t1 - t0)
