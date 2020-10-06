@@ -75,7 +75,8 @@ def calculate_all_meth_mean_df(meth_df_dict, loc_df, sublineage):
     all_patients = []
     for patient in tqdm(meth_df_dict):
         patient_cell_names = get_patient_cells(meth_df_dict[patient])
-        prone_mean, resistant_mean, prone_coverage, resistant_coverage = calculate_patient_meth_mean(meth_df_dict[patient], loc_df, patient_cell_names)
+        prone_mean, resistant_mean, prone_coverage, resistant_coverage = calculate_patient_meth_mean(
+            meth_df_dict[patient], loc_df, patient_cell_names)
         prone_mean = add_meta(prone_mean, prone_coverage, sublineage, patient, "prone")
         resistant_mean = add_meta(resistant_mean, resistant_coverage, sublineage, patient, "resistant")
         all_patients.append(prone_mean)
