@@ -42,20 +42,21 @@ create.plot <- function(data, patient.name, color.by, my_colours) {
 
   # create plot
   p <- ggplot(patient, aes(x = resistant, y = prone, color = !!as.symbol(color.by))) +
-    geom_point() +
+    geom_point(size = 5) +
     theme_minimal() +
     theme(text = element_text(size=30)) +
     scale_color_manual(values = my_colour[[color.by]]) +
     guides(colour = guide_legend(override.aes = list(size=6))) + 
-    xlim(0, 1) + 
+    xlim(0, 1) +
     ylim(0, 1) +
     xlab("mean PMD methylation (resistant)") +
     ylab("mean PMD methylation (prone)") +
-    ggtitle(patient.name)
+    ggtitle(paste(patient.name))
   
   # save plot
   p
-  out.path = paste0('prone_resistant_plots\\', patient.name, '_prone_resistant_meth_test.png')
+  out.path = paste0('orig_meth_above_0.5\\graphs\\prone_resistant_plots\\', patient.name, '_prone_resistant_meth_mean.png')
+  # out.path = paste0('C:\\Users\\liorf\\OneDrive\\Documents\\University\\year 3\\Project\\proj_scwgbs\\for_slides\\pdfs\\fig_5\\', patient.name, '_prone_resistant_meth_mean.pdf')
   ggsave(out.path, width = 12.37, height = 7.5)
 }
 
@@ -83,19 +84,27 @@ my_colour = list(
 custom_labels = c(NC = "NC: Normal Cell", PT = "PT: Primary Tumor", LN = "LN: Lymph Node Metastasis", MO = "MO: Omental Metastasis",
                   ML = "ML: Liver Metastasis", MP = "MP: Post-treatment Liver Metastasis")
 
-methylation.path <- "prone_resistant_plots\\prone_resistant_avg_meth_test_only.csv"
+methylation.path <- "orig_meth_above_0.5\\prone_resistant_avg_meth_coverage.csv"
 
 data <- read.data(methylation.path)
 create.plot(data, 'CRC01', 'sublineage', my_colour)
-# create.plot(data, 'CRC02', 'sublineage', my_colour)
-# create.plot(data, 'CRC04', 'sublineage', my_colour)
-# create.plot(data, 'CRC09', 'sublineage', my_colour)
-# create.plot(data, 'CRC10', 'sublineage', my_colour)
-# create.plot(data, 'CRC11', 'sublineage', my_colour)
-# create.plot(data, 'CRC12', 'sublineage', my_colour)
-# create.plot(data, 'CRC13', 'sublineage', my_colour)
-# create.plot(data, 'CRC14', 'sublineage', my_colour)
-# create.plot(data, 'CRC15', 'sublineage', my_colour)
+create.plot(data, 'CRC02', 'sublineage', my_colour)
+create.plot(data, 'CRC04', 'sublineage', my_colour)
+create.plot(data, 'CRC09', 'sublineage', my_colour)
+create.plot(data, 'CRC10', 'sublineage', my_colour)
+create.plot(data, 'CRC11', 'sublineage', my_colour)
+create.plot(data, 'CRC12', 'sublineage', my_colour)
+create.plot(data, 'CRC13', 'sublineage', my_colour)
+create.plot(data, 'CRC14', 'sublineage', my_colour)
+create.plot(data, 'CRC15', 'sublineage', my_colour)
+
+p <- data %>%
+  filter(sublineage == "NC") %>%
+  ggplot(aes(x = mean, y = coverage, color = patient, shape = hypo)) +
+  geom_point(size = 2)
+ggsave("orig_meth_above_0.5\\graphs\\prone_resistant_plots\\NC_coverage.pdf", plot = p, width = 12.37, height = 7.5)
+ggsave("C:\\Users\\liorf\\OneDrive\\Documents\\University\\year 3\\Project\\proj_scwgbs\\for_slides\\pdfs\\NC_coverage.pdf", plot = p, width = 12.37, height = 7.5)
+
 
 
 print('done!')

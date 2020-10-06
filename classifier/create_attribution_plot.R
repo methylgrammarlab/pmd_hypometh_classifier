@@ -21,9 +21,15 @@ calculate.means <- function(seqs, scores, nuc) {
   return(means)
 }
 
-create.mean.df <- function(seq.path, score.path) {
+create.mean.df <- function(dataset, hypo, medians) {
+  base.path <- "orig_meth_above_0.5\\gradients\\"
+  seq.path <- paste0(base.path, dataset, "_", hypo, "_seq.csv")
+  score.path <- paste0(base.path, dataset, "_", hypo, "_gradients.csv")
   seqs <- read.csv(seq.path, header = FALSE)
   scores <- read.csv(score.path, header = FALSE)
+  df.median <- medians[dataset, hypo]
+  scores <- replace(scores, which(scores <= df.median, arr.ind = TRUE), 0)
+  scores <- replace(scores, which(scores > df.median, arr.ind = TRUE), 1)
   df <-
     data.frame(
       a = calculate.means(seqs, scores, 1),
@@ -45,23 +51,24 @@ combine.mean.df <- function(prone.means.df, resistant.means.df) {
   return(means.df)
 }
 
-plot.means <- function(means) {
-  # means[which(((means$dist > -5) & (means$dist < 5))), "c"] = NaN
+plot.means <- function(means, dataset) {
+  means[which(((means$dist > -5) & (means$dist < 5))), c("a", "c", "g", "t")] = NaN
   # create plot
   p <- ggplot(means, aes(x = dist, y = c, color = type)) +
     geom_line() +
     theme_minimal() +
-    theme(text = element_text(size=20)) +
+    theme(text = element_text(size=30)) +
     scale_x_continuous(
-      breaks = c(-70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70)) +
-    # scale_x_continuous(n.breaks = 20) +
+      breaks = c(-70, -50, -30, -10, 10, 30, 50, 70)) +
     ylab("mean C attribution score") +
     xlab("distance from CpG site")
 
   # save plot
-  p
-  # out.path = 'zhou_nn_c_attribution.png'
-  # ggsave(out.path, width = 8)
+  # p
+  out.path = paste0("orig_meth_above_0.5\\graphs\\", dataset, '_nn_c_attribution.png')
+  out.path = paste0("C:\\Users\\liorf\\OneDrive\\Documents\\University\\year 3\\Project\\proj_scwgbs\\for_slides\\pdfs\\attribution_plots\\", dataset, '_nn_c_attribution.pdf')
+  ggsave(out.path, width = 12.05, height = 8)
+  
 }
 
 plot.all.means <- function(means) {
@@ -85,26 +92,27 @@ plot.all.means <- function(means) {
     xlab("distance from CpG site")
   
   # save plot
-  out.path = 'zhou_nn_attribution_free.png'
-  ggsave(out.path)
+  p
+  # out.path = 'zhou_nn_attribution_free.png'
+  # ggsave(out.path)
 }
 
 ####################################################################################################
 #                                            main                                                  #
 ####################################################################################################
 
-prone.seq.path <- "attribute_data\\zhou_prone_seq.csv"
-prone.score.path <- "attribute_data\\zhou_prone_gradients.csv"
-prone.means.df <- create.mean.df(prone.seq.path, prone.score.path)
+medians <-
+  data.frame(prone = c(zhou = 0.006320351, bian = 0.0062969915),
+             resistant = c(zhou = 0.0007945345, bian = 0.001437973))
 
+dataset <- "bian"
 
-resistant.seq.path <- "attribute_data\\zhou_resistant_seq.csv"
-resistant.score.path <- "attribute_data\\zhou_resist_gradients.csv"
-resistant.means.df <- create.mean.df(resistant.seq.path, resistant.score.path)
+prone.means.df <- create.mean.df(dataset, "prone", medians)
+
+resistant.means.df <- create.mean.df(dataset, "resistant", medians)
 
 mean.df <- combine.mean.df(prone.means.df, resistant.means.df)
 
-plot.means(mean.df)
+plot.means(mean.df, dataset)
 # plot.all.means(mean.df)
-
 

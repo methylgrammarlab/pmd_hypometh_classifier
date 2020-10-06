@@ -34,6 +34,7 @@ create.plot <- function(data) {
   
   # save plot
   out.path = paste0('my_files\\final_graphs\\bulk', '_cell_methylation_by_', 'subtype','.png')
+  # out.path = paste0('C:\\Users\\liorf\\OneDrive\\Documents\\University\\year 3\\Project\\proj_scwgbs\\for_slides\\pdfs\\fig_1B\\bulk', '_cell_methylation_by_', 'subtype','.pdf')
   ggsave(out.path, width = 12.37, height = 7.5)
 }
 
