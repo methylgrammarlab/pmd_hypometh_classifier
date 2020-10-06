@@ -50,6 +50,24 @@ def print_statistics(train, test):
           % (total_size, train_size, train_size / total_size * 100,
              test_size, test_size / total_size * 100))
 
+    solo_wcgw = np.logical_and(train["ccpg"] == 1, train["seq4"].str.contains("[AT]CG[AT]", regex=True))
+    train["solo-WCGW"] = solo_wcgw
+
+    solo_wcgw = np.logical_and(test["ccpg"] == 1, test["seq4"].str.contains("[AT]CG[AT]", regex=True))
+    test["solo-WCGW"] = solo_wcgw
+
+    print("%%CpG1-WCGW train prone: %s, resistant: %s" %
+          (np.sum(np.logical_and(train["solo-WCGW"], train["label"])) / np.sum(train["label"] == 1) * 100,
+           np.sum(np.logical_and(train["solo-WCGW"], train["label"] == 0)) / np.sum(
+               train["label"] == 0) * 100)
+          )
+    print("%%CpG1-WCGW test prone: %s, resistant: %s" %
+          (np.sum(np.logical_and(test["solo-WCGW"], test["label"])) / np.sum(test["label"] == 1) * 100,
+           np.sum(np.logical_and(test["solo-WCGW"], test["label"] == 0)) / np.sum(test["label"] == 0) * 100)
+          )
+
+
+
 def double_with_reverse_strand(df):
     """
     Double the data by adding the reverse strand
@@ -325,6 +343,7 @@ def create_dataset():
     args = parse_input()
     parse_format = args.parse_format
 
+    print("load files")
     # Read and add features
     if parse_format == consts.SCWGBS:
         df = pd.read_csv(args.input_file)
@@ -334,17 +353,20 @@ def create_dataset():
     # We start with solo which are methylated in NC
     df["ccpg"] = df["sequence"].str.count("CG")
     if parse_format == consts.SCWGBS:
-        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth_avg"] >= 0.7)]
+        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth_avg"] > 0.5)]
         df = label_single_cell_based_on_meth_var_flat(df)
         train, test = split_single_cell_dataset(df)
 
     elif parse_format == consts.SCWGBS_CRC01:
-        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth_avg"] >= 0.7)]
+        print("first filter")
+        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth_avg"] > 0.5)]
+        print("add labels")
         df = label_single_cell_based_on_meth_crc01(df)
+        print("split")
         train, test = split_bulk_dataset(df)
 
     else:
-        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth"] >= 0.7)]
+        df = df[np.logical_and(df["ccpg"] < 4, df["orig_meth"] > 0.5)]
         df = label_bulk_based_on_meth_covariance_flat(df)
         train, test = split_bulk_dataset(df)
 

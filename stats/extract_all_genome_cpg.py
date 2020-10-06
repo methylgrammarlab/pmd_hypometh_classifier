@@ -22,7 +22,8 @@ def extract_location_sequence(output_folder):
     :return:
     """
     context_map = files_tools.get_cpg_context_map(
-        load_with_path=consts.CONTEXT_MAP_FILTERED_NO_BL_CPGI_DROR, only_locations=True)
+        load_with_path=consts. / vol / sci / bio / data / benjamin.berman / bermanb / projects / genomic - data - misc / cgcontext / cgcontext.hg19,
+        only_locations=True)
 
     for chromosome in context_map:
         sequences = sequence_tools.get_sequences_for_cpgs(indexes_list=context_map[chromosome],

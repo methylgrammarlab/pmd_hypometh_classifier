@@ -129,8 +129,8 @@ def main():
         chromosome_df = chromosome_df.set_index("location")
         chromosome_df["pmd_index"] = handle_pmds.get_pmd_index(chromosome_df, chromosome)
         chromosome_df["meth"] = df.mean()
-        chromosome_df["var"] = df.var()
-        chromosome_df["pearson_corr"] = df.corrwith(pmd_sample_mean)
+        # chromosome_df["var"] = df.var()
+        # chromosome_df["pearson_corr"] = df.corrwith(pmd_sample_mean)
         covariance = [df.iloc[:, i].cov(pmd_sample_mean) for i in range(df.shape[1])]
         chromosome_df["covariance"] = covariance
         chromosome_df["orig_meth"] = orig_meth_values[chromosome_df.index]
@@ -138,7 +138,8 @@ def main():
         chromosomes_list.append(chromosome_df.reset_index())
 
     all_chromosome_df = pd.concat(chromosomes_list)
-    all_chromosome_df.to_pickle(os.path.join(args.output_folder, "valid_cpg_zhou.pkl"))
+    # all_chromosome_df.to_pickle(os.path.join(args.output_folder, "valid_cpg_zhou.pkl"))
+    all_chromosome_df.to_pickle(os.path.join(args.output_folder, "valid_cpg_zhou_only_nc.pkl"))
 
 
 if __name__ == '__main__':
