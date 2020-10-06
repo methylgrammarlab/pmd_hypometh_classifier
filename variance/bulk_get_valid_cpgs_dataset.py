@@ -52,9 +52,9 @@ def get_pmd_df(chromosome_file):
     chromosome = consts.CHR_FULL_NAME_RE.findall(os.path.basename(chromosome_file))[0]
     df = pd.read_pickle(chromosome_file)
 
-    filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE_LOCAL_DROR)
+    filtered_df = handle_pmds.filtered_out_non_pmd(df, chromosome, pmd_file=consts.PMD_FILE_LOCAL_LIOR)
     filtered_df["pmd_index"] = handle_pmds.get_pmd_index(filtered_df, chromosome,
-                                                         pmd_file=consts.PMD_FILE_LOCAL_DROR)
+                                                         pmd_file=consts.PMD_FILE_LOCAL_LIOR)
     return chromosome, filtered_df
 
 
@@ -71,15 +71,17 @@ def get_cpgs_orig_methylated(df, cells_to_use):
     return mean_values
 
 
-def get_cells_to_calculate_original_meth(file_path):
+def get_cells_to_calculate_original_meth(file_path, cells_info_data=None):
     """
     Get a list of cells to define the original methylation level of each cpg
     The file format can change but in our file is csv with cell name called "sample" and a column
     "nc_cells" with 0 or 1 if we need to use this cell to calculate the original methylation
     :param file_path: The path for the file
+    :param cells_info_data The open file
     :return: A list of cells to use to calculate the original methylation.
     """
-    cells_info_data = pd.read_csv(file_path)
+    if cells_info_data is None:
+        cells_info_data = pd.read_csv(file_path)
     nc_cells = list(cells_info_data[cells_info_data["nc_cells"] == 1]["sample"])
     return [i.strip() for i in nc_cells]
 
