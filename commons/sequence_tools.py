@@ -10,9 +10,9 @@ SEQ_SIZE = 150
 try:
     import pyfaidx
 
-    genome = pyfaidx.Fasta(filename=consts.GENOME_FILE_LOCAL_DROR, sequence_always_upper=True, as_raw=True)
+    genome = pyfaidx.Fasta(filename=consts.GENOME_FILE, sequence_always_upper=True, as_raw=True)
 except ImportError:
-    print("Error: no pyfaidx install, somme code might fail")
+    print("Error: no pyfaidx installed, some code might fail")
 
 
 def get_reverse_seq(sequences):

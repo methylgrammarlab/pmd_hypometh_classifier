@@ -12,23 +12,11 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 sys.path.append(os.path.dirname(os.getcwd()))
 sys.path.append(os.getcwd())
-from format_files import handle_pmds
 from commons import files_tools
-from format_files import format_cpg_context_map
 import commons.consts as consts
-from commons import utils
 from variance import bulk_get_valid_cpgs_dataset
 
 SOLO = 0
-
-# PATTERNS_TO_CALC = ["ACGAA", "ACGAT", "ACGTA", "ACGTT", "AACGA", "ATCGA", "TACGA", "TTCGA"]
-# PATTERNS_TO_CALC = ['AACGAA', 'AACGAT', 'AACGTA', 'AACGTT', 'ATCGAA', 'ATCGAT', 'ATCGTA', 'ATCGTT', 'TACGAA', 'TACGAT',
-#                     'TACGTA', 'TACGTT', 'TTCGAA', 'TTCGAT', 'TTCGTA', 'TTCGTT']  # WWCGWW
-# PATTERNS_TO_CALC = ['ACGA', 'ACGC', 'ACGG', 'ACGT',
-#                     'CCGA', 'CCGC', 'CCGG', 'CCGT',
-#                     'GCGA', 'GCGC', 'GCGG', 'GCGT',
-#                     'TCGA', 'TCGC', 'TCGG', 'TCGT']  # [SW]CG[SW]
-PATTERNS_TO_CALC = []
 
 
 def parse_input():
@@ -77,6 +65,7 @@ def main():
         base_path += "NC_"
 
     combined.to_csv(base_path + "mean_coverage.csv")
+
 
 if __name__ == '__main__':
     # slurm_tools.init_slurm(main)
