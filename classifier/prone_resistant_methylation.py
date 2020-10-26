@@ -20,8 +20,11 @@ def parse_input():
     parser = argparse.ArgumentParser()
     parser.add_argument('--methylation_folder', help='Path to methylation files', required=True)
     parser.add_argument('--prediction_file', help='Path to prediction file', required=True)
+    parser.add_argument('--data_type', help='single cell or bulk', required=False)
     parser.add_argument('--output_folder', help='Path of the output folder', required=False,
                         default=os.path.dirname(sys.argv[0]))
+    parser.add_argument('--orig_meth_cells', help='path for the file with original methylation cell information ',
+                        required=False)
     args = parser.parse_args()
     return args
 
@@ -66,8 +69,11 @@ def add_meta(mean_series, coverage_series, sublineage, patient, hypo):
     mean_df.loc[:, "coverage"] = coverage_series
     mean_df.loc[:, "hypo"] = hypo
     mean_df.loc[:, "patient"] = patient
-    mean_df.loc[:, "sublineage"] = mean_df.index
-    mean_df.loc[:, "sublineage"] = mean_df.loc[:, 'sublineage'].apply(get_sublineage, args=(sublineage, patient))
+    if patient == 'zhou':
+        mean_df.loc[:, "sublineage"] = sublineage.set_index("sample").loc[:, "nc_cells"]
+    else:
+        mean_df.loc[:, "sublineage"] = mean_df.index
+        mean_df.loc[:, "sublineage"] = mean_df.loc[:, 'sublineage'].apply(get_sublineage, args=(sublineage, patient))
     return mean_df
 
 
@@ -93,7 +99,7 @@ def get_patient_cells(patient_meth_df_dict):
     for chromosome in patient_meth_df_dict:
         patient_chromosome_df = patient_meth_df_dict[chromosome]
         patient_cell_names |= set(patient_chromosome_df.index)
-    return patient_cell_names
+    return list(patient_cell_names)
 
 
 def calculate_patient_meth_mean(patient_meth_df_dict, loc_df, patient_cell_names):
@@ -110,9 +116,9 @@ def calculate_patient_meth_mean(patient_meth_df_dict, loc_df, patient_cell_names
 
 
 def calculate_df_list_mean(patient_df_list, patient_cell_names):
-    sum_methylation_df = pd.DataFrame(index=list(patient_cell_names))
-    num_methylation_df = pd.DataFrame(index=list(patient_cell_names))
-    tot_methylation_df = pd.DataFrame(index=list(patient_cell_names))
+    sum_methylation_df = pd.DataFrame(index=patient_cell_names)
+    num_methylation_df = pd.DataFrame(index=patient_cell_names)
+    tot_methylation_df = pd.DataFrame(index=patient_cell_names)
     for i in range(len(patient_df_list)):
         chromosome_df = patient_df_list[i]
         sum_methylation_df.loc[chromosome_df.index, i] = np.sum(chromosome_df, axis=1)
@@ -138,12 +144,15 @@ def save_to_file(output_folder, all_patients_mean):
     Saves both the mean DF and the median df to a pickle and a csv
     """
     print("saving...")
-    path = os.path.join(output_folder, "prone_resistant_avg_meth_coverage.csv")
+    path = os.path.join(output_folder, "prone_resistant_avg_meth_coverage_bulk.csv")
     all_patients_mean.to_csv(path)
 
 
 def main():
     args = parse_input()
+
+    if args.data_type == 'bulk':
+        bulk_main(args)
 
     sublineage = files_tools.load_compressed_pickle(consts.CONVERT_SUBLINEAGE_LIOR_AQUARIUM)
     predictions = pd.read_csv(args.prediction_file, index_col=0)
@@ -152,6 +161,45 @@ def main():
     patients_dict = get_patient_df_dict(all_files)
     all_patients_mean = calculate_all_meth_mean_df(patients_dict, predictions, sublineage)
     save_to_file(args.output_folder, all_patients_mean)
+
+
+def bulk_main(args):
+
+    cells_info_data = pd.read_csv(args.orig_meth_cells)
+    predictions = pd.read_csv(args.prediction_file, index_col=0)
+
+    all_files = files_tools.get_files_to_work(args.methylation_folder, consts.BULK_FILE_FORMAT % "*")
+    patients_dict = bulk_get_df_dict(all_files)
+    all_patients_mean = bulk_calculate_all_meth_mean_df(patients_dict, predictions, cells_info_data)
+    save_to_file(args.output_folder, all_patients_mean)
+
+
+def bulk_get_df_dict(all_file_paths):
+    """
+    Loads all the methylation DF and returns them as a dictionary
+    :param all_file_paths: List of all the methylation files
+    :return: A dictionary were the keys are the patient and the values a dictionary of chromosome and the methylation df
+    """
+    df_dict = {}
+    for file_path in tqdm(all_file_paths):
+        chromosome = consts.DATA_FILE_BULK_RE.findall(file_path)[0]
+
+        df = pd.read_pickle(file_path)
+
+        df_dict[chromosome] = df
+
+    return df_dict
+
+
+def bulk_calculate_all_meth_mean_df(meth_df_dict, loc_df, cells_info):
+    all_patients = []
+    prone_mean, resistant_mean, prone_coverage, resistant_coverage = calculate_patient_meth_mean(
+        meth_df_dict, loc_df, None)
+    prone_mean = add_meta(prone_mean, prone_coverage, cells_info, 'zhou', "prone")
+    resistant_mean = add_meta(resistant_mean, resistant_coverage, cells_info, 'zhou', "resistant")
+    all_patients.append(prone_mean)
+    all_patients.append(resistant_mean)
+    return pd.concat(all_patients)
 
 
 if __name__ == '__main__':
