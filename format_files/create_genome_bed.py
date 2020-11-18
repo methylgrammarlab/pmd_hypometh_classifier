@@ -59,7 +59,7 @@ def combine_df(df_list):
 def save_to_file(patient, all_patient_chr, out_path):
     filename = "filtered_cpg_ratios_%s_hg19.bedgraph.gz"
     path = os.path.join(out_path, filename % patient)
-    all_patient_chr.to_csv(path, compression='gzip')
+    all_patient_chr.to_csv(path, compression='gzip', sep='\t', index=False)
 
 
 def create_bed(patients_dict, passed_QC, out_path):
