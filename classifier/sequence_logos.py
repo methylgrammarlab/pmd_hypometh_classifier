@@ -1,5 +1,3 @@
-# TODO: lior, is this ours or adapted from deepripe and do we need it?
-
 import argparse
 
 import logomaker as lm

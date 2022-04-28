@@ -1,5 +1,3 @@
-# TODO: lior I have no idea what is happening here
-
 import argparse
 import copy
 import glob

@@ -1,4 +1,3 @@
-# Todo: lior what is this?
 #!/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
 import glob
 import os

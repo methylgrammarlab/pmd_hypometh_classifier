@@ -1,4 +1,4 @@
-# TODO:lior
+# TODO: document
 # !/cs/usr/liorf/PycharmProjects/proj_scwgbs/venv/bin python
 import argparse
 import glob
